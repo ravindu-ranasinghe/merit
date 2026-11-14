@@ -69,6 +69,11 @@ which sets an httpOnly `merit_session` cookie; every API call sends it with
 Set `NEXT_PUBLIC_MOCK=0` in `.env.local`, start the backend on port 4000 and run
 `npm run dev` on port 3000 (the backend's CORS allows only that origin).
 
+For Vercel, set `NEXT_PUBLIC_BACKEND_URL=/api/merit` and
+`MERIT_API_ORIGIN=https://<backend-vercel-domain>` on the web project. The rewrite
+in `next.config.ts` keeps API requests and the GitHub OAuth callback on the web
+origin. See `backend/README.md` for the backend database, secrets, and webhook setup.
+
 Fields the backend does not store are placeholders in live mode: pull request titles
 ("Pull request #n"), other people's logins ("user <id>") and review comment text.
 The new-bounty page lists open pull requests from GitHub's public API, so it only works

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { buildApp } from "../src/app.js";
+import { buildApp } from "../src/fastify-app.js";
 import { createDb } from "../src/db/index.js";
 import { DEMO, seed } from "../src/db/seed.js";
 import { loadEnv } from "../src/env.js";

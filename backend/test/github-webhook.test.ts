@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { pull_requests, review_candidates } from "../src/db/schema.js";
+import { pull_requests, repositories, review_candidates } from "../src/db/schema.js";
 import { ghHeaders, setup, type Harness } from "./helpers.js";
 
 const fx = (n: string) => readFileSync(new URL(`./fixtures/${n}.json`, import.meta.url), "utf8");
@@ -48,6 +48,20 @@ describe("POST /webhooks/github", () => {
   it("returns 403 for a repository that is not registered", async () => {
     const body = fx("pr_synchronize").replace('"id": 900001', '"id": 424242');
     expect((await post(body, "pull_request", "d6")).statusCode).toBe(403);
+  });
+
+  it("registers a repository from a signed GitHub App installation", async () => {
+    const body = JSON.stringify({
+      action: "created", installation: { id: 88 }, sender: { id: 4444 },
+      repositories: [{ id: 424242, full_name: "octocat/review-repo" }],
+    });
+    expect((await post(body, "installation", "install-1")).json()).toEqual({ ok: true, registered: 1 });
+    const rows = await h.db.select().from(repositories);
+    expect(rows.find((r) => r.github_repo_id === 424242)).toMatchObject({
+      installation_id: 88, name: "octocat/review-repo", maintainer_github_id: 4444,
+    });
+    const me = await h.app.inject({ method: "GET", url: "/me", headers: h.cookie(4444) });
+    expect(me.json().maintains).toContainEqual({ github_repo_id: 424242, name: "octocat/review-repo" });
   });
 
   it("ignores events it does not handle", async () => {

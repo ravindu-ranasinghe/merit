@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, lt, notInArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { refreshBounty } from "../bounty.js";
-import { claimId, encodeApproveReward, encodeCreateBounty } from "../chain/escrow.js";
+import { claimId, encodeApproveReward, encodeCreateBounty, prHash } from "../chain/escrow.js";
 import { HttpError, type Ctx } from "../ctx.js";
 import { isUniqueViolation } from "../db/index.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
@@ -70,9 +70,21 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     if (b.expiry * 1000 <= Date.now()) throw new HttpError(400, "expiry must be in the future");
     const [repo] = await ctx.db.select().from(repositories).where(eq(repositories.github_repo_id, b.github_repo_id));
     if (!repo) throw new HttpError(404, "repository not registered");
-    const [pr] = await ctx.db.select().from(pull_requests).where(and(eq(pull_requests.repo_id, repo.id), eq(pull_requests.github_pr_number, b.pr_number)));
-    if (!pr) throw new HttpError(404, "pull request not found");
     await requireMaintainer(ctx, s, repo);
+    let [pr] = await ctx.db.select().from(pull_requests).where(and(eq(pull_requests.repo_id, repo.id), eq(pull_requests.github_pr_number, b.pr_number)));
+    if (!pr) {
+      // A PR opened before installation has no webhook row. Fetch it through the
+      // installation-scoped GitHub client before creating its first bounty.
+      const fromGitHub = await ctx.gh.getPullRequest(repo.installation_id, repo.name, b.pr_number);
+      if (!fromGitHub || fromGitHub.status !== "open") throw new HttpError(404, "open pull request not found");
+      await ctx.db.insert(pull_requests).values({
+        repo_id: repo.id, github_pr_number: fromGitHub.number, head_sha: fromGitHub.headSha,
+        status: fromGitHub.status, author_github_id: fromGitHub.authorId,
+        pr_hash: prHash(repo.github_repo_id, fromGitHub.number),
+      }).onConflictDoNothing();
+      [pr] = await ctx.db.select().from(pull_requests).where(and(eq(pull_requests.repo_id, repo.id), eq(pull_requests.github_pr_number, b.pr_number)));
+    }
+    if (!pr) throw new HttpError(404, "pull request not found");
     const live = await ctx.db.select({ id: bounties.id }).from(bounties).where(and(eq(bounties.pr_id, pr.id), notInArray(bounties.status, ["expired", "refunded"])));
     if (live.length) throw new HttpError(409, "a live bounty already exists for this pull request");
     const [row] = await ctx.db.insert(bounties).values({ pr_id: pr.id, amount_units: b.amount_units, deadline: new Date(b.expiry * 1000), status: "funding_pending" }).returning();

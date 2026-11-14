@@ -14,6 +14,14 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Serve API requests through the web origin so GitHub OAuth and session
+  // cookies work in browsers that block third-party cookies.
+  async rewrites() {
+    const apiOrigin = process.env.MERIT_API_ORIGIN?.replace(/\/$/, "");
+    return apiOrigin
+      ? [{ source: "/api/merit/:path*", destination: `${apiOrigin}/:path*` }]
+      : [];
+  },
 };
 
 export default nextConfig;

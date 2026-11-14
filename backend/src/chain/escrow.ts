@@ -4,12 +4,12 @@
 // client or signer anywhere in this codebase. It only encodes calldata for the maintainer's own
 // wallet to sign (approveReward can only be sent by the bounty's funder wallet on-chain).
 // Do not add a signer here.
-import { readFileSync } from "node:fs";
 import { decodeEventLog, encodeAbiParameters, encodeFunctionData, keccak256, parseAbi, type Abi, type Hex } from "viem";
+import abi from "./escrow-abi.json" with { type: "json" };
 
-// Engineer A's published ABI (docs/escrow-abi.json), read from the repo so it can never drift from a copy.
-// src/chain and dist/chain are both three levels below the repo root (Docker copies docs/ alongside backend/).
-export const escrowAbi = JSON.parse(readFileSync(new URL("../../../docs/escrow-abi.json", import.meta.url), "utf8")) as Abi;
+// Synced from docs/escrow-abi.json by `npm run sync-abi` so the Vercel backend
+// bundle contains the ABI without reading outside its project root at runtime.
+export const escrowAbi = abi as Abi;
 const erc20Abi = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
 
 const pair = [{ type: "uint256" }, { type: "uint256" }] as const;

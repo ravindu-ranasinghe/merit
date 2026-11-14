@@ -154,6 +154,14 @@ describe("maintainer actions", () => {
     expect((await create(req())).statusCode).toBe(409); // one live bounty per PR
   });
 
+  it("loads an existing open PR from GitHub when no webhook has seen it yet", async () => {
+    h.gh.pullRequests.set(`${DEMO.name}#2`, { number: 2, headSha: "existing-head", status: "open", authorId: DEMO.authorId });
+    const r = await create(req({ pr_number: 2 }));
+    expect(r.statusCode).toBe(201);
+    const pr = (await h.db.select().from(pull_requests)).find((row) => row.github_pr_number === 2);
+    expect(pr).toMatchObject({ head_sha: "existing-head", author_github_id: DEMO.authorId, pr_hash: prHash(DEMO.repoId, 2) });
+  });
+
   it("rejects non-maintainers, bad amounts, past expiry and unknown PRs", async () => {
     expect((await create(req(), DEMO.reviewerId)).statusCode).toBe(403);
     expect((await create(req({ amount_units: "1.5" }))).statusCode).toBe(400);
