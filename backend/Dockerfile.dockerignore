@@ -1,0 +1,10 @@
+# BuildKit reads this (next to the Dockerfile) instead of a root .dockerignore: send only what the image needs.
+*
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json
+!backend/tsconfig.build.json
+!backend/drizzle.config.ts
+!backend/src
+!backend/drizzle
+!docs/escrow-abi.json

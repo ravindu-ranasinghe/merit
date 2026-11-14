@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: merit
+      POSTGRES_PASSWORD: merit
+      POSTGRES_DB: merit
+    ports:
+      - "5433:5432" # host 5433 so a local Postgres on 5432 does not clash
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U merit -d merit"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://merit:merit@db:5432/merit
+      PORT: "4000"
+      NODE_ENV: development # production refuses to boot without SESSION_SECRET and QN_SECURITY_TOKEN; set those in .env to switch
+      # No GitHub creds here: the api boots in loud mock mode. Put real values in a .env file
+      # and add `env_file: .env` to enable the GitHub App.
+    ports:
+      - "4000:4000"
