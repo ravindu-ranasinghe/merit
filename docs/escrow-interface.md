@@ -9,8 +9,8 @@ Source: [`contracts/src/BountyEscrow.sol`](../contracts/src/BountyEscrow.sol).
 | RPC | `https://rpc.testnet.arc.io` |
 | Explorer | `https://explorer.testnet.arc.io` |
 | USDC | `0x3600000000000000000000000000000000000000` (6 decimals) |
-| **BountyEscrow address** | **not deployed yet** — this line is updated in the deploy PR |
-| Deploy block | — (Streams filter start block) |
+| **BountyEscrow address** | [`0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727`](https://explorer.testnet.arc.io/address/0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727) (verified) |
+| Deploy block | `72270484` (Streams filter start block) — deploy tx [`0x8f46e0…5bfb`](https://explorer.testnet.arc.io/tx/0x8f46e02893a7589cb1df377dae636fa2fce687657b0fe200ef0a23eca26f5bfb) |
 
 The frozen surface in `SPEC.md` is implemented **unchanged**: same four functions, same
 argument order, same four events.
@@ -136,3 +136,18 @@ The brief allows "the funder, **or** a maintainer wallet registered at funding t
 This contract implements **funder-only** to keep the frozen `createBounty` signature unchanged:
 the maintainer funds and approves from the same wallet. If the team needs a separate maintainer
 wallet, that is an added `createBounty` argument — a SPEC change, and A will PR it.
+
+## Nov 14 exit test: live run on Arc testnet
+
+Bounty `1`, $10 (`10000000`), funder `0x9795dAbD74F724c22C8293123b9E266E3b15f177`, reviewer `0xa0b88b1d6eBe6bfFf650fED161758dA3f68Df80b`.
+Test values: `prHash = keccak256(abi.encode(1, 1))`, `claimId = keccak256(abi.encode(1))`.
+
+| Step | Tx | Result |
+|---|---|---|
+| USDC `approve` | [`0xfbe73b…d55e`](https://explorer.testnet.arc.io/tx/0xfbe73ba24e607a347522f9ec918b61c8cd6167d35f2cc7bd6f979a4a8e2dd55e) | success |
+| `createBounty` (fund) | [`0x59fa40…f9b6`](https://explorer.testnet.arc.io/tx/0x59fa40381cd95aa77caa83de46c298acde94d7e231f3aaa07bd00ff27cf2f9b6) | escrow holds `10000000` |
+| `approveReward` | [`0xadab84…d099`](https://explorer.testnet.arc.io/tx/0xadab846496b360617692031c3200cfc868b4b875829d2f505ea517591cb1d099) | success |
+| `claim` | [`0xe81915…264c`](https://explorer.testnet.arc.io/tx/0xe819158f5a094fadd580847f173c660c76f62a32684e539f8f794f1d262e264c) | reviewer +`10000000` (less gas), escrow `0` |
+| duplicate `claim` | [`0x1a5c9c…69dc`](https://explorer.testnet.arc.io/tx/0x1a5c9cf6c3871a167fa2c666ba8fe28bf0946d4abdacb9583c167a94989069dc) | **reverted onchain: `AlreadyClaimed(1)`** |
+
+A missing allowance was checked with `eth_call` against the deployed escrow, before funding and again after the claim (allowance `0` both times): `createBounty` reverts with `ERC20: transfer amount exceeds allowance`.

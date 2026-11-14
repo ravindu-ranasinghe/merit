@@ -1,0 +1,173 @@
+"use client";
+
+import { useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { PERSONAS, type PersonaKey } from "@/fixtures/seed";
+import { useWallet } from "@/lib/chain/hooks";
+import { MOCK } from "@/lib/env";
+import { shortHash } from "@/lib/format";
+import { useViewer } from "@/lib/viewer";
+import { resetDb, setPersonaKey } from "@/mock/store";
+import { IconGithub, IconRefresh, IconWallet } from "./icons";
+import { Avatar, Button, cx } from "./ui";
+
+const NAV = [
+  { href: "/maintainer", label: "Maintainer" },
+  { href: "/reviewer", label: "Reviewer" },
+  { href: "/events", label: "Event feed" },
+];
+
+export function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-2 text-[16px] font-semibold tracking-[-0.03em]">
+      <span className="flex size-7 items-center justify-center rounded-[9px] bg-ink text-white">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M4 18V7l8 7 8-7v11" />
+        </svg>
+      </span>
+      Merit
+    </Link>
+  );
+}
+
+export function AppHeader() {
+  const pathname = usePathname();
+  const viewer = useViewer();
+  const wallet = useWallet();
+
+  return (
+    <div className="sticky top-0 z-30">
+      {MOCK && <MockBar />}
+      <header className="border-b border-line/70 bg-bg/85 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
+          <Logo />
+          <nav aria-label="Main" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+            {NAV.map((n) => {
+              const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
+              return (
+                <Link
+                  key={n.href}
+                  href={n.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cx(
+                    "whitespace-nowrap rounded-[9px] px-2.5 py-1.5 text-[13.5px] font-medium transition-colors",
+                    active ? "bg-tray text-ink" : "text-mut hover:text-ink",
+                  )}
+                >
+                  {n.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="flex shrink-0 items-center gap-2">
+            {/* The wallet is a detail, not the front door: a quiet chip, only once connected. */}
+            {wallet.connected && wallet.address && (
+              <span
+                title={`Connected wallet ${wallet.address}`}
+                className="hidden items-center gap-1.5 rounded-full bg-tray px-2.5 py-1 font-mono text-[11.5px] text-ink-2 md:inline-flex"
+              >
+                <IconWallet size={13} />
+                {shortHash(wallet.address, 6, 4)}
+              </span>
+            )}
+            {viewer.user ? (
+              <span className="flex items-center gap-2 text-[13px] font-medium">
+                <Avatar user={viewer.user} size={26} />
+                <span className="hidden sm:inline">{viewer.user.login}</span>
+                {!MOCK && (
+                  <button onClick={viewer.signOut} className="rounded-md px-1.5 py-1 text-[12.5px] text-mut hover:text-ink">
+                    Sign out
+                  </button>
+                )}
+              </span>
+            ) : (
+              <Button variant="primary" className="h-9 px-3" onClick={viewer.signIn} loading={viewer.loading}>
+                <IconGithub size={15} />
+                Sign in
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+/** Mock mode only: says plainly that this is sample data, and switches the signed-in persona. */
+function MockBar() {
+  const { persona } = useViewer();
+  const qc = useQueryClient();
+  const keys = Object.keys(PERSONAS) as PersonaKey[];
+  const index = Math.max(0, keys.indexOf(persona ?? "maintainer"));
+
+  const pick = (key: PersonaKey) => {
+    setPersonaKey(key);
+    void qc.invalidateQueries();
+  };
+
+  return (
+    <div className="bg-dark text-white">
+      <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-1.5 sm:px-6">
+        <p className="text-[12px] text-[#b9b9c0]">
+          <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 font-semibold text-white">Mock mode</span>
+          Sample data. No real GitHub, backend or transactions.
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden text-[12px] text-[#9a9aa2] sm:inline">Viewing as</span>
+          <div role="radiogroup" aria-label="Sample persona" className="relative grid h-7 grid-cols-4 rounded-[9px] bg-white/10 p-0.5">
+            <span
+              aria-hidden
+              className="absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%-4px)/4)] rounded-[7px] bg-white transition-transform duration-500 ease-spring"
+              style={{ transform: `translateX(${index * 100}%)` }}
+            />
+            {keys.map((k) => (
+              <button
+                key={k}
+                role="radio"
+                aria-checked={k === persona}
+                title={`${PERSONAS[k].user.login}: ${PERSONAS[k].blurb}`}
+                onClick={() => pick(k)}
+                className={cx(
+                  "relative z-10 whitespace-nowrap px-2 text-[11.5px] font-semibold transition-colors duration-300 sm:px-2.5",
+                  k === persona ? "text-ink" : "text-[#c9c9cf] hover:text-white",
+                )}
+              >
+                {PERSONAS[k].label}
+              </button>
+            ))}
+          </div>
+          <button
+            title="Reset sample data"
+            aria-label="Reset sample data"
+            onClick={() => {
+              resetDb();
+              void qc.invalidateQueries();
+            }}
+            className="rounded-md p-1 text-[#b9b9c0] hover:bg-white/10 hover:text-white"
+          >
+            <IconRefresh size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AppFooter() {
+  return (
+    <footer className="border-t border-line/70">
+      <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[12.5px] text-mut sm:px-6">
+        <p>
+          Testnet prototype. Rewards are testnet USDC on Arc and have no monetary value.
+        </p>
+        <nav aria-label="Footer" className="flex gap-4">
+          <Link href="/#trust" className="hover:text-ink">How trust works</Link>
+          <Link href="/states" className="hover:text-ink">All states</Link>
+          <Link href="/events" className="hover:text-ink">Event feed</Link>
+        </nav>
+      </div>
+    </footer>
+  );
+}
