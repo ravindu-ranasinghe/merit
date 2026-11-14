@@ -1,0 +1,51 @@
+# contracts — BountyEscrow (Engineer A)
+
+USDC escrow for ReviewBounty on **Arc testnet** (chain `5042002`). Testnet USDC only.
+
+Interface for teammates (functions, events, topics, errors, units): [`../docs/escrow-interface.md`](../docs/escrow-interface.md).
+ABI: [`../docs/escrow-abi.json`](../docs/escrow-abi.json).
+
+| | |
+|---|---|
+| BountyEscrow | **not deployed yet** |
+| USDC | `0x3600000000000000000000000000000000000000` |
+| Explorer | https://explorer.testnet.arc.io |
+
+## Commands
+
+Requires [Foundry](https://getfoundry.sh) (`brew install foundry` or `foundryup`). After cloning:
+`git submodule update --init --recursive`.
+
+```sh
+make build      # forge build
+make test       # 32 tests incl. fuzz (1000 runs each) and reentrancy
+make coverage   # escrow coverage: 100% lines / statements / branches / functions
+make abi        # regenerate ../docs/escrow-abi.json
+
+cp .env.example .env   # set DEPLOYER_PRIVATE_KEY (testnet-only key, funded at https://faucet.circle.com)
+make deploy-arc        # deploy + verify on the Arc explorer (Blockscout)
+make verify-arc        # retry verification only (needs ESCROW_ADDRESS)
+```
+
+## How it works
+
+1. **Fund** — maintainer approves USDC and calls `createBounty(prHash, amount, expiry)`. Money is locked.
+2. **Approve** — after the backend surfaces GitHub evidence, the maintainer signs
+   `approveReward(bountyId, reviewer, amount, claimId)` from the funding wallet.
+3. **Claim** — the reviewer calls `claim(bountyId)` and receives the USDC. Exactly once.
+4. **Refund** — after `expiry`, anyone may call `refundExpired(bountyId)`; the unapproved
+   remainder returns to the funder. Approved funds stay claimable.
+
+## Trust model, plainly
+
+- **Nobody but the funder can direct the money.** No owner, no admin, no pause, no upgrade.
+  The backend holds no key; it only prepares the approval the maintainer signs.
+- Money leaves the contract only as (a) a claim by the one approved reviewer, up to the
+  funded amount, once, or (b) an expired refund of the unapproved remainder to the original funder.
+- The funder cannot approve themselves as recipient. A bounty pays at most one reviewer, once.
+  A `claimId` can be used once across all bounties.
+- **Limitation:** the contract does not judge review quality. A maintainer can approve a
+  low-quality review, and collusion between PR author, reviewer and maintainer is possible.
+  Blockchain does not solve subjective review assessment. Checks like "no payout to the PR
+  author" are GitHub-side and live in the backend, not here.
+- Expiry needs a transaction: the contract cannot act on a clock.
