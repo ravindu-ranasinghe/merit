@@ -89,6 +89,12 @@ body {
   background: #cdebd5;
 }
 
+/* The rule above the current "How it works" step filling up. */
+@keyframes step-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 /* Stagger helper: children rise in order. Set --i on each child. */
 .stagger > * {
   animation: rise 0.4s var(--ease-soft) both;

@@ -1,13 +1,7 @@
 import { HeroPreview } from "@/components/hero-preview";
+import { HowItWorks } from "@/components/how-it-works";
 import { IconArrowRight, IconGithub, IconLock, IconStream } from "@/components/icons";
 import { LinkButton, Tray } from "@/components/ui";
-
-const STEPS = [
-  ["A maintainer locks a reward", "They pick a pull request and put $5 to $10 of testnet USDC into escrow. It is locked before anyone reviews."],
-  ["A reviewer leaves feedback", "On GitHub, as usual. No wallet is needed to review."],
-  ["The author fixes it", "Merit notices a later commit touching the commented code and a resolved thread, and flags the review as a candidate."],
-  ["The maintainer verifies and approves", "They read the evidence and sign the approval themselves. The reviewer claims the reward, once."],
-];
 
 const SOURCES = [
   { icon: IconGithub, name: "GitHub", role: "is the source of truth for reviews", body: "Comments, commits, resolved threads and who has maintainer permission all come from GitHub." },
@@ -94,15 +88,7 @@ export default function LandingPage() {
       {/* How it works */}
       <Tray as="section">
         <h2 className="text-[20px] font-medium tracking-[-0.02em]">How it works</h2>
-        <ol className="mt-5 grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map(([title, body], i) => (
-            <li key={title} className="border-t border-ink/25 pt-3">
-              <span className="font-mono text-[12px] text-mut">0{i + 1}</span>
-              <p className="mt-2 text-[14px] font-medium">{title}</p>
-              <p className="mt-1 text-[13px] text-mut">{body}</p>
-            </li>
-          ))}
-        </ol>
+        <HowItWorks />
         <p className="mt-4 text-[13px] text-mut">
           You do not need to read blockchain documentation to use Merit. Transaction links are there when you want proof.
         </p>
