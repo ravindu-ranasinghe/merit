@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same branch so auto-merge isn't waiting on stale jobs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - name: forge build
+        working-directory: contracts
+        run: forge build --sizes
+      - name: forge test
+        working-directory: contracts
+        run: forge test -vvv
+      - name: ABI matches the committed contract
+        working-directory: contracts
+        # Same command teammates use to regenerate it; fails the PR if docs/escrow-abi.json drifted.
+        run: |
+          make abi
+          git diff --exit-code -- ../docs/escrow-abi.json || { echo "docs/escrow-abi.json is stale: run make -C contracts abi"; exit 1; }
+
+  # backend/ and web/ land on main in later PRs; until then their jobs skip (a skipped job satisfies a required check).
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.d.outputs.backend }}
+      web: ${{ steps.d.outputs.web }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: d
+        run: for d in backend web; do echo "$d=$(test -f $d/package-lock.json && echo true || echo false)" >> "$GITHUB_OUTPUT"; done
+
+  backend:
+    name: backend
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: merit
+          POSTGRES_PASSWORD: merit
+          POSTGRES_DB: merit
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # test/global-setup.ts creates merit_test and runs the drizzle migrations itself.
+      TEST_DATABASE_URL: postgres://merit:merit@localhost:5433/merit_test
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - name: typecheck
+        working-directory: backend
+        run: npm run typecheck
+      - name: test
+        working-directory: backend
+        run: npm test
+
+  web:
+    name: web
+    needs: detect
+    if: needs.detect.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_MOCK: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - name: lint
+        working-directory: web
+        run: npm run lint
+      - name: typecheck
+        working-directory: web
+        run: npx tsc --noEmit
+      - name: build
+        working-directory: web
+        run: npm run build
+
+  secrets:
+    name: no secrets committed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: reject committed .env files and private keys
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production)$'; then
+            echo "A .env file is tracked by git. Remove it and fix .gitignore."
+            exit 1
+          fi
+          # 64-hex private keys and 0x-prefixed variants, anywhere in tracked files.
+          if git grep -nIE '(^|[^0-9a-fA-FxX])(0x)?[0-9a-fA-F]{64}([^0-9a-fA-F]|$)' -- \
+               ':!*.lock' ':!docs/escrow-abi.json' ':!docs/escrow-interface.md'':!**/package-lock.json' \
+               ':!contracts/lib' ':!**/*.test.ts' ':!**/fixtures/**'; then
+            echo "Possible private key or raw 32-byte secret in a tracked file. Review the matches above."
+            exit 1
+          fi
