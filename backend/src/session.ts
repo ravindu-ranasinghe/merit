@@ -7,10 +7,21 @@ import { pull_requests, repositories } from "./db/schema.js";
 export interface Session { id: number; login: string }
 const COOKIE = "merit_session";
 
-export function setSession(reply: FastifyReply, s: Session) {
-  reply.setCookie(COOKIE, JSON.stringify(s), { signed: true, httpOnly: true, sameSite: "lax", path: "/", maxAge: 7 * 86400 });
+/**
+ * An https web app is on another host than the api, so its fetches are cross-site and the
+ * cookies must be SameSite=None; Secure. On http://localhost that pair is refused, so dev stays Lax.
+ * None drops the browser's CSRF protection: the Origin check in app.ts replaces it.
+ */
+export function cookieOpts(webOrigin: string) {
+  const crossSite = webOrigin.startsWith("https://");
+  return { signed: true, httpOnly: true, path: "/", sameSite: crossSite ? "none" : "lax", secure: crossSite } as const;
 }
-export const clearSession = (reply: FastifyReply) => reply.clearCookie(COOKIE, { path: "/" });
+
+export function setSession(reply: FastifyReply, s: Session, webOrigin: string) {
+  reply.setCookie(COOKIE, JSON.stringify(s), { ...cookieOpts(webOrigin), maxAge: 7 * 86400 });
+}
+// Same attributes as when set, or the browser ignores the clearing Set-Cookie.
+export const clearSession = (reply: FastifyReply, webOrigin: string) => reply.clearCookie(COOKIE, cookieOpts(webOrigin));
 
 /** Signed httpOnly cookie only. The browser never supplies an identity or a role. */
 export function requireSession(req: FastifyRequest): Session {

@@ -15,6 +15,8 @@ This is the contract for the web app. Breaking changes are announced to C the sa
   403 (not allowed), 404, 409 (conflict, e.g. duplicate), 5xx.
 - **Auth**: an httpOnly signed cookie `merit_session`, set by the OAuth callback. Call with
   `fetch(url, { credentials: "include" })`. CORS allows only `WEB_ORIGIN` with credentials.
+  When `WEB_ORIGIN` is https the cookies are `SameSite=None; Secure` (web and API on different hosts), otherwise `Lax`.
+  A non-GET request carrying an `Origin` other than `WEB_ORIGIN` gets 403.
   The browser never asserts a role: maintainer rights are re-checked against GitHub on every write.
 - **Money state is chain-confirmed.** `funded`, `claimable`, `paid`, `refunded` come only from QuickNode Streams
   events. The backend never sends a transaction; routes marked "prepares a tx" return calldata that the user's
