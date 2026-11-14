@@ -13,8 +13,18 @@ ABI: [`../docs/escrow-abi.json`](../docs/escrow-abi.json).
 
 ## Commands
 
-Requires [Foundry](https://getfoundry.sh) (`brew install foundry` or `foundryup`). After cloning:
-`git submodule update --init --recursive`.
+Requires [Foundry](https://getfoundry.sh) (`brew install foundry` or `foundryup`).
+
+`contracts/lib/forge-std` and `contracts/lib/openzeppelin-contracts` are git submodules. Without
+them `forge build` fails with missing-import errors.
+
+```sh
+git clone --recurse-submodules https://github.com/ravindu-ranasinghe/merit.git   # fresh clone
+git submodule update --init --recursive                                         # existing clone, or after switching branches
+```
+
+**Worktrees:** submodules are checked out per worktree. After `git worktree add`, run
+`git submodule update --init --recursive` inside the new worktree too.
 
 ```sh
 make build      # forge build

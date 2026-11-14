@@ -49,8 +49,11 @@ still claim their `4000000`.
 - Caller must first `approve` the escrow for ≥ `amount` USDC. Pulls exactly `amount`.
 - `expiry`: unix seconds, must be `> block.timestamp`. Bounty is *expired* once `block.timestamp >= expiry`.
 - `bountyId` starts at `1` and increments. Read it from the `BountyFunded` event / tx receipt.
-- Reverts: `ZeroPrHash`, `ZeroAmount`, `ExpiryNotInFuture(expiry)`, and the token's
-  `ERC20InsufficientAllowance` / `ERC20InsufficientBalance` if not approved / not funded.
+- Reverts: `ZeroPrHash`, `ZeroAmount`, `ExpiryNotInFuture(expiry)`, or the USDC token's own
+  revert when the allowance or balance is short. **On Arc this is a plain `Error(string)`, not a
+  custom error.** Verified with `eth_call` against the live Arc USDC: a missing allowance gives
+  `"ERC20: transfer amount exceeds allowance"`. Decode it as a revert reason string. (The test
+  mock uses OpenZeppelin v5's `ERC20InsufficientAllowance`, so don't match on that in app code.)
 
 ### `approveReward(uint256 bountyId, address recipient, uint256 amount, bytes32 claimId)`
 - **Only the funder** may call. The backend prepares these four arguments; the maintainer signs.
