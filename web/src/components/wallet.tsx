@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { useLinkWallet, useWalletLink } from "@/lib/api/queries";
 import { describeChainError } from "@/lib/chain/errors";
-import { useSignMessage, useWallet } from "@/lib/chain/hooks";
+import { useNeedsGas, useSignMessage, useWallet } from "@/lib/chain/hooks";
 import { formatDate } from "@/lib/format";
-import { IconCheckDraw, IconWallet } from "./icons";
-import { AddressLink, Button, Notice } from "./ui";
+import { IconCheckDraw, IconExternal, IconWallet } from "./icons";
+import { AddressLink, Button, LinkButton, Notice } from "./ui";
 
 /**
  * Wraps an action that needs a wallet on Arc testnet. Until one is connected it shows a
@@ -37,6 +37,36 @@ export function WalletGate({ reason, children }: { reason: string; children: Rea
     );
   }
   return <>{children}</>;
+}
+
+/**
+ * A step, not an error: Arc charges gas in USDC, so a wallet with none cannot send a claim.
+ * Renders nothing unless the balance is known to be zero, and goes away once USDC arrives.
+ */
+export function GasStep({ address, className }: { address: string | null | undefined; className?: string }) {
+  const needsGas = useNeedsGas(address as `0x${string}` | null | undefined);
+  const [copied, setCopied] = useState(false);
+  if (!needsGas || !address) return null;
+  return (
+    <Notice tone="progress" className={className} title="Next step: get a little testnet USDC for gas">
+      <p>
+        You&apos;ll need a small amount of USDC to cover gas — Arc charges gas in USDC. Get testnet USDC from the
+        Circle faucet: choose Arc Testnet and paste your address.
+      </p>
+      <p className="mt-2 break-all font-mono text-[12px] text-ink">{address}</p>
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {/* The faucet has no address parameter, so the address is copied for pasting there. */}
+        <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(address).then(() => setCopied(true))}>
+          {copied ? "Address copied" : "Copy address"}
+        </Button>
+        <LinkButton href="https://faucet.circle.com/" external variant="accent">
+          Open the Circle faucet
+          <IconExternal size={13} />
+        </LinkButton>
+      </div>
+      <p className="mt-2 text-[12px] text-mut">This step clears by itself once the USDC arrives.</p>
+    </Notice>
+  );
 }
 
 /**
@@ -82,6 +112,7 @@ export function WalletLinkCard() {
             Change
           </button>
         </div>
+        <GasStep address={link.data.walletAddress} className="mt-3" />
       </div>
     );
   }

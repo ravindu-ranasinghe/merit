@@ -4,13 +4,13 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useReportFundingTx } from "@/lib/api/queries";
 import type { Bounty } from "@/lib/api/types";
-import { useClaim, useFundBounty, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
+import { useClaim, useFundBounty, useNeedsGas, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
 import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 import { IconCheck, IconCheckDraw, IconExternal, IconGithub, IconLock } from "./icons";
 import { ChainErrorView, TxProgress } from "./tx";
 import { AddressLink, BlockLink, Button, cx, LinkButton, Money, Notice, Spinner, TxLink, UserChip } from "./ui";
-import { WalletGate } from "./wallet";
+import { GasStep, WalletGate } from "./wallet";
 
 function Heading({ children }: { children: ReactNode }) {
   return <h2 className="text-[17px] font-semibold tracking-tight">{children}</h2>;
@@ -121,6 +121,7 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
   const wallet = useWallet();
   const claim = useClaim();
   const approval = bounty.approval;
+  const needsGas = useNeedsGas(approval?.approvedRecipient);
   if (!approval || !bounty.onchainBountyId) return null;
   const onchainId = bounty.onchainBountyId;
   const mismatch = wallet.address && wallet.address.toLowerCase() !== approval.approvedRecipient.toLowerCase();
@@ -143,12 +144,14 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
           Switch your wallet to the linked address. The contract only pays the approved recipient.
         </Notice>
       )}
+      <GasStep address={approval.approvedRecipient} className="mt-3" />
       <div className="mt-4 space-y-3">
         {claim.phase !== "done" && (
           <WalletGate reason="Connect your linked payout wallet to claim.">
             <Button
               variant="accent"
               loading={claim.busy}
+              disabled={needsGas}
               onClick={async () => {
                 if (await claim.run(onchainId)) onSent();
               }}

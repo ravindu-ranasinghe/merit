@@ -21,6 +21,8 @@ export interface TxResult {
 export interface ChainDriver {
   /** Current USDC allowance from `owner` to the escrow contract. */
   allowance(owner: Address): Promise<bigint>;
+  /** USDC balance of `owner`. Arc charges gas in USDC, so zero means the wallet cannot send anything. */
+  usdcBalance(owner: Address): Promise<bigint>;
   /** USDC.approve(escrow, amount). Resolves once the transaction is confirmed. */
   approveUsdc(amount: bigint, onSubmitted?: (hash: Hex) => void): Promise<TxResult>;
   /** Sends an escrow transaction. Resolves once confirmed; rejects with a ChainError. */
