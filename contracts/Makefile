@@ -17,7 +17,7 @@ coverage:
 
 # Deploy + verify on Arc testnet (Blockscout verifier). Needs ARC_RPC_URL and DEPLOYER_PRIVATE_KEY in .env.
 deploy-arc:
-	forge script script/Deploy.s.sol:Deploy --rpc-url $(ARC_RPC_URL) --private-key $(DEPLOYER_PRIVATE_KEY) \
+	forge script script/Deploy.s.sol:Deploy --rpc-url $(ARC_RPC_URL) --private-key "$$DEPLOYER_PRIVATE_KEY" \
 		--broadcast --verify --verifier blockscout --verifier-url $(ARC_EXPLORER)/api/
 
 # Re-run verification alone if the deploy's verify step failed. Needs ESCROW_ADDRESS.
