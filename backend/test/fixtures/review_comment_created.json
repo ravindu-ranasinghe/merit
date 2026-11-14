@@ -1,0 +1,10 @@
+{
+  "action": "created",
+  "comment": {
+    "id": 5550001, "user": { "id": 3003, "login": "reviewer", "type": "User" },
+    "path": "src/app.ts", "diff_hunk": "@@ -10,6 +10,7 @@ function f() {\n   const x = 1;\n+  return x;",
+    "commit_id": "headsha1", "original_commit_id": "headsha1", "line": 12, "original_line": 12, "in_reply_to_id": null
+  },
+  "pull_request": { "number": 1, "state": "open", "merged": false, "user": { "id": 2002, "login": "author", "type": "User" }, "head": { "sha": "headsha1" } },
+  "repository": { "id": 900001, "full_name": "merit-demo/demo-repo" }
+}

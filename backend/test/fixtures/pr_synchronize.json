@@ -1,0 +1,7 @@
+{
+  "action": "synchronize",
+  "number": 1,
+  "pull_request": { "number": 1, "state": "open", "merged": false, "user": { "id": 2002, "login": "author", "type": "User" }, "head": { "sha": "headsha2" } },
+  "repository": { "id": 900001, "full_name": "merit-demo/demo-repo" },
+  "installation": { "id": 1 }
+}
