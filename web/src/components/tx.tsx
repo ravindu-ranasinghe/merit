@@ -29,9 +29,9 @@ export function TxProgress({
   if (phase === "idle") return null;
   if (phase === "error" && error) return <ChainErrorView error={error} />;
   return (
-    <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-tint px-3.5 py-3 text-[13px] text-accent-ink">
+    <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-tint px-4 py-3 text-[13px] text-accent-ink">
       {phase === "done" ? <IconCheck size={15} /> : <Spinner />}
-      <span className="font-semibold">
+      <span className="font-medium">
         {phase === "wallet" && "Confirm in your wallet"}
         {phase === "confirming" && "Sent. Waiting for the network"}
         {phase === "done" && "Transaction confirmed"}

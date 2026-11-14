@@ -23,7 +23,7 @@ export function StatusPill({ status }: { status: BountyStatus }) {
 
 const CURRENT: Record<Tone, string> = {
   neutral: "bg-ink text-white",
-  progress: "bg-accent text-white animate-pulse-ring",
+  progress: "bg-ink text-white",
   good: "bg-good text-white",
   warning: "bg-[#b7791f] text-white",
   critical: "bg-crit text-white",
@@ -31,7 +31,7 @@ const CURRENT: Record<Tone, string> = {
 
 const CURRENT_TEXT: Record<Tone, string> = {
   neutral: "text-ink",
-  progress: "text-accent-ink",
+  progress: "text-ink",
   good: "text-good",
   warning: "text-warn",
   critical: "text-crit",
@@ -39,7 +39,7 @@ const CURRENT_TEXT: Record<Tone, string> = {
 
 function Node({ step, index }: { step: RailStep; index: number }) {
   const meta = STATUS_META[step.status];
-  const base = "relative z-10 flex size-7 items-center justify-center rounded-full text-[11.5px] font-semibold transition-[background-color,transform] duration-500 ease-spring";
+  const base = "relative z-10 flex size-7 items-center justify-center rounded-full text-[12px] font-medium transition-colors duration-150 ease-soft";
   if (step.state === "done") {
     return (
       <span className={cx(base, "bg-ink text-white")}>
@@ -49,12 +49,12 @@ function Node({ step, index }: { step: RailStep; index: number }) {
   }
   if (step.state === "current") {
     return (
-      <span className={cx(base, "scale-110", CURRENT[meta.tone])}>
+      <span className={cx(base, "ring-4 ring-ink/10", CURRENT[meta.tone])}>
         {step.status === "expired" ? <IconClock size={14} /> : step.status === "rejected" ? <IconX size={14} /> : meta.tone === "good" || step.status === "refunded" ? <IconCheck size={14} /> : index + 1}
       </span>
     );
   }
-  return <span className={cx(base, "bg-card text-mut-2 shadow-[inset_0_0_0_1.5px_#d6d6d0]")}>{index + 1}</span>;
+  return <span className={cx(base, "bg-card text-mut-2 shadow-[inset_0_0_0_1.5px_#d4d4d4]")}>{index + 1}</span>;
 }
 
 /**
@@ -86,9 +86,9 @@ export function StatusRail({ status, className }: { status: BountyStatus; classN
                   className={cx(
                     "absolute right-1/2 top-[13px] h-[2px] w-full",
                     step.branch
-                      ? "bg-[repeating-linear-gradient(90deg,#b9b9b3_0_5px,transparent_5px_9px)]"
+                      ? "bg-[repeating-linear-gradient(90deg,#a3a3a3_0_5px,transparent_5px_9px)]"
                       : step.state === "upcoming"
-                        ? "bg-[#d6d6d0]"
+                        ? "bg-[#d4d4d4]"
                         : "bg-ink",
                   )}
                 />
@@ -96,8 +96,8 @@ export function StatusRail({ status, className }: { status: BountyStatus; classN
               <Node step={step} index={i} />
               <span
                 className={cx(
-                  "mt-2 flex items-center gap-1 text-[11.5px] leading-tight",
-                  isCurrent ? cx("font-semibold", CURRENT_TEXT[m.tone]) : step.state === "done" ? "font-medium text-ink-2" : "text-mut-2",
+                  "mt-2 flex items-center gap-1 text-[12px] leading-tight",
+                  isCurrent ? cx("font-medium", CURRENT_TEXT[m.tone]) : step.state === "done" ? "font-medium text-ink-2" : "text-mut-2",
                 )}
               >
                 {m.label}
@@ -121,18 +121,18 @@ export function StatusRail({ status, className }: { status: BountyStatus; classN
               key={step.status}
               className={cx(
                 "h-1.5 flex-1 rounded-full",
-                step.state === "upcoming" ? "bg-[#d6d6d0]" : step.state === "current" ? CURRENT[STATUS_META[step.status].tone].replace("animate-pulse-ring", "") : "bg-ink",
+                step.state === "upcoming" ? "bg-[#d4d4d4]" : step.state === "current" ? CURRENT[STATUS_META[step.status].tone] : "bg-ink",
               )}
             />
           ))}
         </div>
-        <p className="mt-2 text-[12.5px] text-mut">
+        <p className="mt-2 text-[13px] text-mut">
           Step {currentIndex + 1} of {steps.length}:{" "}
-          <span className={cx("font-semibold", CURRENT_TEXT[meta.tone])}>{meta.label}</span>
+          <span className={cx("font-medium", CURRENT_TEXT[meta.tone])}>{meta.label}</span>
         </p>
       </div>
 
-      <p className="mt-3 flex items-start gap-1.5 text-[13px] text-ink-2 sm:justify-center sm:text-center">
+      <p className="mt-3 flex items-start gap-2 text-[13px] text-ink-2 sm:justify-center sm:text-center">
         {current && STATUS_META[current.status].tone === "warning" && <IconAlert size={15} className="mt-0.5 shrink-0 text-warn" />}
         {meta.description}
       </p>

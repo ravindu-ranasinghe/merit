@@ -22,25 +22,25 @@ export function PipelineHeader({ feed }: { feed: Feed }) {
   const live = feed.source === "quicknode-streams";
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-      <span className="flex items-center gap-2 text-[13px] font-semibold">
+      <span className="flex items-center gap-2 text-[13px] font-medium">
         <span className="relative flex size-2.5">
           <span className={cx("absolute inset-0 rounded-full", live ? "animate-ping bg-good/50" : "bg-transparent")} />
           <span className={cx("relative size-2.5 rounded-full", live ? "bg-good" : "bg-mut-2")} />
         </span>
         {live ? "Indexed by QuickNode Streams" : "Sample events (mock mode)"}
       </span>
-      <dl className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-mut">
-        <div className="flex gap-1.5">
+      <dl className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] text-mut">
+        <div className="flex gap-2">
           <dt>Last indexed block</dt>
           <dd className="font-mono font-medium text-ink">
             {feed.lastIndexedBlock === null ? "none yet" : <Roll text={feed.lastIndexedBlock.toLocaleString("en-US")} />}
           </dd>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           <dt>Last delivery</dt>
           <dd className="font-medium text-ink">{feed.lastDeliveryAt ? relativeTime(feed.lastDeliveryAt) : "none yet"}</dd>
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           <dt>Events</dt>
           <dd className="font-medium text-ink">{feed.events.length}</dd>
         </div>
@@ -81,27 +81,27 @@ export function EventFeed({ bountyId, compact, limit }: { bountyId?: string; com
         <div className={cx("overflow-x-auto rounded-card bg-card shadow-inner-card", !compact && "mt-4")}>
           <table className={cx("w-full border-collapse text-left text-[13px]", !compact && "min-w-[640px]")}>
             <thead>
-              <tr className="text-[11.5px] text-mut">
-                <th className={compact ? "py-2.5 pl-3 font-medium" : "px-4 py-2.5 font-medium"}>Event</th>
-                {!bountyId && <th className="px-3 py-2.5 font-medium">Bounty</th>}
-                <th className="px-3 py-2.5 text-right font-medium">Amount</th>
-                <th className="px-3 py-2.5 text-right font-medium">Block</th>
-                <th className="px-3 py-2.5 font-medium">Transaction</th>
-                {!compact && <th className="px-3 py-2.5 text-right font-medium">Log</th>}
-                {!compact && <th className="px-4 py-2.5 text-right font-medium">Indexed</th>}
+              <tr className="text-[12px] text-mut">
+                <th className={compact ? "py-3 pl-3 font-medium" : "px-4 py-3 font-medium"}>Event</th>
+                {!bountyId && <th className="px-3 py-3 font-medium">Bounty</th>}
+                <th className="px-3 py-3 text-right font-medium">Amount</th>
+                <th className="px-3 py-3 text-right font-medium">Block</th>
+                <th className="px-3 py-3 font-medium">Transaction</th>
+                {!compact && <th className="px-3 py-3 text-right font-medium">Log</th>}
+                {!compact && <th className="px-4 py-3 text-right font-medium">Indexed</th>}
               </tr>
             </thead>
             <tbody>
               {events.map((e) => {
                 const meta = EVENT_META[e.eventType];
                 return (
-                  <tr key={eventKey(e)} className="animate-row-in border-t border-line/70">
-                    <td className={compact ? "py-2.5 pl-3" : "px-4 py-2.5"}>
-                      <Pill tone={meta.tone} className="font-mono !text-[11.5px]">{meta.label}</Pill>
-                      {!compact && <span className="ml-2 hidden text-[12.5px] text-mut lg:inline">{meta.says}</span>}
+                  <tr key={eventKey(e)} className="animate-row-in border-t border-line">
+                    <td className={compact ? "py-3 pl-3" : "px-4 py-3"}>
+                      <Pill tone={meta.tone} className="font-mono !text-[12px]">{meta.label}</Pill>
+                      {!compact && <span className="ml-2 hidden text-[13px] text-mut lg:inline">{meta.says}</span>}
                     </td>
                     {!bountyId && (
-                      <td className="px-3 py-2.5">
+                      <td className="px-3 py-3">
                         {e.bountyId ? (
                           <Link href={`/bounties/${e.bountyId}`} className="font-medium text-accent-ink hover:underline">
                             #{e.payload.bountyId}
@@ -111,12 +111,12 @@ export function EventFeed({ bountyId, compact, limit }: { bountyId?: string; com
                         )}
                       </td>
                     )}
-                    <td className="whitespace-nowrap px-3 py-2.5 text-right font-medium">{compact ? amountOf(e).replace(" USDC", "") : amountOf(e)}</td>
-                    <td className="px-3 py-2.5 text-right"><BlockLink block={e.blockNumber} /></td>
-                    <td className="px-3 py-2.5"><TxLink hash={e.txHash} /></td>
-                    {!compact && <td className="px-3 py-2.5 text-right font-mono text-[12px] text-mut">{e.logIndex}</td>}
+                    <td className="whitespace-nowrap px-3 py-3 text-right font-medium">{compact ? amountOf(e).replace(" USDC", "") : amountOf(e)}</td>
+                    <td className="px-3 py-3 text-right"><BlockLink block={e.blockNumber} /></td>
+                    <td className="px-3 py-3"><TxLink hash={e.txHash} /></td>
+                    {!compact && <td className="px-3 py-3 text-right font-mono text-[12px] text-mut">{e.logIndex}</td>}
                     {!compact && (
-                      <td className="px-4 py-2.5 text-right text-[12.5px] text-mut" title={formatDateTime(e.ingestionTimestamp)}>
+                      <td className="px-4 py-3 text-right text-[13px] text-mut" title={formatDateTime(e.ingestionTimestamp)}>
                         {relativeTime(e.ingestionTimestamp)}
                       </td>
                     )}
@@ -128,7 +128,7 @@ export function EventFeed({ bountyId, compact, limit }: { bountyId?: string; com
         </div>
       )}
       {!compact && (
-        <p className="mt-3 flex items-start gap-2 text-[12.5px] text-mut">
+        <p className="mt-3 flex items-start gap-2 text-[13px] text-mut">
           <IconStream size={15} className="mt-0.5 shrink-0" />
           <span>
             Each row is one contract event, stored once under the key (chain {events[0]?.chainId ?? ""}, contract{" "}

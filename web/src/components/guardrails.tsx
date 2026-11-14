@@ -101,7 +101,7 @@ export function GuardrailPanel({ bounty }: { bounty: Bounty }) {
 
   return (
     <div>
-      <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+      <h2 className="flex items-center gap-2 text-[16px] font-medium">
         <IconShield size={17} />
         Guardrails
       </h2>
@@ -111,11 +111,11 @@ export function GuardrailPanel({ bounty }: { bounty: Bounty }) {
       </p>
       <ul className="mt-3 space-y-2">
         {checks.map((c) => (
-          <li key={c.key} className="rounded-card bg-card p-3.5 shadow-inner-card">
+          <li key={c.key} className="rounded-card bg-card p-4 shadow-inner-card">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[13.5px] font-semibold">{c.title}</p>
-                <p className="text-[12.5px] text-mut">{c.what}</p>
+                <p className="text-[14px] font-medium">{c.title}</p>
+                <p className="text-[13px] text-mut">{c.what}</p>
               </div>
               <Button
                 variant="secondary"

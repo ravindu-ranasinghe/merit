@@ -15,8 +15,8 @@ export function RequireSignIn({ why, children }: { why: string; children: ReactN
         <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-ink text-white">
           <IconGithub size={22} />
         </span>
-        <h1 className="mt-4 text-[20px] font-semibold tracking-tight">Sign in with GitHub</h1>
-        <p className="mx-auto mt-1.5 max-w-[40ch] text-[13.5px] text-mut">{why}</p>
+        <h1 className="mt-4 text-[20px] font-medium">Sign in with GitHub</h1>
+        <p className="mx-auto mt-2 max-w-[40ch] text-[14px] text-mut">{why}</p>
         <div className="mt-5 flex justify-center">
           <Button onClick={viewer.signIn}>
             <IconGithub size={15} />

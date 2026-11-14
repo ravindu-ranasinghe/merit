@@ -109,7 +109,9 @@ for public repositories.
 
 ## Design notes
 
-Light, GitHub-adjacent, wallet-last. The visual language (off-white page, grey trays with
-white cards, one blue accent, spring motion, rolling digits) follows the team's bento
-reference. Status colors are reserved for state and always come with a label and icon.
-Motion respects `prefers-reduced-motion`.
+Direction: ledger and diff. Grey neutral surfaces separated by hairlines, Geist for the
+interface and Geist Mono for amounts, hashes and blocks, and one accent: the green of a
+diff's added line. Green in the chrome means a primary action or money confirmed onchain.
+Detail rows use a dotted ledger leader. Motion uses one easing curve and never loops, except
+the live-feed dot. Status colors are reserved for state and always come with a label and icon.
+Tokens live in `src/app/globals.css`. Restyled with the unslop skill by Damir Sokolovsky.

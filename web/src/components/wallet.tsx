@@ -54,7 +54,7 @@ export function GasStep({ address, className }: { address: string | null | undef
         Circle faucet: choose Arc Testnet and paste your address.
       </p>
       <p className="mt-2 break-all font-mono text-[12px] text-ink">{address}</p>
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {/* The faucet has no address parameter, so the address is copied for pasting there. */}
         <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(address).then(() => setCopied(true))}>
           {copied ? "Address copied" : "Copy address"}
@@ -97,7 +97,7 @@ export function WalletLinkCard() {
   if (link.data && !relinking) {
     return (
       <div>
-        <p className="flex items-center gap-2 text-[15px] font-semibold">
+        <p className="flex items-center gap-2 text-[16px] font-medium">
           <span className="flex size-6 items-center justify-center rounded-full bg-good text-white">
             <IconCheckDraw size={13} />
           </span>
@@ -106,9 +106,9 @@ export function WalletLinkCard() {
         <p className="mt-2 text-[13px] text-mut">
           Rewards approved for you are paid to this address. Linked {formatDate(link.data.verifiedAt)}.
         </p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-3.5 py-2.5 shadow-inner-card">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
           <AddressLink address={link.data.walletAddress} full />
-          <button onClick={() => setRelinking(true)} className="text-[12.5px] font-medium text-mut hover:text-ink">
+          <button onClick={() => setRelinking(true)} className="text-[13px] font-medium text-mut hover:text-ink">
             Change
           </button>
         </div>
@@ -119,7 +119,7 @@ export function WalletLinkCard() {
 
   return (
     <div>
-      <p className="flex items-center gap-2 text-[15px] font-semibold">
+      <p className="flex items-center gap-2 text-[16px] font-medium">
         <IconWallet size={17} />
         {relinking ? "Link a different wallet" : "Link a payout wallet"}
       </p>
@@ -135,7 +135,7 @@ export function WalletLinkCard() {
             </Button>
             {wallet.address && <AddressLink address={wallet.address} />}
             {relinking && (
-              <button onClick={() => setRelinking(false)} className="text-[12.5px] font-medium text-mut hover:text-ink">
+              <button onClick={() => setRelinking(false)} className="text-[13px] font-medium text-mut hover:text-ink">
                 Cancel
               </button>
             )}

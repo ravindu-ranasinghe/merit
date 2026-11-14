@@ -12,7 +12,7 @@ export function cx(...parts: (string | false | null | undefined)[]) {
 
 /* ---------- surfaces ---------- */
 
-/** A bento tray: the grey (or white, or dark) rounded container cards sit in. */
+/** A section of the page: outlined by a hairline, or a white card, or one ink block for the thing that matters. */
 export function Tray({
   tone = "tray",
   className,
@@ -30,8 +30,8 @@ export function Tray({
     <As
       style={style}
       className={cx(
-        "rounded-tray p-4 sm:p-5",
-        tone === "tray" && "bg-tray",
+        "rounded-tray p-5 sm:p-6",
+        tone === "tray" && "border border-line",
         tone === "white" && "bg-card shadow-card",
         tone === "dark" && "bg-dark text-white",
         className,
@@ -42,7 +42,7 @@ export function Tray({
   );
 }
 
-/** A white inner card that sits on a tray. */
+/** A white card with a hairline. */
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cx("rounded-card bg-card p-4 shadow-inner-card", className)}>{children}</div>;
 }
@@ -56,14 +56,14 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 type ButtonVariant = "primary" | "accent" | "secondary" | "ghost";
 
 const BTN: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-white hover:bg-black shadow-[0_6px_16px_rgb(15_15_18/0.18)]",
-  accent: "bg-accent text-white hover:bg-accent-ink shadow-[0_6px_16px_rgb(47_91_255/0.28)]",
-  secondary: "bg-card text-ink shadow-knob hover:bg-[#fafaf8]",
+  primary: "bg-ink text-white hover:bg-black",
+  accent: "bg-accent text-white hover:bg-accent-ink",
+  secondary: "bg-card text-ink shadow-knob hover:bg-tray",
   ghost: "text-ink-2 hover:bg-tray-2",
 };
 
 const btnBase =
-  "inline-flex items-center justify-center gap-2 rounded-ctl px-4 h-10 text-[13.5px] font-semibold transition-[transform,background-color,box-shadow,opacity] duration-300 ease-spring active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-2 rounded-ctl px-4 h-9 text-[14px] font-medium transition-[transform,background-color,opacity] duration-150 ease-soft active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 whitespace-nowrap";
 
 export function Button({
   variant = "primary",
@@ -118,8 +118,8 @@ export function Spinner({ className }: { className?: string }) {
 /* ---------- status + notices ---------- */
 
 const TONE_PILL: Record<Tone, string> = {
-  neutral: "bg-tray-2 text-ink-2",
-  progress: "bg-tint text-accent-ink",
+  neutral: "bg-tray text-ink-2",
+  progress: "bg-tray-2 text-ink",
   good: "bg-good-bg text-good",
   warning: "bg-warn-bg text-warn",
   critical: "bg-crit-bg text-crit",
@@ -127,15 +127,15 @@ const TONE_PILL: Record<Tone, string> = {
 
 export function Pill({ tone = "neutral", children, className }: { tone?: Tone; children: ReactNode; className?: string }) {
   return (
-    <span className={cx("inline-flex h-6 items-center gap-1.5 rounded-full px-2.5 text-[12px] font-semibold", TONE_PILL[tone], className)}>
+    <span className={cx("inline-flex h-6 items-center gap-1 rounded-md px-2 text-[12px] font-medium", TONE_PILL[tone], className)}>
       {children}
     </span>
   );
 }
 
 const NOTICE: Record<Tone, string> = {
-  neutral: "bg-tray-2 text-ink-2",
-  progress: "bg-tint text-accent-ink",
+  neutral: "bg-tray text-ink-2",
+  progress: "bg-tray text-ink",
   good: "bg-good-bg text-good",
   warning: "bg-warn-bg text-warn",
   critical: "bg-crit-bg text-crit",
@@ -154,10 +154,10 @@ export function Notice({
 }) {
   const Icon = tone === "good" ? IconCheck : tone === "warning" || tone === "critical" ? IconAlert : IconInfo;
   return (
-    <div role={tone === "critical" ? "alert" : "status"} className={cx("flex gap-2.5 rounded-card px-3.5 py-3 text-[13px]", NOTICE[tone], className)}>
+    <div role={tone === "critical" ? "alert" : "status"} className={cx("flex gap-3 rounded-card px-4 py-3 text-[13px]", NOTICE[tone], className)}>
       <Icon size={16} className="mt-0.5 shrink-0" />
       <div className="min-w-0">
-        {title && <p className="font-semibold">{title}</p>}
+        {title && <p className="font-medium">{title}</p>}
         {children && <div className={cx("text-ink-2", title && "mt-0.5")}>{children}</div>}
       </div>
     </div>
@@ -181,18 +181,18 @@ export function GuardrailCard({
 }) {
   return (
     <div role="status" className="animate-rise rounded-card bg-dark p-4 text-white">
-      <div className="flex items-center gap-2 text-[12px] font-semibold text-[#9fb4ff]">
+      <div className="flex items-center gap-2 text-[12px] font-medium text-[#4cc38a]">
         <IconShield size={15} />
         Rejected by the escrow contract
       </div>
-      <p className="mt-2 text-[16px] font-semibold tracking-tight">{title}</p>
-      <p className="mt-1 text-[13px] leading-relaxed text-[#c9c9cf]">{body}</p>
+      <p className="mt-2 text-[16px] font-medium">{title}</p>
+      <p className="mt-1 text-[13px] leading-relaxed text-[#a1a1a6]">{body}</p>
       {code && (
-        <p className="mt-3 overflow-x-auto rounded-lg bg-white/[0.07] px-2.5 py-1.5 font-mono text-[11.5px] text-[#d9d9de]">
+        <p className="mt-3 overflow-x-auto rounded-lg bg-white/[0.07] px-3 py-2 font-mono text-[12px] text-[#ededed]">
           {code}
         </p>
       )}
-      {footnote && <p className="mt-2.5 text-[12px] text-[#9a9aa2]">{footnote}</p>}
+      {footnote && <p className="mt-3 text-[12px] text-[#a1a1a6]">{footnote}</p>}
     </div>
   );
 }
@@ -206,9 +206,9 @@ export function GuardrailCard({
 export function Money({ units, className, unitClassName }: { units: string | bigint; className?: string; unitClassName?: string }) {
   const text = formatUsd(units);
   return (
-    <span className={cx("inline-flex items-baseline gap-[0.3em] whitespace-nowrap font-semibold tracking-tight", className)}>
+    <span className={cx("inline-flex items-baseline gap-[0.3em] whitespace-nowrap font-mono font-medium", className)}>
       <Roll text={text} />
-      <span className={cx("text-[0.5em] font-medium tracking-normal text-mut", unitClassName)}>USDC</span>
+      <span className={cx("font-sans text-[0.5em] font-normal text-mut", unitClassName)}>USDC</span>
     </span>
   );
 }
@@ -221,7 +221,7 @@ export function Roll({ text }: { text: string }) {
         /\d/.test(ch) ? (
           <span key={`${text.length - i}`} aria-hidden className="inline-block h-[1.2em] overflow-hidden">
             <span
-              className="block transition-transform duration-700 ease-spring"
+              className="block transition-transform duration-500 ease-soft"
               style={{ transform: `translateY(${-Number(ch) * 1.2}em)` }}
             >
               {"0123456789".split("").map((d) => (
@@ -263,7 +263,7 @@ export function Avatar({ user, size = 24 }: { user: GithubUser; size?: number })
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold uppercase text-white"
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-medium uppercase text-white"
       style={{ width: size, height: size, fontSize: size * 0.42, background: color }}
     >
       {user.login[0]}
@@ -273,7 +273,7 @@ export function Avatar({ user, size = 24 }: { user: GithubUser; size?: number })
 
 export function UserChip({ user, size = 20, className }: { user: GithubUser; size?: number; className?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-1.5 align-middle font-medium", className)}>
+    <span className={cx("inline-flex items-center gap-2 align-middle font-medium", className)}>
       <Avatar user={user} size={size} />
       <span>{user.login}</span>
     </span>
@@ -331,9 +331,9 @@ export function PageHeader({ title, lead, action, eyebrow }: { title: string; le
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-4 px-1">
       <div className="min-w-0">
-        {eyebrow && <div className="mb-1.5 text-[12.5px] text-mut">{eyebrow}</div>}
-        <h1 className="text-[26px] font-semibold leading-tight tracking-[-0.025em] sm:text-[30px]">{title}</h1>
-        {lead && <p className="mt-1.5 max-w-[62ch] text-[14.5px] text-mut">{lead}</p>}
+        {eyebrow && <div className="mb-2 text-[13px] text-mut">{eyebrow}</div>}
+        <h1 className="text-[28px] font-medium leading-tight tracking-[-0.02em]">{title}</h1>
+        {lead && <p className="mt-2 max-w-[62ch] text-[14px] text-mut">{lead}</p>}
       </div>
       {action}
     </header>
@@ -342,8 +342,8 @@ export function PageHeader({ title, lead, action, eyebrow }: { title: string; le
 
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-card border border-dashed border-[#cfcfc8] px-5 py-8 text-center">
-      <p className="font-semibold">{title}</p>
+    <div className="rounded-card border border-dashed border-[#d4d4d4] px-5 py-8 text-center">
+      <p className="font-medium">{title}</p>
       {children && <p className="mx-auto mt-1 max-w-[46ch] text-[13px] text-mut">{children}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
@@ -357,9 +357,11 @@ export function Skeleton({ className }: { className?: string }) {
 /** A label/value row for detail lists. */
 export function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-1.5 text-[13px]">
+    <div className="flex items-baseline gap-2 py-2 text-[13px]">
       <dt className="shrink-0 text-mut">{label}</dt>
-      <dd className="min-w-0 text-right">{children}</dd>
+      {/* The ledger leader: label, dots, figure. */}
+      <span aria-hidden className="min-w-4 flex-1 -translate-y-[3px] border-b border-dotted border-ink/25" />
+      <dd className="min-w-0 text-right font-mono text-[12px] text-ink">{children}</dd>
     </div>
   );
 }

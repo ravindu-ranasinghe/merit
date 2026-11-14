@@ -12,10 +12,10 @@ function Group({ title, note, bounties, hint }: { title: string; note: string; b
   if (bounties.length === 0) return null;
   return (
     <section>
-      <h2 className="text-[15px] font-semibold">
+      <h2 className="text-[16px] font-medium">
         {title} <span className="ml-1 font-normal text-mut">{bounties.length}</span>
       </h2>
-      <p className="mb-2.5 mt-0.5 text-[13px] text-mut">{note}</p>
+      <p className="mb-3 mt-0.5 text-[13px] text-mut">{note}</p>
       <div className="space-y-2">
         {bounties.map((b) => (
           <BountyRow key={b.id} bounty={b} hint={hint} />
@@ -50,16 +50,16 @@ function Dashboard() {
           {link.isLoading ? <Skeleton className="h-28" /> : <WalletLinkCard />}
         </Tray>
         <Tray tone={claimable.length > 0 ? "dark" : "white"} className="md:col-span-3" style={{ "--i": 1 } as React.CSSProperties}>
-          <p className={claimable.length > 0 ? "text-[12.5px] font-medium text-[#b9b9c0]" : "text-[12.5px] font-medium text-mut"}>Ready to claim</p>
-          <Money units={total(claimable)} className="mt-1 text-[30px]" unitClassName={claimable.length > 0 ? "!text-[#b9b9c0]" : undefined} />
-          <p className={claimable.length > 0 ? "mt-1 text-[12.5px] text-[#b9b9c0]" : "mt-1 text-[12.5px] text-mut"}>
+          <p className={claimable.length > 0 ? "text-[13px] font-medium text-[#a1a1a6]" : "text-[13px] font-medium text-mut"}>Ready to claim</p>
+          <Money units={total(claimable)} className="mt-1 text-[28px]" unitClassName={claimable.length > 0 ? "!text-[#a1a1a6]" : undefined} />
+          <p className={claimable.length > 0 ? "mt-1 text-[13px] text-[#a1a1a6]" : "mt-1 text-[13px] text-mut"}>
             <Roll text={String(claimable.length)} /> approved, not yet claimed
           </p>
         </Tray>
         <Tray tone="white" className="md:col-span-3" style={{ "--i": 2 } as React.CSSProperties}>
-          <p className="text-[12.5px] font-medium text-mut">Claimed so far</p>
-          <Money units={total(paid)} className="mt-1 text-[30px]" />
-          <p className="mt-1 text-[12.5px] text-mut">Testnet USDC, {paid.length} paid</p>
+          <p className="text-[13px] font-medium text-mut">Claimed so far</p>
+          <Money units={total(paid)} className="mt-1 text-[28px]" />
+          <p className="mt-1 text-[13px] text-mut">Testnet USDC, {paid.length} paid</p>
         </Tray>
 
         <Tray className="md:col-span-12" style={{ "--i": 3 } as React.CSSProperties}>
