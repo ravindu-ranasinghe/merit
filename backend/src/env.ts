@@ -47,19 +47,27 @@ export function loadEnv(src: Record<string, string | undefined> = process.env): 
   const e = schema.parse(src);
   const prod = e.NODE_ENV === "production";
   const warnings: string[] = [];
+  let usedDefault = false;
   const secret = (v: string | undefined, name: string, dev: string) => {
     if (v) return v;
     if (prod) throw new Error(`${name} is required in production`);
     warnings.push(`${name} unset: using an insecure dev default`);
+    usedDefault = true;
     return dev;
   };
+
+  const sessionSecret = secret(e.SESSION_SECRET, "SESSION_SECRET", "dev-session-secret-change-me");
+  const qnSecurityToken = secret(e.QN_SECURITY_TOKEN, "QN_SECURITY_TOKEN", "dev-qn-token");
 
   const gh = [e.GITHUB_APP_ID, e.GITHUB_PRIVATE_KEY, e.GITHUB_WEBHOOK_SECRET, e.GITHUB_CLIENT_ID, e.GITHUB_CLIENT_SECRET];
   const mock = gh.some((v) => !v);
   if (mock) {
-    if (prod && gh.some(Boolean)) throw new Error("GitHub App env is partially set");
+    // Mock mode accepts `code=mock:<id>:<login>` at OAuth and a public webhook secret: dev only, never production.
+    if (prod) throw new Error("GitHub App credentials are required in production (mock client is dev-only)");
+    usedDefault = true;
     warnings.push("GitHub App credentials missing: running with the IN-MEMORY MOCK GitHub client. Nothing talks to github.com.");
   }
+  if (usedDefault) warnings.push("DEV DEFAULT SECRETS IN USE: webhooks and sessions are forgeable by anyone who reads this repo. Never expose this instance publicly.");
   if (!e.ESCROW_ADDRESS) warnings.push("ESCROW_ADDRESS unset: using the zero address, Streams events will not match a real contract");
 
   return {
@@ -71,8 +79,8 @@ export function loadEnv(src: Record<string, string | undefined> = process.env): 
     explorerUrl: e.EXPLORER_URL,
     usdcAddress: e.USDC_ADDRESS as `0x${string}`,
     escrowAddress: (e.ESCROW_ADDRESS ?? ZERO) as `0x${string}`,
-    sessionSecret: secret(e.SESSION_SECRET, "SESSION_SECRET", "dev-session-secret-change-me"),
-    qnSecurityToken: secret(e.QN_SECURITY_TOKEN, "QN_SECURITY_TOKEN", "dev-qn-token"),
+    sessionSecret,
+    qnSecurityToken,
     github: {
       mock,
       appId: e.GITHUB_APP_ID ?? "",
