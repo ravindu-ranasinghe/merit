@@ -7,7 +7,7 @@ ABI: [`../docs/escrow-abi.json`](../docs/escrow-abi.json).
 
 | | |
 |---|---|
-| BountyEscrow | **not deployed yet** |
+| BountyEscrow | [`0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727`](https://explorer.testnet.arc.io/address/0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727) (verified, deploy block 72270484) |
 | USDC | `0x3600000000000000000000000000000000000000` |
 | Explorer | https://explorer.testnet.arc.io |
 

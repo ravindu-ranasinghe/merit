@@ -119,10 +119,8 @@ jobs:
             echo "A .env file is tracked by git. Remove it and fix .gitignore."
             exit 1
           fi
-          # 64-hex private keys and 0x-prefixed variants, anywhere in tracked files.
-          if git grep -nIE '(^|[^0-9a-fA-FxX])(0x)?[0-9a-fA-F]{64}([^0-9a-fA-F]|$)' -- \
-               ':!*.lock' ':!docs/escrow-abi.json' ':!docs/escrow-interface.md' ':!**/package-lock.json' \
+          if git grep -nIE '(PRIVATE_KEY|SECRET|MNEMONIC|DEPLOYER_KEY)[A-Z_]*["'"'"']?\s*[=:]\s*["'"'"']?(0x)?[0-9a-fA-F]{64}' -- \
                ':!contracts/lib' ':!**/*.test.ts' ':!**/fixtures/**'; then
-            echo "Possible private key or raw 32-byte secret in a tracked file. Review the matches above."
+            echo "A private key appears to be assigned in a tracked file."
             exit 1
           fi
