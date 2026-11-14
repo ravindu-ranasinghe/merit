@@ -121,7 +121,7 @@ jobs:
           fi
           # 64-hex private keys and 0x-prefixed variants, anywhere in tracked files.
           if git grep -nIE '(^|[^0-9a-fA-FxX])(0x)?[0-9a-fA-F]{64}([^0-9a-fA-F]|$)' -- \
-               ':!*.lock' ':!docs/escrow-abi.json' ':!docs/escrow-interface.md'':!**/package-lock.json' \
+               ':!*.lock' ':!docs/escrow-abi.json' ':!docs/escrow-interface.md' ':!**/package-lock.json' \
                ':!contracts/lib' ':!**/*.test.ts' ':!**/fixtures/**'; then
             echo "Possible private key or raw 32-byte secret in a tracked file. Review the matches above."
             exit 1
