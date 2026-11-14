@@ -1,0 +1,7 @@
+# Cross-workstream interfaces. A change here affects all three engineers,
+# so it needs a human review even when CI is green and auto-merge is on.
+/SPEC.md                  @ravindu-ranasinghe
+/docs/escrow-abi.json     @ravindu-ranasinghe
+/docs/escrow-interface.md @ravindu-ranasinghe
+/docs/api.md              @ravindu-ranasinghe
+/.github/                 @ravindu-ranasinghe
