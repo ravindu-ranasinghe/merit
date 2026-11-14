@@ -19,11 +19,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Secrets and GitHub App creds come from .env. Without it the api boots in loud mock mode.
+    env_file:
+      - path: .env
+        required: false
+    # `environment` wins over env_file, so the host-side DATABASE_URL in .env can't leak in here.
     environment:
       DATABASE_URL: postgres://merit:merit@db:5432/merit
       PORT: "4000"
       NODE_ENV: development # production refuses to boot without SESSION_SECRET and QN_SECURITY_TOKEN; set those in .env to switch
-      # No GitHub creds here: the api boots in loud mock mode. Put real values in a .env file
-      # and add `env_file: .env` to enable the GitHub App.
     ports:
       - "4000:4000"
