@@ -3,14 +3,14 @@ import { z } from "zod";
 import type { Ctx } from "./ctx.js";
 import { HttpError } from "./ctx.js";
 import { randomState } from "./github/client.js";
-import { clearSession, setSession } from "./session.js";
+import { clearSession, cookieOpts, setSession } from "./session.js";
 
 const STATE = "merit_oauth_state";
 
 export function authRoutes(app: FastifyInstance, ctx: Ctx) {
   app.get("/auth/github/login", async (_req, reply) => {
     const state = randomState();
-    reply.setCookie(STATE, state, { signed: true, httpOnly: true, sameSite: "lax", path: "/", maxAge: 600 });
+    reply.setCookie(STATE, state, { ...cookieOpts(ctx.env.webOrigin), maxAge: 600 });
     return reply.redirect(ctx.gh.oauthUrl(state));
   });
 
@@ -21,13 +21,13 @@ export function authRoutes(app: FastifyInstance, ctx: Ctx) {
     if (!st?.valid || st.value !== q.state) throw new HttpError(400, "bad oauth state");
     let user;
     try { user = await ctx.gh.exchangeCode(q.code); } catch { throw new HttpError(400, "oauth code exchange failed"); }
-    reply.clearCookie(STATE, { path: "/" });
-    setSession(reply, { id: user.id, login: user.login });
+    reply.clearCookie(STATE, cookieOpts(ctx.env.webOrigin));
+    setSession(reply, { id: user.id, login: user.login }, ctx.env.webOrigin);
     return reply.redirect(ctx.env.webOrigin);
   });
 
   app.post("/auth/logout", async (_req, reply) => {
-    clearSession(reply);
+    clearSession(reply, ctx.env.webOrigin);
     return reply.code(204).send();
   });
 }
