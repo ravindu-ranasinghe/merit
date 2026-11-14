@@ -140,7 +140,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     const amount = body.amount_units ?? v.amount_units;
     if (BigInt(amount) > BigInt(v.amount_units)) throw new HttpError(400, "amount exceeds the funded amount");
 
-    const claim = claimId(v.onchain_bounty_id, c.github_comment_id);
+    const claim = claimId(c.github_comment_id);
     const [existing] = await ctx.db.select().from(approvals).where(eq(approvals.claim_id, claim));
     if (existing && existing.status !== "prepared") throw new HttpError(409, `approval already ${existing.status}`);
     const vals = { bounty_id: v.id, candidate_id: c.id, reviewer_id: c.github_reviewer_id, approver_github_id: s.id, amount_units: amount, approved_recipient: w.wallet_address, claim_id: claim };

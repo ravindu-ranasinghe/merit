@@ -14,7 +14,7 @@ const FUNDER = "0x00000000000000000000000000000000000000f1";
 const REVIEWER = "0x00000000000000000000000000000000000000a2";
 const BID = 7n, AMOUNT = 10_000_000n;
 const hash = (n: number) => keccak256(`0x${n.toString(16).padStart(2, "0")}`);
-const CLAIM = claimId(BID, 5550001);
+const CLAIM = claimId(5550001);
 const PRH = prHash(DEMO.repoId, DEMO.prNumber);
 
 type Spec = { name: "BountyFunded" | "RewardApproved" | "RewardPaid" | "BountyRefunded"; args: Record<string, unknown>; types: { type: string }[]; data: unknown[] };

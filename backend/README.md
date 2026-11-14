@@ -76,9 +76,9 @@ session cookie forgery.
   delivered to this code. The Logs payload shape is not confirmed, so the receiver accepts any JSON that contains
   log objects (`{data:[...]}`, a bare array, nested arrays). Whether QuickNode supports Arc is the Nov 18 go/no-go;
   until a stream delivers, the QuickNode bounty is **unproven**.
-- **Escrow ABI**: `src/chain/escrow.ts` mirrors the SPEC surface, not A's published `docs/escrow-abi.json`. Swap it in
-  there only. `prHash = keccak256(abi.encode(uint256 repoId, uint256 prNumber))` and
-  `claimId = keccak256(abi.encode(uint256 onchainBountyId, uint256 githubCommentId))` must match what A's contract expects.
+- **Escrow ABI**: `src/chain/escrow.ts` reads A's published `docs/escrow-abi.json` directly; the contract is not
+  deployed yet, so `ESCROW_ADDRESS` stays unset until A's deploy PR. `prHash = keccak256(abi.encode(uint256 repoId, uint256 prNumber))` and
+  `claimId = keccak256(abi.encode(uint256 githubCommentId))` match `docs/escrow-interface.md`.
 - No transaction has been sent from this code on any chain.
 
 ## Known shortcuts

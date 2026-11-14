@@ -42,7 +42,7 @@ describe("approval gate", () => {
     expect(r.statusCode).toBe(201);
     const j = r.json();
     expect(j.funder_wallet).toBe(FUNDER);
-    expect(j.tx).toMatchObject({ chainId: 5042002, to: ESCROW, functionName: "approveReward", args: ["7", REVIEWER, "10000000", claimId(7n, COMMENT)] });
+    expect(j.tx).toMatchObject({ chainId: 5042002, to: ESCROW, functionName: "approveReward", args: ["7", REVIEWER, "10000000", claimId(COMMENT)] });
     expect(j.tx.data).toMatch(/^0x[0-9a-f]+$/);
     expect(j.approval).toMatchObject({ status: "prepared", approver_github_id: M, approved_recipient: REVIEWER, amount_units: "10000000" });
   });

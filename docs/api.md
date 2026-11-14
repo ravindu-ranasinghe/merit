@@ -138,7 +138,7 @@ Approval rules (each failure is 403 or 409 with an explanatory `error`):
 - reviewer is neither the PR author nor the approver (numeric id comparison);
 - the reviewer has a linked wallet, and `approved_recipient` is exactly that address (the client cannot choose it);
 - `amount_units` is at most the bounty amount;
-- `claim_id = keccak256(abi.encode(onchain_bounty_id, github_comment_id))`, unique per approval.
+- `claim_id = keccak256(abi.encode(uint256 github_comment_id))` (as in `docs/escrow-interface.md`). The contract makes it single-use across all bounties, so one review comment is paid at most once ever.
 
 The transaction must be sent by the bounty's **funder wallet** (`funder_wallet`); the contract rejects anyone else.
 
@@ -154,6 +154,24 @@ After `RewardApproved` the bounty is `claimable` and the reviewer's linked walle
 |---|---|---|
 | `POST /webhooks/github` | GitHub App | `X-Hub-Signature-256` HMAC on the raw body; 401 forged, 403 repo not registered, 200 no-op on a replayed `X-GitHub-Delivery`. |
 | `POST /webhooks/streams` | QuickNode Streams | `x-qn-nonce`, `x-qn-timestamp`, `x-qn-signature` HMAC; 401 on mismatch. Idempotent on `(chain_id, contract, tx_hash, log_index)`. |
+
+## Transaction reverts (for the UI)
+
+The backend never sends or simulates a transaction, so it decodes no reverts: the wallet in the browser sees them.
+A revert from a prepared tx comes in **two shapes**, and the UI must handle both:
+
+1. **Escrow custom errors** (`AlreadyClaimed`, `NotFunder`, `AmountExceedsBalance`, ...). They are all in
+   `docs/escrow-abi.json`; viem gives the name via `err.walk(e => e instanceof ContractFunctionRevertedError)?.data?.errorName`.
+2. **Plain `Error(string)` from Arc USDC.** On a short allowance or balance, the real Arc USDC (`0x3600…0000`) reverts
+   with a string, e.g. `"ERC20: transfer amount exceeds allowance"`. That is **not** an ABI custom error: viem puts the
+   text in `ContractFunctionRevertedError.reason` and leaves `data` undefined. It can surface from `createBounty`
+   (escrow pulls the USDC), so show "approve the escrow for the full amount first" rather than a generic failure.
+   Do not match on `ERC20InsufficientAllowance`: that is OpenZeppelin v5, used only by the test mock.
+
+```ts
+const r = err.walk((e) => e instanceof ContractFunctionRevertedError) as ContractFunctionRevertedError | undefined;
+const message = r?.data?.errorName ?? r?.reason ?? err.shortMessage; // custom error, then string revert, then fallback
+```
 
 ## Local demo
 

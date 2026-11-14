@@ -4,30 +4,24 @@
 // client or signer anywhere in this codebase. It only encodes calldata for the maintainer's own
 // wallet to sign (approveReward can only be sent by the bounty's funder wallet on-chain).
 // Do not add a signer here.
-import { decodeEventLog, encodeAbiParameters, encodeFunctionData, keccak256, parseAbi, type Hex } from "viem";
+import { readFileSync } from "node:fs";
+import { decodeEventLog, encodeAbiParameters, encodeFunctionData, keccak256, parseAbi, type Abi, type Hex } from "viem";
 
-// Mirrors SPEC.md "Contract surface". Swap for docs/escrow-abi.json here when Engineer A publishes it.
-export const escrowAbi = parseAbi([
-  "function createBounty(bytes32 prHash, uint256 amount, uint64 expiry) returns (uint256 bountyId)",
-  "function approveReward(uint256 bountyId, address recipient, uint256 amount, bytes32 claimId)",
-  "function claim(uint256 bountyId)",
-  "function refundExpired(uint256 bountyId)",
-  "event BountyFunded(uint256 indexed bountyId, address indexed funder, bytes32 indexed prHash, uint256 amount, uint64 expiry)",
-  "event RewardApproved(uint256 indexed bountyId, address indexed recipient, uint256 amount, bytes32 claimId)",
-  "event RewardPaid(uint256 indexed bountyId, address indexed recipient, uint256 amount, bytes32 claimId)",
-  "event BountyRefunded(uint256 indexed bountyId, address indexed funder, uint256 amount)",
-]);
+// Engineer A's published ABI (docs/escrow-abi.json), read from the repo so it can never drift from a copy.
+// src/chain and dist/chain are both three levels below the repo root (Docker copies docs/ alongside backend/).
+export const escrowAbi = JSON.parse(readFileSync(new URL("../../../docs/escrow-abi.json", import.meta.url), "utf8")) as Abi;
 const erc20Abi = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
 
 const pair = [{ type: "uint256" }, { type: "uint256" }] as const;
 
-/** keccak256(abi.encode(uint256 repoId, uint256 prNumber)); repoId is the GitHub repository id. */
+/** keccak256(abi.encode(uint256 repoId, uint256 prNumber)); repoId is the GitHub repository id. Matches docs/escrow-interface.md. */
 export const prHash = (repoId: number | bigint, prNumber: number | bigint): Hex =>
   keccak256(encodeAbiParameters(pair, [BigInt(repoId), BigInt(prNumber)]));
 
-/** keccak256(abi.encode(uint256 onchainBountyId, uint256 githubCommentId)). Single use on-chain. */
-export const claimId = (onchainBountyId: bigint | string, githubCommentId: number | bigint): Hex =>
-  keccak256(encodeAbiParameters(pair, [BigInt(onchainBountyId), BigInt(githubCommentId)]));
+/** keccak256(abi.encode(uint256 githubCommentId)), per docs/escrow-interface.md. The contract makes a claimId
+ *  single-use across ALL bounties, so one review comment can be paid at most once ever, enforced on-chain. */
+export const claimId = (githubCommentId: number | bigint): Hex =>
+  keccak256(encodeAbiParameters([{ type: "uint256" }], [BigInt(githubCommentId)]));
 
 export type DecodedEvent =
   | { eventName: "BountyFunded"; bountyId: string; args: { funder: string; prHash: string; amount: string; expiry: string } }
@@ -39,14 +33,15 @@ export type DecodedEvent =
 export function decodeLog(log: { topics: string[]; data: string }): DecodedEvent | null {
   try {
     const d = decodeEventLog({ abi: escrowAbi, topics: log.topics as [Hex, ...Hex[]], data: log.data as Hex });
-    const a = d.args as Record<string, unknown>;
+    // The JSON ABI is untyped at compile time, so viem cannot narrow args; the shapes are pinned by test/abi.test.ts.
+    const a = d.args as unknown as Record<string, unknown>;
     const s = (v: unknown) => String(v).toLowerCase();
     const { bountyId, ...rest } = a;
     return {
       eventName: d.eventName,
       bountyId: s(bountyId),
       args: Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, s(v)])),
-    } as DecodedEvent;
+    } as unknown as DecodedEvent;
   } catch {
     return null;
   }
