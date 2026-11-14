@@ -1,14 +1,89 @@
 /**
- * Real backend implementation of the Api interface.
+ * Real backend implementation of the Api interface, following docs/api.md.
+ * This is the only file that knows a route or a wire shape: it maps the backend's
+ * snake_case rows onto the shapes in types.ts that the UI reads.
  *
- * ASSUMED ROUTES. Engineer B publishes docs/api.md on Nov 15. Until then these paths and
- * shapes are this file's best reading of SPEC.md. When api.md lands, adapt this file only:
- * nothing else in web/ knows a route or a wire shape.
+ * The browser calls the backend directly with its httpOnly `merit_session` cookie
+ * (credentials: "include"). It never sees a token or asserts a role.
  *
- * Requests go to this app's own /api/backend proxy, which attaches the signed-in user's
- * GitHub token server-side. The browser never sees a secret or asserts a role.
+ * The backend stores GitHub ids, not logins, titles or comment text, so those fields are
+ * placeholders here (see `user`, `toBounty`, `toCandidate`).
  */
-import { ApiError, type Api, type ApiErrorCode } from "@/lib/api/types";
+import {
+  ApiError,
+  type Address,
+  type Api,
+  type ApiErrorCode,
+  type Approval,
+  type Bounty,
+  type ChainEvent,
+  type GithubUser,
+  type Hex,
+  type PullRequest,
+  type ReviewCandidate,
+  type TxRef,
+} from "@/lib/api/types";
+import { BACKEND_URL } from "@/lib/env";
+
+/* ------------------------------------------------------------------ wire shapes (docs/api.md) */
+
+interface WBounty {
+  id: number;
+  onchain_bounty_id: string | null;
+  status: Bounty["status"];
+  amount_units: string;
+  funder_wallet: Address | null;
+  deadline: string;
+  created_at: string;
+  pr: { github_pr_number: number; head_sha: string; status: "open" | "closed" | "merged"; author_github_id: number };
+  repo: { github_repo_id: number; name: string; maintainer_github_id: number };
+  candidates?: WCandidate[];
+  approvals?: WApproval[];
+  events?: WEvent[];
+}
+interface WCandidate {
+  id: number;
+  github_comment_id: number;
+  github_reviewer_id: number;
+  file_path: string;
+  diff_hunk: string;
+  thread_resolved: boolean;
+  status: "pending" | "candidate" | "confirmed" | "rejected";
+  qualification_evidence: { method: "heuristic" | "manual"; limitations: string; file_touched?: string };
+  reviewer_wallet: Address | null;
+  created_at: string;
+}
+interface WApproval {
+  id: number;
+  candidate_id: number;
+  reviewer_id: number;
+  approver_github_id: number;
+  amount_units: string;
+  approved_recipient: Address;
+  claim_id: Hex;
+  chain_tx_hash: Hex | null;
+  status: "prepared" | "signed" | "paid";
+  created_at: string;
+}
+interface WEvent {
+  chain_id: number;
+  contract: Address;
+  tx_hash: Hex;
+  log_index: number;
+  block_number: number;
+  event_type: ChainEvent["eventType"];
+  payload: Record<string, string>;
+  ingestion_timestamp: string;
+}
+interface WMe {
+  github_user_id: number;
+  login: string;
+  wallet: { address: Address; verified_at: string } | null;
+  maintains: { github_repo_id: number; name: string }[];
+  as_reviewer: { candidate: WCandidate; bounty: WBounty; approval: WApproval | null }[];
+}
+
+/* ------------------------------------------------------------------ transport */
 
 const CODE_BY_STATUS: Record<number, ApiErrorCode> = {
   400: "validation",
@@ -16,14 +91,14 @@ const CODE_BY_STATUS: Record<number, ApiErrorCode> = {
   403: "forbidden",
   404: "not_found",
   409: "conflict",
-  422: "validation",
 };
 
 async function request<T>(path: string, init?: { method?: "GET" | "POST"; body?: unknown }): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api/backend${path}`, {
+    res = await fetch(`${BACKEND_URL}${path}`, {
       method: init?.method ?? "GET",
+      credentials: "include",
       headers: init?.body ? { "content-type": "application/json" } : undefined,
       body: init?.body ? JSON.stringify(init.body) : undefined,
       cache: "no-store",
@@ -34,8 +109,7 @@ async function request<T>(path: string, init?: { method?: "GET" | "POST"; body?:
   if (!res.ok) {
     let message = `The Merit API returned ${res.status}.`;
     try {
-      const data = (await res.json()) as { error?: string; message?: string };
-      message = data.message ?? data.error ?? message;
+      message = ((await res.json()) as { error?: string }).error ?? message;
     } catch {
       /* non-JSON error body: keep the default message */
     }
@@ -49,20 +123,251 @@ const q = (params: Record<string, string | undefined>) => {
   return s ? `?${s}` : "";
 };
 
+/* ------------------------------------------------------------------ mapping */
+
+/** The backend keeps immutable ids only, so anyone but the viewer is shown by id. */
+const user = (id: number, login = `user ${id}`): GithubUser => ({
+  id: String(id),
+  login,
+  avatarUrl: `https://avatars.githubusercontent.com/u/${id}`,
+});
+
+const toApproval = (a: WApproval): Approval => ({
+  candidateId: String(a.candidate_id),
+  reviewer: user(a.reviewer_id),
+  approver: user(a.approver_github_id),
+  amountUnits: a.amount_units,
+  approvedRecipient: a.approved_recipient,
+  claimId: a.claim_id,
+  chainTxHash: a.chain_tx_hash,
+  approvedAt: a.created_at,
+});
+
+/** The approval that counts: the signed or paid one if any, else the latest prepared. */
+const pickApproval = (list: WApproval[] = []) => list.find((a) => a.status !== "prepared") ?? list.at(-1) ?? null;
+
+function toCandidate(c: WCandidate, b: WBounty, approval: WApproval | null): ReviewCandidate {
+  const touched = !!c.qualification_evidence.file_touched;
+  return {
+    id: String(c.id),
+    githubCommentId: String(c.github_comment_id),
+    reviewer: user(c.github_reviewer_id),
+    reviewerWallet: c.reviewer_wallet,
+    filePath: c.file_path,
+    diffHunk: c.diff_hunk,
+    commentBody: "The backend does not store comment text. Open the comment on GitHub to read it.",
+    commentUrl: `https://github.com/${b.repo.name}/pull/${b.pr.github_pr_number}#discussion_r${c.github_comment_id}`,
+    commentedAt: c.created_at,
+    commitSha: touched ? b.pr.head_sha : null,
+    evidence: {
+      commentExists: true,
+      laterCommitTouchedContext: touched,
+      threadResolved: c.thread_resolved,
+      note: c.qualification_evidence.limitations,
+    },
+    status:
+      c.status === "rejected" ? "rejected"
+      : approval?.candidate_id === c.id && approval.status !== "prepared" ? "approved"
+      : c.status === "pending" ? "ineligible"
+      : "candidate",
+    ineligibleReason:
+      c.status === "pending"
+        ? "Not a candidate yet: the thread is unresolved or no later commit touched this code."
+        : undefined,
+  };
+}
+
+const toEvent = (e: WEvent, bountyId?: string): ChainEvent => ({
+  chainId: e.chain_id,
+  contract: e.contract,
+  txHash: e.tx_hash,
+  logIndex: e.log_index,
+  blockNumber: e.block_number,
+  eventType: e.event_type,
+  payload: e.payload,
+  ingestionTimestamp: e.ingestion_timestamp,
+  bountyId,
+});
+
+const CHAIN_KEY = { BountyFunded: "funded", RewardApproved: "approved", RewardPaid: "paid", BountyRefunded: "refunded" } as const;
+
+function toBounty(b: WBounty): Bounty {
+  const approval = pickApproval(b.approvals);
+  const chain: Bounty["chain"] = {};
+  for (const e of b.events ?? []) {
+    const ref: TxRef = { txHash: e.tx_hash, blockNumber: e.block_number, logIndex: e.log_index, at: e.ingestion_timestamp };
+    const key = CHAIN_KEY[e.event_type];
+    if (key === "refunded") chain.refunded = { ...ref, amountUnits: e.payload.amount ?? "0" };
+    else chain[key] = ref;
+  }
+  const repoId = String(b.repo.github_repo_id);
+  return {
+    id: String(b.id),
+    onchainBountyId: b.onchain_bounty_id,
+    repo: { id: repoId, githubRepoId: repoId, fullName: b.repo.name },
+    pr: {
+      repoId,
+      number: b.pr.github_pr_number,
+      title: `Pull request #${b.pr.github_pr_number}`, // the backend does not store PR titles
+      author: user(b.pr.author_github_id),
+      headSha: b.pr.head_sha,
+      url: `https://github.com/${b.repo.name}/pull/${b.pr.github_pr_number}`,
+      state: b.pr.status,
+    },
+    // The backend has no funder GitHub id; only the repository maintainer can create a bounty.
+    funder: user(b.repo.maintainer_github_id),
+    funderWallet: b.funder_wallet,
+    amountUnits: b.amount_units,
+    deadline: b.deadline,
+    status: b.status,
+    candidates: (b.candidates ?? []).map((c) => toCandidate(c, b, approval)),
+    approval: approval && toApproval(approval),
+    chain,
+    pendingTxHash: approval?.status === "signed" ? approval.chain_tx_hash : null,
+    createdAt: b.created_at,
+  };
+}
+
+const me = () => request<WMe>("/me");
+const getBounty = async (id: string) => toBounty(await request<WBounty>(`/bounties/${id}`));
+
+/** Who holds the session cookie, or null when nobody is signed in. Used by viewer.ts. */
+export async function fetchViewer(): Promise<GithubUser | null> {
+  try {
+    const m = await me();
+    return user(m.github_user_id, m.login);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "unauthenticated") return null;
+    throw err;
+  }
+}
+
+export const loginUrl = `${BACKEND_URL}/auth/github/login`;
+export const logout = () => request<null>("/auth/logout", { method: "POST" });
+
+/* ------------------------------------------------------------------ the Api */
+
 export const httpApi: Api = {
-  listRepositories: () => request("/repositories"),
-  listPullRequests: (repoId) => request(`/repositories/${repoId}/pulls`),
-  listBounties: (scope) => request(`/bounties${q({ scope })}`),
-  getBounty: (id) => request(`/bounties/${id}`),
-  createBounty: (input) => request("/bounties", { method: "POST", body: input }),
-  reportFundingTx: (id, txHash) => request(`/bounties/${id}/funding-tx`, { method: "POST", body: { txHash } }),
-  rejectCandidate: (id, candidateId) =>
-    request(`/bounties/${id}/candidates/${candidateId}/reject`, { method: "POST", body: {} }),
-  prepareApproval: (id, candidateId, amountUnits) =>
-    request(`/bounties/${id}/approvals`, { method: "POST", body: { candidateId, amountUnits } }),
-  reportApprovalTx: (id, txHash) => request(`/bounties/${id}/approval-tx`, { method: "POST", body: { txHash } }),
-  getWalletLink: () => request("/wallet-link"),
-  createWalletChallenge: (address) => request("/wallet-link/challenge", { method: "POST", body: { address } }),
-  verifyWalletLink: (input) => request("/wallet-link/verify", { method: "POST", body: input }),
-  listEvents: (filter) => request(`/events${q({ bountyId: filter?.bountyId })}`),
+  async listRepositories() {
+    const m = await me();
+    return m.maintains.map((r) => ({
+      id: String(r.github_repo_id),
+      githubRepoId: String(r.github_repo_id),
+      fullName: r.name,
+      installationId: "",
+      maintainer: user(m.github_user_id, m.login),
+    }));
+  },
+
+  // shortcut: the backend has no pull-request listing, so open PRs come from GitHub's public
+  // API (public repos only, 60 requests/hour per IP). Upgrade when the backend adds a route.
+  async listPullRequests(repoId) {
+    const [repo, live] = await Promise.all([
+      me().then((m) => m.maintains.find((r) => String(r.github_repo_id) === repoId)),
+      request<{ bounties: WBounty[] }>("/bounties"),
+    ]);
+    if (!repo) return [];
+    const res = await fetch(`https://api.github.com/repos/${repo.name}/pulls?state=open&per_page=50`).catch(() => null);
+    if (!res?.ok) throw new ApiError("network", "Couldn't list pull requests from GitHub (private repository or rate limit).");
+    const pulls = (await res.json()) as { number: number; title: string; html_url: string; head: { sha: string }; user: { id: number; login: string } }[];
+    return pulls.map((p): PullRequest => ({
+      repoId,
+      number: p.number,
+      title: p.title,
+      author: user(p.user.id, p.user.login),
+      headSha: p.head.sha,
+      url: p.html_url,
+      state: "open",
+      bountyId: live.bounties.find(
+        (b) => String(b.repo.github_repo_id) === repoId && b.pr.github_pr_number === p.number && !["paid", "refunded"].includes(b.status),
+      )?.id.toString(),
+    }));
+  },
+
+  async listBounties(scope) {
+    const m = await me();
+    if (scope === "funded-by-me") {
+      const { bounties } = await request<{ bounties: WBounty[] }>("/bounties");
+      return bounties.filter((b) => b.repo.maintainer_github_id === m.github_user_id).map(toBounty);
+    }
+    // One row per bounty, carrying this reviewer's candidates and their approval if there is one.
+    const byId = new Map<number, WBounty>();
+    for (const r of m.as_reviewer) {
+      const b = byId.get(r.bounty.id) ?? { ...r.bounty, candidates: [], approvals: [] };
+      b.candidates!.push(r.candidate);
+      if (r.approval) b.approvals!.push(r.approval);
+      byId.set(b.id, b);
+    }
+    return [...byId.values()].map(toBounty);
+  },
+
+  getBounty,
+
+  async createBounty(input) {
+    const { bounty } = await request<{ bounty: WBounty }>("/bounties", {
+      method: "POST",
+      body: {
+        github_repo_id: Number(input.repoId),
+        pr_number: input.prNumber,
+        amount_units: input.amountUnits,
+        expiry: Math.floor(new Date(input.deadline).getTime() / 1000),
+      },
+    });
+    return toBounty(bounty);
+  },
+
+  // The backend takes no funding hash: only the BountyFunded event from Streams marks a bounty funded.
+  reportFundingTx: (id) => getBounty(id),
+
+  async rejectCandidate(id, candidateId) {
+    await request(`/candidates/${candidateId}/reject`, { method: "POST" });
+    return getBounty(id);
+  },
+
+  async prepareApproval(id, candidateId, amountUnits) {
+    const { tx } = await request<{ tx: { args: [string, Address, string, Hex] } }>(`/bounties/${id}/approvals`, {
+      method: "POST",
+      body: { candidate_id: Number(candidateId), amount_units: amountUnits },
+    });
+    const [onchainBountyId, recipient, amount, claimId] = tx.args;
+    return { onchainBountyId, recipient, amountUnits: amount, claimId };
+  },
+
+  async reportApprovalTx(id, txHash) {
+    const b = await request<WBounty>(`/bounties/${id}`);
+    const prepared = b.approvals?.findLast((a) => a.status === "prepared");
+    if (!prepared) throw new ApiError("not_found", "No prepared approval to attach this transaction to.");
+    await request(`/approvals/${prepared.id}/tx`, { method: "POST", body: { tx_hash: txHash } });
+    return getBounty(id);
+  },
+
+  async getWalletLink() {
+    const m = await me();
+    return m.wallet && { githubUserId: String(m.github_user_id), walletAddress: m.wallet.address, verifiedAt: m.wallet.verified_at };
+  },
+
+  // The backend's challenge is the whole message, with no separate nonce: it is carried in
+  // `nonce` so verifyWalletLink can send back exactly what was signed.
+  async createWalletChallenge() {
+    const { message } = await request<{ message: string }>("/wallet/challenge");
+    return { nonce: message, message };
+  },
+
+  async verifyWalletLink({ address, nonce, signature }) {
+    const r = await request<{ wallet_address: Address; verified_at: string }>("/wallet/link", {
+      method: "POST",
+      body: { address, message: nonce, signature },
+    });
+    return { githubUserId: "", walletAddress: r.wallet_address, verifiedAt: r.verified_at };
+  },
+
+  async listEvents(filter) {
+    const { events } = await request<{ events: WEvent[] }>(`/events${q({ bounty_id: filter?.bountyId, limit: "200" })}`);
+    return {
+      source: "quicknode-streams",
+      lastIndexedBlock: events.length ? Math.max(...events.map((e) => e.block_number)) : null,
+      lastDeliveryAt: events[0]?.ingestion_timestamp ?? null,
+      events: events.map((e) => toEvent(e, filter?.bountyId)),
+    };
+  },
 };

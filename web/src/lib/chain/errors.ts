@@ -118,8 +118,8 @@ export function describeChainError(err: ChainError): ErrorCopy {
       const reason = String(a[0] ?? err.message);
       if (/allowance/i.test(reason)) {
         return {
-          title: "USDC spending not approved yet",
-          body: "The escrow contract is not yet allowed to move this amount of your USDC. Approve the amount first, then deposit.",
+          title: "Approve the escrow for the full amount first",
+          body: "The escrow contract is not yet allowed to move this amount of your USDC. Approve the escrow for the full amount first, then deposit.",
           code: reason,
           guardrail: true,
         };

@@ -58,12 +58,21 @@ Suggested walk-through: `/maintainer/new` → create and fund → open `/bountie
 | `NEXT_PUBLIC_GITHUB_APP_SLUG` | browser | GitHub App slug for the install link |
 | `NEXT_PUBLIC_ARC_RPC_URL` | browser | Optional override of the SPEC RPC URL |
 | `NEXT_PUBLIC_ARC_EXPLORER_URL` | browser | Optional override of the SPEC explorer URL |
-| `BACKEND_URL` | server only | Engineer B's API base URL |
-| `GITHUB_ID`, `GITHUB_SECRET` | server only | GitHub OAuth app for sign-in |
-| `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | server only | NextAuth session |
+| `NEXT_PUBLIC_BACKEND_URL` | browser | Engineer B's API, default `http://localhost:4000` |
 
-No secret ever goes in a `NEXT_PUBLIC_*` variable. The GitHub access token stays in the
-encrypted session cookie and is attached server-side by the `/api/backend` proxy.
+The web app holds no secrets. Sign-in is the backend's GitHub OAuth (`/auth/github/login`),
+which sets an httpOnly `merit_session` cookie; every API call sends it with
+`credentials: "include"`.
+
+## Live mode
+
+Set `NEXT_PUBLIC_MOCK=0` in `.env.local`, start the backend on port 4000 and run
+`npm run dev` on port 3000 (the backend's CORS allows only that origin).
+
+Fields the backend does not store are placeholders in live mode: pull request titles
+("Pull request #n"), other people's logins ("user <id>") and review comment text.
+The new-bounty page lists open pull requests from GitHub's public API, so it only works
+for public repositories.
 
 ## Route map
 
@@ -77,15 +86,13 @@ encrypted session cookie and is attached server-side by the `/api/backend` proxy
 | `/reviewer` | Reviewer dashboard: link a payout wallet, bounties on PRs you reviewed |
 | `/events` | The indexed event feed with block and transaction references |
 | `/states` | Reference: all ten states and every refusal |
-| `/api/auth/[...nextauth]` | GitHub sign-in |
-| `/api/backend/[...path]` | Server-side proxy to the backend API |
 
 ## Where things live
 
 | Path | Role |
 |---|---|
 | `src/lib/api/client.ts` | **The one backend module.** Exports `api`; mock or HTTP |
-| `src/lib/api/http.ts` | Real routes and wire shapes. The only file that knows a URL |
+| `src/lib/api/http.ts` | Real routes from `docs/api.md`, mapped onto `types.ts`. The only file that knows a URL |
 | `src/lib/api/types.ts` | Shapes the UI reads, following the SPEC tables |
 | `src/lib/api/queries.ts` | React Query hooks over `api` |
 | `src/lib/chain/hooks.ts` | **The one contract module.** Wallet, funding, approve, claim, refund, dry runs |
@@ -98,27 +105,7 @@ encrypted session cookie and is attached server-side by the `/api/backend` proxy
 ## Adopting the real interfaces
 
 - **ABI changed:** `npm run sync-abi`. If a call's arguments changed, edit `src/lib/chain/hooks.ts`.
-- **`docs/api.md` published:** edit `src/lib/api/http.ts` (and `types.ts` if a shape differs).
-  The routes in `http.ts` today are assumptions made before `api.md` existed, listed below.
-
-Assumed backend routes, all under `BACKEND_URL`, authenticated with
-`Authorization: Bearer <GitHub user token>`:
-
-```
-GET  /repositories
-GET  /repositories/:id/pulls
-GET  /bounties?scope=funded-by-me|reviewed-by-me
-GET  /bounties/:id
-POST /bounties                               { repoId, prNumber, amountUnits, deadline }
-POST /bounties/:id/funding-tx                { txHash }
-POST /bounties/:id/candidates/:cid/reject
-POST /bounties/:id/approvals                 { candidateId, amountUnits } -> approveReward args
-POST /bounties/:id/approval-tx               { txHash }
-GET  /wallet-link
-POST /wallet-link/challenge                  { address } -> { nonce, message }
-POST /wallet-link/verify                     { address, nonce, signature }
-GET  /events?bountyId=
-```
+- **`docs/api.md` changed:** edit `src/lib/api/http.ts` (and `types.ts` if a UI shape must change).
 
 ## Design notes
 

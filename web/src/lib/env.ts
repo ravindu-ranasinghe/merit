@@ -13,9 +13,11 @@ export const ARC = {
 } as const;
 
 /** Deployed BountyEscrow address. Published by Engineer A in docs/escrow-interface.md. */
-export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ?? undefined) as
-  | Address
-  | undefined;
+export const ESCROW_ADDRESS = (process.env.NEXT_PUBLIC_ESCROW_ADDRESS ||
+  "0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727") as Address;
+
+/** Engineer B's API. The browser calls it directly with the session cookie; it is not a secret. */
+export const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000").replace(/\/$/, "");
 
 /** Placeholder escrow address used only by mock fixtures. */
 export const MOCK_ESCROW_ADDRESS = "0xe5c70000000000000000000000000000000b0a17" as Address;
