@@ -119,7 +119,7 @@ function Lock() {
           </Appear>
         </Between>
       </div>
-      <Cursor from={[980, 180]} to={[190, 440]} start={18} click={56} />
+      <Cursor from={[980, 180]} to={[190, 400]} start={18} click={56} />
     </Screen>
   );
 }
@@ -211,7 +211,7 @@ function Approve() {
           <span>−10.00</span>
         </Appear>
       </div>
-      <Cursor from={[1000, 420]} to={[250, 230]} start={14} click={48} />
+      <Cursor from={[1000, 420]} to={[250, 210]} start={14} click={48} />
     </Screen>
   );
 }

@@ -20,7 +20,7 @@ const subscribe = (cb: () => void) => {
 };
 
 /**
- * The four steps as a looping, simulated screen recording, with the step text below lit
+ * The four steps as a looping, simulated screen recording, with the step text above it lit
  * in time with it: the player's frame is the only clock. Clicking a step jumps to it.
  * With reduced motion nothing plays; the last frame and every step are shown instead.
  */
@@ -39,29 +39,7 @@ export function HowItWorks() {
 
   return (
     <div className="mt-5">
-      <div
-        role="img"
-        aria-label="Illustration of the four steps: a maintainer funds a bounty in Merit, a reviewer comments on GitHub, the author pushes a fix, and the maintainer approves the payout in Merit"
-        className="overflow-hidden rounded-card shadow-card"
-      >
-        <Player
-          ref={player}
-          component={HowItWorksVideo}
-          durationInFrames={SCENE * SCENES}
-          compositionWidth={WIDTH}
-          compositionHeight={HEIGHT}
-          fps={FPS}
-          // Remounted when the motion preference changes, so autoplay and the start frame follow it.
-          key={String(reduced)}
-          autoPlay={!reduced}
-          initialFrame={reduced ? SCENE * SCENES - 1 : 0}
-          loop
-          acknowledgeRemotionLicense
-          style={{ width: "100%" }}
-        />
-      </div>
-
-      <ol className="mt-6 grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map(([title, body], i) => {
           const reached = reduced || i <= active;
           return (
@@ -89,6 +67,27 @@ export function HowItWorks() {
           );
         })}
       </ol>
+      <div
+        role="img"
+        aria-label="Illustration of the four steps: a maintainer funds a bounty in Merit, a reviewer comments on GitHub, the author pushes a fix, and the maintainer approves the payout in Merit"
+        className="mx-auto mt-8 max-w-[720px] overflow-hidden rounded-card shadow-card"
+      >
+        <Player
+          ref={player}
+          component={HowItWorksVideo}
+          durationInFrames={SCENE * SCENES}
+          compositionWidth={WIDTH}
+          compositionHeight={HEIGHT}
+          fps={FPS}
+          // Remounted when the motion preference changes, so autoplay and the start frame follow it.
+          key={String(reduced)}
+          autoPlay={!reduced}
+          initialFrame={reduced ? SCENE * SCENES - 1 : 0}
+          loop
+          acknowledgeRemotionLicense
+          style={{ width: "100%" }}
+        />
+      </div>
     </div>
   );
 }
