@@ -96,8 +96,9 @@ contract BountyEscrow is ReentrancyGuard {
     }
 
     /// @notice Funder commits `amount` of the bounty to one reviewer. Callable once, before expiry.
-    /// @dev The backend proposes these arguments from GitHub evidence; the funder signs. The funder
-    ///      cannot name themselves, so a maintainer cannot pay their own bounty to themselves.
+    /// @dev The backend proposes these arguments from GitHub evidence; the funder signs. The funding
+    ///      wallet cannot name itself. A second wallet the maintainer controls is not detectable
+    ///      onchain; that is part of the disclosed collusion limitation.
     /// @param claimId backend id of the approved review (e.g. hash of the review comment); single use.
     function approveReward(uint256 bountyId, address recipient, uint256 amount, bytes32 claimId) external {
         Bounty storage b = _get(bountyId);

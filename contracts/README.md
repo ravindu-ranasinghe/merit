@@ -49,3 +49,6 @@ make verify-arc        # retry verification only (needs ESCROW_ADDRESS)
   Blockchain does not solve subjective review assessment. Checks like "no payout to the PR
   author" are GitHub-side and live in the backend, not here.
 - Expiry needs a transaction: the contract cannot act on a clock.
+- **Limitation:** approved USDC belongs to the approved reviewer and is never refundable. If
+  they never claim (lost key, or the address is blocked by the USDC issuer), those funds stay
+  locked in the escrow. This is the price of "nobody else can redirect committed money".
