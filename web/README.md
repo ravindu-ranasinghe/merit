@@ -114,4 +114,6 @@ interface and Geist Mono for amounts, hashes and blocks, and one accent: the gre
 diff's added line. Green in the chrome means a primary action or money confirmed onchain.
 Detail rows use a dotted ledger leader. Motion uses one easing curve and never loops, except
 the live-feed dot. Status colors are reserved for state and always come with a label and icon.
-Tokens live in `src/app/globals.css`. Restyled with the unslop skill by Damir Sokolovsky.
+The landing page's "How it works" is a simulated screen recording drawn in code and played with
+`@remotion/player` (`src/components/how-it-works-video.tsx`); Remotion is free for teams of up to
+three and needs a company license above that. Tokens live in `src/app/globals.css`. Restyled with the unslop skill by Damir Sokolovsky.
