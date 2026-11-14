@@ -1,6 +1,6 @@
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
-import Fastify from "fastify";
+import Fastify, { type FastifyInstance } from "fastify";
 import { ZodError } from "zod";
 import { authRoutes } from "./auth.js";
 import { HttpError, type Ctx } from "./ctx.js";
@@ -12,8 +12,8 @@ import { streamsWebhook } from "./streams/webhook.js";
 
 export type { Ctx };
 
-export async function buildApp(ctx: Ctx, opts: { logger?: boolean } = {}) {
-  const app = Fastify({ logger: opts.logger ?? false });
+export async function buildApp(ctx: Ctx, opts: { logger?: boolean; app?: FastifyInstance } = {}) {
+  const app: FastifyInstance = opts.app ?? Fastify({ logger: opts.logger ?? false });
   await app.register(cors, { origin: ctx.env.webOrigin, credentials: true });
   await app.register(cookie, { secret: ctx.env.sessionSecret });
 

@@ -1,9 +1,12 @@
 import { buildApp } from "./fastify-app.js";
+import Fastify from "fastify";
 import { createDb, runMigrations } from "./db/index.js";
 import { loadEnv } from "./env.js";
 import { createOctokitClient, MockGitHubClient } from "./github/client.js";
 import { DEMO } from "./db/seed.js";
 
+const app = Fastify({ logger: true });
+app.register(async (server) => {
 const env = loadEnv();
 const { db, pool } = createDb(env.databaseUrl);
 // Multiple Vercel instances can start together. Serialize boot migrations
@@ -24,6 +27,7 @@ try {
 const gh = env.github.mock ? new MockGitHubClient() : createOctokitClient(env);
 // Mock mode only: the seeded maintainer is admin of the seeded repo so the demo flow can run offline.
 if (gh instanceof MockGitHubClient) gh.permissions.set(`${DEMO.name}:${DEMO.maintainerId}`, "admin");
-const app = await buildApp({ db, env, gh }, { logger: true });
-for (const w of env.warnings) app.log.warn(`!!! ${w}`);
-await app.listen({ port: env.port, host: "0.0.0.0" });
+await buildApp({ db, env, gh }, { app: server });
+for (const w of env.warnings) server.log.warn(`!!! ${w}`);
+});
+void app.listen({ port: Number(process.env.PORT || 4000), host: "0.0.0.0" });
