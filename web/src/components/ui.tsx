@@ -289,7 +289,7 @@ export function TxLink({ hash, className, label }: { hash: string; className?: s
       target="_blank"
       rel="noreferrer"
       title={`View transaction ${hash} on the Arc explorer`}
-      className={cx("inline-flex items-center gap-1 font-mono text-[12px] text-accent-ink underline-offset-2 hover:underline", className)}
+      className={cx("inline-flex items-center gap-1 whitespace-nowrap font-mono text-[12px] text-accent-ink underline-offset-2 hover:underline", className)}
     >
       {label ?? shortHash(hash)}
       <IconExternal size={12} />

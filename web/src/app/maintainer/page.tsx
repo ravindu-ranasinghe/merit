@@ -52,7 +52,7 @@ function Dashboard() {
         <Tray tone="white" className="md:col-span-4" style={{ "--i": 1 } as React.CSSProperties}>
           <p className="text-[13px] font-medium text-mut">Paid to reviewers</p>
           <Money units={sum(list.filter((b) => b.status === "paid"))} className="mt-1 text-[28px]" />
-          <p className="mt-1 text-[13px] text-mut">Across {list.filter((b) => b.status === "paid").length} paid bounties</p>
+          <p className="mt-1 text-[13px] text-mut">Across {list.filter((b) => b.status === "paid").length} paid {list.filter((b) => b.status === "paid").length === 1 ? "bounty" : "bounties"}</p>
         </Tray>
         <Tray tone={deciding > 0 ? "dark" : "white"} className="md:col-span-4" style={{ "--i": 2 } as React.CSSProperties}>
           <p className={deciding > 0 ? "text-[13px] font-medium text-[#a1a1a6]" : "text-[13px] font-medium text-mut"}>Waiting for your decision</p>
