@@ -191,8 +191,25 @@ const toEvent = (e: WEvent, bountyId?: string): ChainEvent => ({
 
 const CHAIN_KEY = { BountyFunded: "funded", RewardApproved: "approved", RewardPaid: "paid", BountyRefunded: "refunded" } as const;
 
+/**
+ * The backend calls a bounty `funding_pending` from the moment it is created and takes no
+ * funding hash. The UI only says "deposit sent" for a real transaction, so the hash of the
+ * createBounty transaction is remembered here; without one the bounty is a `draft` to fund.
+ * shortcut: the hash lives in this browser only, so another browser offers "Fund" again
+ * while the deposit is unindexed. Upgrade when the backend records a funding tx hash.
+ */
+const depositKey = (id: string | number) => `merit:deposit:${id}`;
+function depositHash(id: string | number): Hex | null {
+  try {
+    return localStorage.getItem(depositKey(id)) as Hex | null;
+  } catch {
+    return null;
+  }
+}
+
 function toBounty(b: WBounty): Bounty {
   const approval = pickApproval(b.approvals);
+  const deposit = b.status === "funding_pending" ? depositHash(b.id) : null;
   const chain: Bounty["chain"] = {};
   for (const e of b.events ?? []) {
     const ref: TxRef = { txHash: e.tx_hash, blockNumber: e.block_number, logIndex: e.log_index, at: e.ingestion_timestamp };
@@ -219,11 +236,11 @@ function toBounty(b: WBounty): Bounty {
     funderWallet: b.funder_wallet,
     amountUnits: b.amount_units,
     deadline: b.deadline,
-    status: b.status,
+    status: b.status === "funding_pending" && !deposit ? "draft" : b.status,
     candidates: (b.candidates ?? []).map((c) => toCandidate(c, b, approval)),
     approval: approval && toApproval(approval),
     chain,
-    pendingTxHash: approval?.status === "signed" ? approval.chain_tx_hash : null,
+    pendingTxHash: deposit ?? (approval?.status === "signed" ? approval.chain_tx_hash : null),
     createdAt: b.created_at,
   };
 }
@@ -316,8 +333,15 @@ export const httpApi: Api = {
     return toBounty(bounty);
   },
 
-  // The backend takes no funding hash: only the BountyFunded event from Streams marks a bounty funded.
-  reportFundingTx: (id) => getBounty(id),
+  // Only the BountyFunded event from Streams marks a bounty funded; the hash just keys the waiting state.
+  async reportFundingTx(id, txHash) {
+    try {
+      localStorage.setItem(depositKey(id), txHash);
+    } catch {
+      /* storage blocked: the bounty stays a draft until the event is indexed */
+    }
+    return getBounty(id);
+  },
 
   async rejectCandidate(id, candidateId) {
     await request(`/candidates/${candidateId}/reject`, { method: "POST" });
