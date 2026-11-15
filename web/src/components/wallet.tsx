@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { useLinkWallet, useWalletLink } from "@/lib/api/queries";
 import { describeChainError } from "@/lib/chain/errors";
-import { useSignMessage, useWallet } from "@/lib/chain/hooks";
+import { useNeedsGas, useSignMessage, useWallet } from "@/lib/chain/hooks";
 import { formatDate } from "@/lib/format";
-import { IconCheckDraw, IconWallet } from "./icons";
-import { AddressLink, Button, Notice } from "./ui";
+import { IconCheckDraw, IconExternal, IconWallet } from "./icons";
+import { AddressLink, Button, LinkButton, Notice } from "./ui";
 
 /**
  * Wraps an action that needs a wallet on Arc testnet. Until one is connected it shows a
@@ -40,6 +40,36 @@ export function WalletGate({ reason, children }: { reason: string; children: Rea
 }
 
 /**
+ * A step, not an error: Arc charges gas in USDC, so a wallet with none cannot send a claim.
+ * Renders nothing unless the balance is known to be zero, and goes away once USDC arrives.
+ */
+export function GasStep({ address, className }: { address: string | null | undefined; className?: string }) {
+  const needsGas = useNeedsGas(address as `0x${string}` | null | undefined);
+  const [copied, setCopied] = useState(false);
+  if (!needsGas || !address) return null;
+  return (
+    <Notice tone="progress" className={className} title="Next step: get a little testnet USDC for gas">
+      <p>
+        You&apos;ll need a small amount of USDC to cover gas — Arc charges gas in USDC. Get testnet USDC from the
+        Circle faucet: choose Arc Testnet and paste your address.
+      </p>
+      <p className="mt-2 break-all font-mono text-[12px] text-ink">{address}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* The faucet has no address parameter, so the address is copied for pasting there. */}
+        <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(address).then(() => setCopied(true))}>
+          {copied ? "Address copied" : "Copy address"}
+        </Button>
+        <LinkButton href="https://faucet.circle.com/" external variant="accent">
+          Open the Circle faucet
+          <IconExternal size={13} />
+        </LinkButton>
+      </div>
+      <p className="mt-2 text-[12px] text-mut">This step clears by itself once the USDC arrives.</p>
+    </Notice>
+  );
+}
+
+/**
  * Links a payout wallet to the signed-in GitHub account by signing a challenge message.
  * Signing is free and moves no money; it shows the reviewer controls the address.
  */
@@ -67,7 +97,7 @@ export function WalletLinkCard() {
   if (link.data && !relinking) {
     return (
       <div>
-        <p className="flex items-center gap-2 text-[15px] font-semibold">
+        <p className="flex items-center gap-2 text-[16px] font-medium">
           <span className="flex size-6 items-center justify-center rounded-full bg-good text-white">
             <IconCheckDraw size={13} />
           </span>
@@ -76,19 +106,20 @@ export function WalletLinkCard() {
         <p className="mt-2 text-[13px] text-mut">
           Rewards approved for you are paid to this address. Linked {formatDate(link.data.verifiedAt)}.
         </p>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-3.5 py-2.5 shadow-inner-card">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
           <AddressLink address={link.data.walletAddress} full />
-          <button onClick={() => setRelinking(true)} className="text-[12.5px] font-medium text-mut hover:text-ink">
+          <button onClick={() => setRelinking(true)} className="text-[13px] font-medium text-mut hover:text-ink">
             Change
           </button>
         </div>
+        <GasStep address={link.data.walletAddress} className="mt-3" />
       </div>
     );
   }
 
   return (
     <div>
-      <p className="flex items-center gap-2 text-[15px] font-semibold">
+      <p className="flex items-center gap-2 text-[16px] font-medium">
         <IconWallet size={17} />
         {relinking ? "Link a different wallet" : "Link a payout wallet"}
       </p>
@@ -104,7 +135,7 @@ export function WalletLinkCard() {
             </Button>
             {wallet.address && <AddressLink address={wallet.address} />}
             {relinking && (
-              <button onClick={() => setRelinking(false)} className="text-[12.5px] font-medium text-mut hover:text-ink">
+              <button onClick={() => setRelinking(false)} className="text-[13px] font-medium text-mut hover:text-ink">
                 Cancel
               </button>
             )}

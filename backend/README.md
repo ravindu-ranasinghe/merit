@@ -34,6 +34,39 @@ curl localhost:4000/health
 curl localhost:4000/bounties
 ```
 
+## Vercel live deployment
+
+The backend is a separate Vercel project with **Root Directory `backend`** and
+**Framework Preset Fastify**. `src/index.ts` is its entrypoint. Keep the `web` project
+separate; the web app proxies `/api/merit/*` to this API so OAuth and session cookies
+stay on the web origin.
+
+1. Provision a hosted PostgreSQL database and use its connection string as
+   `DATABASE_URL`. The API runs the checked-in Drizzle migrations at startup.
+2. Set backend production environment variables: `DATABASE_URL`,
+   `WEB_ORIGIN=https://<web-domain>`, `SESSION_SECRET` (32+ random characters),
+   `QN_SECURITY_TOKEN`, `GITHUB_APP_ID`, `GITHUB_PRIVATE_KEY`,
+   `GITHUB_WEBHOOK_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and
+   `ESCROW_ADDRESS`. Never use the development Docker Compose values on the public API.
+3. Deploy and open `https://<api-domain>/health`. It must return
+   `{ "ok": true, "github_mock": false }`.
+4. In the GitHub App settings, set the webhook URL to
+   `https://<api-domain>/webhooks/github` and the OAuth callback URL to
+   `https://<web-domain>/api/merit/auth/github/callback`. Subscribe to installation,
+   installation repositories, pull request, pull request review comment, and pull
+   request review thread events. The installation webhook registers the repositories
+   visible to the installing maintainer.
+5. In the web Vercel project, set `NEXT_PUBLIC_MOCK=0`,
+   `NEXT_PUBLIC_BACKEND_URL=/api/merit`, `MERIT_API_ORIGIN=https://<api-domain>`,
+   and `NEXT_PUBLIC_GITHUB_APP_SLUG`. Redeploy the web project; then confirm
+   `https://<web-domain>/api/merit/health` and sign in through the web UI.
+6. Point QuickNode Streams at `https://<api-domain>/webhooks/streams` with the
+   same `QN_SECURITY_TOKEN`. Without delivered chain events, funded and payout
+   states cannot advance in the UI.
+
+`npm run sync-abi` refreshes the bundled ABI from `docs/escrow-abi.json` after
+contract interface changes. Commit the generated JSON with the source change.
+
 Without GitHub credentials the API runs against an in-memory **mock** GitHub client (`/health` shows
 `github_mock: true`; log in via `/auth/github/login`, which signs you in as user 1001).
 

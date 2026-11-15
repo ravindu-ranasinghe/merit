@@ -3,13 +3,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import homeStyles from "@/app/home.module.css";
 import { PERSONAS, type PersonaKey } from "@/fixtures/seed";
 import { useWallet } from "@/lib/chain/hooks";
 import { MOCK } from "@/lib/env";
 import { shortHash } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 import { resetDb, setPersonaKey } from "@/mock/store";
-import { IconGithub, IconRefresh, IconWallet } from "./icons";
+import { IconArrowRight, IconGithub, IconRefresh, IconWallet } from "./icons";
 import { Avatar, Button, cx } from "./ui";
 
 const NAV = [
@@ -20,8 +22,8 @@ const NAV = [
 
 export function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-2 text-[16px] font-semibold tracking-[-0.03em]">
-      <span className="flex size-7 items-center justify-center rounded-[9px] bg-ink text-white">
+    <Link href="/" className="flex items-center gap-2 text-[16px] font-medium">
+      <span className="flex size-7 items-center justify-center rounded-md bg-ink text-white">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M4 18V7l8 7 8-7v11" />
         </svg>
@@ -33,14 +35,44 @@ export function Logo() {
 
 export function AppHeader() {
   const pathname = usePathname();
+  return pathname === "/" ? <LandingHeader /> : <DashboardHeader />;
+}
+
+function LandingHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const links = [
+    { href: "/#how-it-works", label: "How it works" },
+    { href: "/#trust", label: "Trust model" },
+    { href: "/events", label: "Event feed" },
+  ];
+  return (
+    <header className={homeStyles.landingHeader}>
+      <div className={homeStyles.headerInner}>
+        <Logo />
+        <nav className={homeStyles.desktopNav} aria-label="Main">{links.map(({ href, label }) => <Link key={href} href={href}>{label}</Link>)}</nav>
+        <Link className={homeStyles.headerCta} href="/maintainer">Open app <IconArrowRight size={14} /></Link>
+        <button type="button" className={homeStyles.menuButton} aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} aria-controls="home-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button>
+      </div>
+      {menuOpen && <nav id="home-mobile-nav" className={homeStyles.mobileNav} aria-label="Mobile">{links.map(({ href, label }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}</nav>}
+    </header>
+  );
+}
+
+export function AppMain({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  return <main id="main-content" className={pathname === "/" ? "w-full flex-1" : "mx-auto w-full max-w-[1280px] flex-1 px-4 pb-16 pt-6 sm:px-6"}>{children}</main>;
+}
+
+function DashboardHeader() {
+  const pathname = usePathname();
   const viewer = useViewer();
   const wallet = useWallet();
 
   return (
     <div className="sticky top-0 z-30">
       {MOCK && <MockBar />}
-      <header className="border-b border-line/70 bg-bg/85 backdrop-blur-md">
-        <div className="mx-auto flex h-14 w-full max-w-[1120px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
+      <header className="border-b border-line bg-bg">
+        <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
           <Logo />
           <nav aria-label="Main" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
             {NAV.map((n) => {
@@ -51,7 +83,7 @@ export function AppHeader() {
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "whitespace-nowrap rounded-[9px] px-2.5 py-1.5 text-[13.5px] font-medium transition-colors",
+                    "whitespace-nowrap rounded-[9px] px-3 py-2 text-[14px] font-medium transition-colors",
                     active ? "bg-tray text-ink" : "text-mut hover:text-ink",
                   )}
                 >
@@ -66,7 +98,7 @@ export function AppHeader() {
             {wallet.connected && wallet.address && (
               <span
                 title={`Connected wallet ${wallet.address}`}
-                className="hidden items-center gap-1.5 rounded-full bg-tray px-2.5 py-1 font-mono text-[11.5px] text-ink-2 md:inline-flex"
+                className="hidden items-center gap-2 rounded-md bg-tray px-2 py-1 font-mono text-[12px] text-ink-2 md:inline-flex"
               >
                 <IconWallet size={13} />
                 {shortHash(wallet.address, 6, 4)}
@@ -77,7 +109,7 @@ export function AppHeader() {
                 <Avatar user={viewer.user} size={26} />
                 <span className="hidden sm:inline">{viewer.user.login}</span>
                 {!MOCK && (
-                  <button onClick={viewer.signOut} className="rounded-md px-1.5 py-1 text-[12.5px] text-mut hover:text-ink">
+                  <button onClick={viewer.signOut} className="rounded-md px-2 py-1 text-[13px] text-mut hover:text-ink">
                     Sign out
                   </button>
                 )}
@@ -109,17 +141,17 @@ function MockBar() {
 
   return (
     <div className="bg-dark text-white">
-      <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-1.5 sm:px-6">
-        <p className="text-[12px] text-[#b9b9c0]">
-          <span className="mr-1.5 rounded bg-white/15 px-1.5 py-0.5 font-semibold text-white">Mock mode</span>
+      <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-6">
+        <p className="text-[12px] text-[#a1a1a6]">
+          <span className="mr-2 rounded bg-white/15 px-2 py-0.5 font-medium text-white">Mock mode</span>
           Sample data. No real GitHub, backend or transactions.
         </p>
         <div className="ml-auto flex items-center gap-2">
-          <span className="hidden text-[12px] text-[#9a9aa2] sm:inline">Viewing as</span>
+          <span className="hidden text-[12px] text-[#a1a1a6] sm:inline">Viewing as</span>
           <div role="radiogroup" aria-label="Sample persona" className="relative grid h-7 grid-cols-4 rounded-[9px] bg-white/10 p-0.5">
             <span
               aria-hidden
-              className="absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%-4px)/4)] rounded-[7px] bg-white transition-transform duration-500 ease-spring"
+              className="absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%-4px)/4)] rounded-[7px] bg-white transition-transform duration-500 ease-soft"
               style={{ transform: `translateX(${index * 100}%)` }}
             />
             {keys.map((k) => (
@@ -130,8 +162,8 @@ function MockBar() {
                 title={`${PERSONAS[k].user.login}: ${PERSONAS[k].blurb}`}
                 onClick={() => pick(k)}
                 className={cx(
-                  "relative z-10 whitespace-nowrap px-2 text-[11.5px] font-semibold transition-colors duration-300 sm:px-2.5",
-                  k === persona ? "text-ink" : "text-[#c9c9cf] hover:text-white",
+                  "relative z-10 whitespace-nowrap px-2 text-[12px] font-medium transition-colors duration-300 sm:px-3",
+                  k === persona ? "text-ink" : "text-[#a1a1a6] hover:text-white",
                 )}
               >
                 {PERSONAS[k].label}
@@ -145,7 +177,7 @@ function MockBar() {
               resetDb();
               void qc.invalidateQueries();
             }}
-            className="rounded-md p-1 text-[#b9b9c0] hover:bg-white/10 hover:text-white"
+            className="rounded-md p-1 text-[#a1a1a6] hover:bg-white/10 hover:text-white"
           >
             <IconRefresh size={14} />
           </button>
@@ -156,9 +188,16 @@ function MockBar() {
 }
 
 export function AppFooter() {
+  const pathname = usePathname();
+  if (pathname === "/") return (
+    <footer className={homeStyles.landingFooter}>
+      <div className={homeStyles.footerTop}><Logo /><p>A little credit for a good catch.</p><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
+      <div className={homeStyles.footerBottom}><p>Testnet prototype · Test USDC on Arc has no monetary value</p><p>Made for UBC Hackathon 2026</p></div>
+    </footer>
+  );
   return (
-    <footer className="border-t border-line/70">
-      <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[12.5px] text-mut sm:px-6">
+    <footer className="border-t border-line">
+      <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[13px] text-mut sm:px-6">
         <p>
           Testnet prototype. Rewards are testnet USDC on Arc and have no monetary value.
         </p>

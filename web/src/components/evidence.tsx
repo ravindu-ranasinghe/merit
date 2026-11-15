@@ -6,7 +6,7 @@ import { cx, Pill, UserChip } from "./ui";
 /** A unified diff hunk with added and removed lines tinted, like GitHub renders it. */
 export function DiffHunk({ hunk }: { hunk: string }) {
   return (
-    <pre className="overflow-x-auto rounded-[10px] bg-[#f6f6f3] py-2 font-mono text-[11.5px] leading-[1.65] shadow-[inset_0_0_0_1px_#e6e6e0]">
+    <pre className="overflow-x-auto rounded-[10px] bg-[#f6f8fa] py-2 font-mono text-[12px] leading-[1.65] shadow-[inset_0_0_0_1px_#e5e5e5]">
       {hunk.split("\n").map((line, i) => (
         <span
           key={i}
@@ -52,9 +52,9 @@ export function EvidenceCard({ candidate, footer }: { candidate: ReviewCandidate
   const e = candidate.evidence;
   return (
     <article className="rounded-card bg-card p-4 shadow-inner-card">
-      <header className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <UserChip user={candidate.reviewer} size={22} className="text-[13.5px]" />
-        <span className="text-[12.5px] text-mut">commented {relativeTime(candidate.commentedAt)}</span>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <UserChip user={candidate.reviewer} size={22} className="text-[14px]" />
+        <span className="text-[13px] text-mut">commented {relativeTime(candidate.commentedAt)}</span>
         <span className="ml-auto flex items-center gap-2">
           {candidate.status === "approved" && <Pill tone="good"><IconCheck size={12} />Approved</Pill>}
           {candidate.status === "rejected" && <Pill tone="critical"><IconX size={12} />Rejected</Pill>}
@@ -63,7 +63,7 @@ export function EvidenceCard({ candidate, footer }: { candidate: ReviewCandidate
             href={candidate.commentUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-ink hover:underline"
+            className="inline-flex items-center gap-1 text-[13px] font-medium text-accent-ink hover:underline"
           >
             View on GitHub <IconExternal size={12} />
           </a>
@@ -74,24 +74,24 @@ export function EvidenceCard({ candidate, footer }: { candidate: ReviewCandidate
         {candidate.commentBody}
       </blockquote>
 
-      <p className="mt-3 font-mono text-[11.5px] text-mut">{candidate.filePath}</p>
-      <div className="mt-1.5">
+      <p className="mt-3 font-mono text-[12px] text-mut">{candidate.filePath}</p>
+      <div className="mt-2">
         <DiffHunk hunk={candidate.diffHunk} />
       </div>
 
       {candidate.commitSha && (
-        <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-ink-2">
+        <p className="mt-3 flex items-center gap-2 text-[13px] text-ink-2">
           <IconCommit size={14} className="text-mut" />
           Later commit <span className="font-mono text-[12px]">{candidate.commitSha}</span>
           {candidate.commitMessage && <span className="truncate text-mut">{candidate.commitMessage}</span>}
         </p>
       )}
 
-      <div className="mt-3.5 rounded-[10px] bg-[#f6f6f3] p-3">
-        <p className="text-[12px] font-semibold text-ink-2">
+      <div className="mt-4 rounded-[10px] bg-[#f6f8fa] p-3">
+        <p className="text-[12px] font-medium text-ink-2">
           Signals from GitHub <span className="font-normal text-mut">· heuristics, not proof</span>
         </p>
-        <ul className="mt-2 space-y-1.5">
+        <ul className="mt-2 space-y-2">
           <Signal ok={e.commentExists}>A review comment exists on this pull request</Signal>
           <Signal ok={e.laterCommitTouchedContext}>A later commit changed the code the comment is about</Signal>
           <Signal ok={e.threadResolved}>The comment thread was resolved</Signal>

@@ -21,7 +21,7 @@ function CandidateActions({ bounty, candidate }: { bounty: Bounty; candidate: Re
   const reject = useRejectCandidate();
   if (candidate.status !== "candidate") return null;
   return (
-    <div className="flex flex-wrap items-center gap-2.5 border-t border-line/70 pt-4">
+    <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
       {candidate.reviewerWallet ? (
         <LinkButton href={`/bounties/${bounty.id}/approve/${candidate.id}`} variant="accent">
           Review and approve payout
@@ -62,8 +62,8 @@ export default function BountyPage() {
   if (error || !bounty) {
     return (
       <Tray tone="white" className="mx-auto max-w-xl text-center">
-        <h1 className="text-[20px] font-semibold">This bounty could not be loaded</h1>
-        <p className="mt-1.5 text-mut">{error?.message ?? "It may not exist."}</p>
+        <h1 className="text-[20px] font-medium">This bounty could not be loaded</h1>
+        <p className="mt-2 text-mut">{error?.message ?? "It may not exist."}</p>
         <div className="mt-4 flex justify-center">
           <LinkButton href="/maintainer" variant="secondary">Back to dashboard</LinkButton>
         </div>
@@ -85,13 +85,13 @@ export default function BountyPage() {
               href={bounty.pr.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-mut hover:text-ink"
+              className="inline-flex items-center gap-2 text-[13px] font-medium text-mut hover:text-ink"
             >
               <IconGithub size={14} />
               {bounty.repo.fullName} #{bounty.pr.number}
               <IconExternal size={12} />
             </a>
-            <h1 className="mt-1.5 text-[24px] font-semibold leading-tight tracking-[-0.025em] sm:text-[28px]">{bounty.pr.title}</h1>
+            <h1 className="mt-2 text-[24px] font-medium leading-tight tracking-[-0.025em] sm:text-[28px]">{bounty.pr.title}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-mut">
               Review bounty funded by <UserChip user={bounty.funder} className="text-ink" />
               <span aria-hidden>·</span>
@@ -99,8 +99,8 @@ export default function BountyPage() {
             </p>
           </div>
           <div className="text-left sm:text-right">
-            <Money units={bounty.amountUnits} className="text-[38px] leading-none" />
-            <p className="mt-1.5 text-[12.5px] text-mut">
+            <Money units={bounty.amountUnits} className="text-[40px] leading-none" />
+            <p className="mt-2 text-[13px] text-mut">
               {expiredAt ? `Deadline passed ${relativeTime(bounty.deadline)}` : `Open until ${formatDate(bounty.deadline)}`}
             </p>
           </div>
@@ -117,7 +117,7 @@ export default function BountyPage() {
         {/* Evidence */}
         {bounty.candidates.length > 0 && (
           <Tray>
-            <h2 className="text-[15px] font-semibold">Review evidence</h2>
+            <h2 className="text-[16px] font-medium">Review evidence</h2>
             <p className="mt-1 text-[13px] text-mut">
               What GitHub shows about each review. The maintainer reads it and decides; Merit does not score reviews.
             </p>
@@ -137,7 +137,7 @@ export default function BountyPage() {
       <div className="space-y-3 lg:col-span-5" style={{ "--i": 2 } as React.CSSProperties}>
         {/* The money, in plain words; chain detail on demand */}
         <Tray>
-          <h2 className="text-[15px] font-semibold">The reward</h2>
+          <h2 className="text-[16px] font-medium">The reward</h2>
           <dl className="mt-2 divide-y divide-line/70">
             <Row label="Amount">{formatUsdc(bounty.amountUnits)}</Row>
             <Row label="Held in escrow since">{c.funded ? formatDate(c.funded.at) : "Not funded yet"}</Row>
@@ -147,12 +147,12 @@ export default function BountyPage() {
             </Row>
             <Row label="Pays">One reviewer, once</Row>
           </dl>
-          <details className="group mt-3 rounded-card bg-card px-3.5 py-2.5 shadow-inner-card">
-            <summary className="cursor-pointer list-none text-[13px] font-semibold text-ink-2 marker:hidden">
-              <span className="mr-1.5 inline-block transition-transform duration-300 ease-spring group-open:rotate-90">›</span>
+          <details className="group mt-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
+            <summary className="cursor-pointer list-none text-[13px] font-medium text-ink-2 marker:hidden">
+              <span className="mr-2 inline-block transition-transform duration-300 ease-soft group-open:rotate-90">›</span>
               Onchain details
             </summary>
-            <dl className="mt-1.5 divide-y divide-line/70">
+            <dl className="mt-2 divide-y divide-line/70">
               <Row label="Network">Arc testnet</Row>
               <Row label="Escrow contract">
                 {escrowContractAddress ? <AddressLink address={escrowContractAddress} /> : <span className="text-mut">Not deployed yet</span>}
@@ -171,8 +171,8 @@ export default function BountyPage() {
         {bounty.onchainBountyId && (
           <Tray>
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-[15px] font-semibold">Indexed events</h2>
-              <Link href="/events" className="text-[12.5px] font-medium text-accent-ink hover:underline">Full feed</Link>
+              <h2 className="text-[16px] font-medium">Indexed events</h2>
+              <Link href="/events" className="text-[13px] font-medium text-accent-ink hover:underline">Full feed</Link>
             </div>
             <p className="mb-3 mt-1 text-[13px] text-mut">Contract events for this bounty, as the indexer delivered them.</p>
             <EventFeed bountyId={bounty.id} compact />

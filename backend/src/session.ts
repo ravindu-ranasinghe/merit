@@ -10,7 +10,7 @@ const COOKIE = "merit_session";
 /**
  * An https web app is on another host than the api, so its fetches are cross-site and the
  * cookies must be SameSite=None; Secure. On http://localhost that pair is refused, so dev stays Lax.
- * None drops the browser's CSRF protection: the Origin check in app.ts replaces it.
+ * None drops the browser's CSRF protection: the Origin check in fastify-app.ts replaces it.
  */
 export function cookieOpts(webOrigin: string) {
   const crossSite = webOrigin.startsWith("https://");

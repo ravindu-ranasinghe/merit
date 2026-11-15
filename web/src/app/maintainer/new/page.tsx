@@ -39,7 +39,7 @@ function Segmented<T extends string | number>({
     <div role="radiogroup" aria-label={label} className="relative grid h-11 rounded-[13px] bg-tray-2 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
       <span
         aria-hidden
-        className="absolute bottom-1 left-1 top-1 rounded-[10px] bg-card shadow-knob transition-transform duration-500 ease-spring"
+        className="absolute bottom-1 left-1 top-1 rounded-[10px] bg-card shadow-knob transition-transform duration-500 ease-soft"
         style={{ width: `calc((100% - 8px) / ${options.length})`, transform: `translateX(${index * 100}%)` }}
       />
       {options.map((o) => (
@@ -49,7 +49,7 @@ function Segmented<T extends string | number>({
           role="radio"
           aria-checked={o === value}
           onClick={() => onChange(o)}
-          className={cx("relative z-10 text-[14px] transition-colors duration-300", o === value ? "font-semibold text-ink" : "font-medium text-mut hover:text-ink")}
+          className={cx("relative z-10 text-[14px] transition-colors duration-300", o === value ? "font-medium text-ink" : "font-medium text-mut hover:text-ink")}
         >
           {render(o)}
         </button>
@@ -91,7 +91,7 @@ function NewBounty() {
       <div className="stagger grid grid-cols-1 gap-3 lg:grid-cols-12">
         <div className="space-y-3 lg:col-span-7" style={{ "--i": 0 } as React.CSSProperties}>
           <Tray>
-            <h2 className="text-[15px] font-semibold">1. Repository</h2>
+            <h2 className="text-[16px] font-medium">1. Repository</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               {repos.isLoading && <Skeleton className="h-10 w-48" />}
               {repos.data?.map((r) => (
@@ -104,8 +104,8 @@ function NewBounty() {
                     setPrNumber(null);
                   }}
                   className={cx(
-                    "flex h-10 items-center gap-2 rounded-ctl px-3.5 text-[13.5px] font-medium transition-[background-color,box-shadow,transform] duration-300 ease-spring active:scale-[0.97]",
-                    r.id === activeRepoId ? "bg-ink text-white" : "bg-card shadow-knob hover:bg-[#fafaf8]",
+                    "flex h-10 items-center gap-2 rounded-ctl px-4 text-[14px] font-medium transition-[background-color,box-shadow,transform] duration-300 ease-soft active:scale-[0.97]",
+                    r.id === activeRepoId ? "bg-ink text-white" : "bg-card shadow-knob hover:bg-[#f4f4f5]",
                   )}
                 >
                   <IconGithub size={15} />
@@ -121,7 +121,7 @@ function NewBounty() {
           </Tray>
 
           <Tray>
-            <h2 className="text-[15px] font-semibold">2. Pull request</h2>
+            <h2 className="text-[16px] font-medium">2. Pull request</h2>
             <div className="mt-3 space-y-2">
               {pulls.isLoading && <Skeleton className="h-14" />}
               {pulls.data?.length === 0 && <Empty title="No open pull requests">Open a pull request in this repository first.</Empty>}
@@ -136,22 +136,22 @@ function NewBounty() {
                     aria-pressed={selected}
                     onClick={() => setPrNumber(p.number)}
                     className={cx(
-                      "flex w-full items-center gap-3 rounded-card px-3.5 py-3 text-left transition-[box-shadow,background-color] duration-300",
+                      "flex w-full items-center gap-3 rounded-card px-4 py-3 text-left transition-[box-shadow,background-color] duration-300",
                       selected ? "bg-card shadow-[0_0_0_2px_var(--color-accent),0_0_0_6px_rgb(47_91_255/0.14)]" : "bg-card shadow-inner-card",
                       taken && "opacity-55",
                     )}
                   >
                     <IconPullRequest size={16} className="shrink-0 text-mut" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-semibold">{p.title}</span>
-                      <span className="flex items-center gap-1.5 text-[12.5px] text-mut">
+                      <span className="block truncate text-[14px] font-medium">{p.title}</span>
+                      <span className="flex items-center gap-2 text-[13px] text-mut">
                         #{p.number} by <UserChip user={p.author} size={15} />
                       </span>
                     </span>
                     {taken ? (
                       <span className="text-[12px] text-mut">Has a bounty</span>
                     ) : (
-                      <span className={cx("flex size-5 items-center justify-center rounded-full", selected ? "bg-accent text-white" : "shadow-[inset_0_0_0_1.5px_#cfcfc8]")}>
+                      <span className={cx("flex size-5 items-center justify-center rounded-full", selected ? "bg-accent text-white" : "shadow-[inset_0_0_0_1.5px_#d4d4d4]")}>
                         {selected && <IconCheck size={11} />}
                       </span>
                     )}
@@ -162,14 +162,14 @@ function NewBounty() {
           </Tray>
 
           <Tray>
-            <h2 className="text-[15px] font-semibold">3. Reward and deadline</h2>
+            <h2 className="text-[16px] font-medium">3. Reward and deadline</h2>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <div>
-                <p className="mb-1.5 text-[12.5px] text-mut">Reward, in testnet USDC</p>
+                <p className="mb-2 text-[13px] text-mut">Reward, in testnet USDC</p>
                 <Segmented label="Reward" options={AMOUNTS} value={amount} onChange={setAmount} render={(u) => formatUsd(u)} />
               </div>
               <div>
-                <p className="mb-1.5 text-[12.5px] text-mut">Open for</p>
+                <p className="mb-2 text-[13px] text-mut">Open for</p>
                 <Segmented label="Deadline" options={WINDOWS} value={days} onChange={setDays} render={(d) => `${d} days`} />
               </div>
             </div>
@@ -178,7 +178,7 @@ function NewBounty() {
 
         <div className="space-y-3 lg:sticky lg:top-24 lg:col-span-5 lg:self-start" style={{ "--i": 1 } as React.CSSProperties}>
           <Tray tone="white">
-            <p className="text-[12.5px] font-medium text-mut">You are about to lock</p>
+            <p className="text-[13px] font-medium text-mut">You are about to lock</p>
             <Money units={amount} className="mt-1 text-[40px] leading-tight" />
             <p className="mt-1 text-[13px] text-mut">
               {pr ? (
@@ -189,15 +189,15 @@ function NewBounty() {
               open until {formatDate(deadline)}.
             </p>
 
-            <h2 className="mt-5 text-[13.5px] font-semibold">What you are agreeing to</h2>
-            <ul className="mt-2.5 space-y-2.5">
+            <h2 className="mt-5 text-[14px] font-medium">What you are agreeing to</h2>
+            <ul className="mt-3 space-y-3">
               {RULES.map(([title, body]) => (
-                <li key={title} className="flex gap-2.5 text-[13px]">
+                <li key={title} className="flex gap-3 text-[13px]">
                   <span className="mt-0.5 flex size-4.5 shrink-0 items-center justify-center rounded-full bg-tint text-accent-ink">
                     <IconCheck size={10} />
                   </span>
                   <span>
-                    <strong className="font-semibold">{title}</strong> <span className="text-ink-2">{body}</span>
+                    <strong className="font-medium">{title}</strong> <span className="text-ink-2">{body}</span>
                   </span>
                 </li>
               ))}
@@ -209,7 +209,7 @@ function NewBounty() {
             <Button variant="accent" className="mt-5 w-full" disabled={!pr} loading={create.isPending} onClick={submit}>
               {pr ? "Create bounty and continue to funding" : "Choose a pull request to continue"}
             </Button>
-            <p className="mt-2.5 text-center text-[12px] text-mut">No money moves on this step. Testnet USDC only.</p>
+            <p className="mt-3 text-center text-[12px] text-mut">No money moves on this step. Testnet USDC only.</p>
           </Tray>
         </div>
       </div>

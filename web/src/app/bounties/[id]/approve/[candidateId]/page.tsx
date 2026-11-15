@@ -20,22 +20,22 @@ import { useViewer } from "@/lib/viewer";
 function NotAllowed({ bountyId, serverMessage }: { bountyId: string; serverMessage?: string }) {
   return (
     <Tray tone="dark" className="mx-auto max-w-2xl animate-rise">
-      <p className="flex items-center gap-2 text-[12.5px] font-semibold text-[#9fb4ff]">
+      <p className="flex items-center gap-2 text-[13px] font-medium text-[#4cc38a]">
         <IconShield size={15} />
         Approval blocked
       </p>
-      <h1 className="mt-2 text-[24px] font-semibold tracking-[-0.02em]">You can&apos;t approve this payout</h1>
-      <p className="mt-2 text-[14px] leading-relaxed text-[#c9c9cf]">
+      <h1 className="mt-2 text-[24px] font-medium tracking-[-0.02em]">You can&apos;t approve this payout</h1>
+      <p className="mt-2 text-[14px] leading-relaxed text-[#a1a1a6]">
         {serverMessage ?? "Only the maintainer who funded this bounty can approve a payout from it."} This is checked in
         two places, and neither one trusts this page:
       </p>
-      <ul className="mt-4 space-y-2.5 text-[13.5px] text-[#dedee3]">
-        <li className="rounded-card bg-white/[0.07] px-3.5 py-3">
-          <strong className="font-semibold text-white">The Merit server</strong> re-checks your GitHub permission on the
+      <ul className="mt-4 space-y-3 text-[14px] text-[#ededed]">
+        <li className="rounded-card bg-white/[0.07] px-4 py-3">
+          <strong className="font-medium text-white">The Merit server</strong> re-checks your GitHub permission on the
           repository at the moment of approval, using your GitHub user ID.
         </li>
-        <li className="rounded-card bg-white/[0.07] px-3.5 py-3">
-          <strong className="font-semibold text-white">The escrow contract</strong> accepts an approval only from the wallet
+        <li className="rounded-card bg-white/[0.07] px-4 py-3">
+          <strong className="font-medium text-white">The escrow contract</strong> accepts an approval only from the wallet
           that funded the bounty. Any other wallet is refused with <span className="font-mono text-[12px]">NotFunder</span>.
         </li>
       </ul>
@@ -129,16 +129,16 @@ export default function ApprovePage() {
 
       <div className="stagger grid grid-cols-1 gap-3 lg:grid-cols-12">
         <Tray tone="white" className="lg:col-span-7" style={{ "--i": 0 } as React.CSSProperties}>
-          <p className="text-[12.5px] font-medium text-mut">You are authorizing</p>
+          <p className="text-[13px] font-medium text-mut">You are authorizing</p>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-card bg-bg px-4 py-3.5">
+            <div className="rounded-card bg-bg px-4 py-4">
               <p className="text-[12px] text-mut">Pay</p>
               <Money units={units && !overBudget ? units : bounty.amountUnits} className="mt-0.5 text-[32px] leading-tight" />
               <label className="mt-2 block text-[12px] text-mut" htmlFor="amount">
                 Amount in dollars (this bounty holds {formatUsd(bounty.amountUnits)})
               </label>
-              <div className="mt-1 flex h-10 items-center rounded-ctl bg-card px-3 shadow-[inset_0_0_0_1.5px_#d6d6d0] focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]">
+              <div className="mt-1 flex h-10 items-center rounded-ctl bg-card px-3 shadow-[inset_0_0_0_1.5px_#d4d4d4] focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]">
                 <span className="text-mut">$</span>
                 <input
                   id="amount"
@@ -148,15 +148,15 @@ export default function ApprovePage() {
                   onChange={(e) => setDollars(e.target.value)}
                   aria-invalid={overBudget || invalid}
                   aria-describedby="amount-help"
-                  className="w-full bg-transparent px-1.5 text-[15px] font-semibold outline-none"
+                  className="w-full bg-transparent px-2 text-[16px] font-medium outline-none"
                 />
                 <span className="text-[12px] text-mut">USDC</span>
               </div>
             </div>
 
-            <div className="rounded-card bg-bg px-4 py-3.5">
+            <div className="rounded-card bg-bg px-4 py-4">
               <p className="text-[12px] text-mut">To</p>
-              <UserChip user={candidate.reviewer} size={28} className="mt-1 text-[18px] font-semibold" />
+              <UserChip user={candidate.reviewer} size={28} className="mt-1 text-[18px] font-medium" />
               <p className="mt-2 text-[12px] text-mut">Their linked payout wallet</p>
               {candidate.reviewerWallet ? (
                 <AddressLink address={candidate.reviewerWallet} full className="mt-0.5" />
@@ -181,21 +181,21 @@ export default function ApprovePage() {
             )}
           </div>
 
-          <p className="mb-2 mt-5 text-[12.5px] font-medium text-mut">For this review</p>
+          <p className="mb-2 mt-5 text-[13px] font-medium text-mut">For this review</p>
           <EvidenceCard candidate={candidate} />
         </Tray>
 
         <div className="space-y-3 lg:col-span-5" style={{ "--i": 1 } as React.CSSProperties}>
           <Tray>
-            <h2 className="text-[15px] font-semibold">What happens when you sign</h2>
-            <ol className="mt-3 space-y-2.5 text-[13.5px] text-ink-2">
+            <h2 className="text-[16px] font-medium">What happens when you sign</h2>
+            <ol className="mt-3 space-y-3 text-[14px] text-ink-2">
               {[
                 "Your wallet signs one approval on the escrow contract.",
                 `${units && !overBudget && !invalid ? formatUsdc(units) : "The amount"} is committed to ${candidate.reviewer.login}. No money moves until they claim it.`,
                 "The approval is final. It cannot be changed, withdrawn or refunded, and this bounty cannot pay anyone else.",
               ].map((t, i) => (
-                <li key={i} className="flex gap-2.5">
-                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold shadow-knob">{i + 1}</span>
+                <li key={i} className="flex gap-3">
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-card text-[12px] font-medium shadow-knob">{i + 1}</span>
                   {t}
                 </li>
               ))}
@@ -203,23 +203,23 @@ export default function ApprovePage() {
           </Tray>
 
           <Tray tone="dark">
-            <p className="flex items-center gap-2 text-[14px] font-semibold">
+            <p className="flex items-center gap-2 text-[14px] font-medium">
               <IconLock size={15} />
               You are the one authorizing this
             </p>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#c9c9cf]">
+            <p className="mt-2 text-[13px] leading-relaxed text-[#a1a1a6]">
               Merit&apos;s server prepared this request from GitHub data, but it holds no key that can move money and it has
               not judged the review. The escrow contract acts only on a signature from the wallet that funded this bounty.
             </p>
             {bounty.funderWallet && (
-              <p className="mt-3 text-[12px] text-[#9a9aa2]">
-                Funding wallet <span className="font-mono text-[#dedee3]">{bounty.funderWallet}</span>
+              <p className="mt-3 text-[12px] text-[#a1a1a6]">
+                Funding wallet <span className="font-mono text-[#ededed]">{bounty.funderWallet}</span>
               </p>
             )}
           </Tray>
 
           <Tray tone="white">
-            <label className="flex cursor-pointer items-start gap-3 text-[13.5px]">
+            <label className="flex cursor-pointer items-start gap-3 text-[14px]">
               <input
                 type="checkbox"
                 checked={confirmed}
@@ -229,7 +229,7 @@ export default function ApprovePage() {
               />
               <span>
                 I read this review and the change it led to, and I want to pay{" "}
-                <strong className="font-semibold">{candidate.reviewer.login}</strong> for it.
+                <strong className="font-medium">{candidate.reviewer.login}</strong> for it.
               </span>
             </label>
 

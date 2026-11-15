@@ -4,20 +4,20 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useReportFundingTx } from "@/lib/api/queries";
 import type { Bounty } from "@/lib/api/types";
-import { useClaim, useFundBounty, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
+import { useClaim, useFundBounty, useNeedsGas, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
 import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 import { IconCheck, IconCheckDraw, IconExternal, IconGithub, IconLock } from "./icons";
 import { ChainErrorView, TxProgress } from "./tx";
 import { AddressLink, BlockLink, Button, cx, LinkButton, Money, Notice, Spinner, TxLink, UserChip } from "./ui";
-import { WalletGate } from "./wallet";
+import { GasStep, WalletGate } from "./wallet";
 
 function Heading({ children }: { children: ReactNode }) {
-  return <h2 className="text-[17px] font-semibold tracking-tight">{children}</h2>;
+  return <h2 className="text-[16px] font-medium">{children}</h2>;
 }
 
 function Lead({ children }: { children: ReactNode }) {
-  return <p className="mt-1.5 text-[13.5px] text-ink-2">{children}</p>;
+  return <p className="mt-2 text-[14px] text-ink-2">{children}</p>;
 }
 
 /* ---------- funding ---------- */
@@ -73,18 +73,18 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
           const active = s.active.includes(fund.phase);
           const done = s.doneAfter.includes(fund.phase);
           return (
-            <li key={s.title} className={cx("flex gap-3 rounded-card px-3.5 py-3 transition-colors duration-500", active ? "bg-tint" : "bg-card shadow-inner-card")}>
+            <li key={s.title} className={cx("flex gap-3 rounded-card px-4 py-3 transition-colors duration-500", active ? "bg-tint" : "bg-card shadow-inner-card")}>
               <span
                 className={cx(
-                  "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
+                  "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-medium",
                   done ? "bg-ink text-white" : active ? "bg-accent text-white" : "bg-tray-2 text-mut",
                 )}
               >
                 {done ? <IconCheck size={12} /> : active ? <Spinner className="size-3" /> : i + 1}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13.5px] font-semibold">{s.title}</span>
-                <span className="block text-[12.5px] text-mut">
+                <span className="block text-[14px] font-medium">{s.title}</span>
+                <span className="block text-[13px] text-mut">
                   {active && fund.phase.endsWith("_wallet") ? "Confirm in your wallet." : s.body}
                 </span>
               </span>
@@ -121,6 +121,7 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
   const wallet = useWallet();
   const claim = useClaim();
   const approval = bounty.approval;
+  const needsGas = useNeedsGas(approval?.approvedRecipient);
   if (!approval || !bounty.onchainBountyId) return null;
   const onchainId = bounty.onchainBountyId;
   const mismatch = wallet.address && wallet.address.toLowerCase() !== approval.approvedRecipient.toLowerCase();
@@ -130,11 +131,11 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
       <Heading>Your reward is ready to claim</Heading>
       <Lead>
         <UserChip user={bounty.funder} /> approved your review. Claiming sends{" "}
-        <strong className="font-semibold text-ink">{formatUsdc(approval.amountUnits)}</strong> from escrow to your linked wallet.
+        <strong className="font-medium text-ink">{formatUsdc(approval.amountUnits)}</strong> from escrow to your linked wallet.
       </Lead>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
-        <Money units={approval.amountUnits} className="text-[26px]" />
-        <span className="text-[12.5px] text-mut">
+        <Money units={approval.amountUnits} className="text-[28px]" />
+        <span className="text-[13px] text-mut">
           to <AddressLink address={approval.approvedRecipient} />
         </span>
       </div>
@@ -143,12 +144,14 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
           Switch your wallet to the linked address. The contract only pays the approved recipient.
         </Notice>
       )}
+      <GasStep address={approval.approvedRecipient} className="mt-3" />
       <div className="mt-4 space-y-3">
         {claim.phase !== "done" && (
           <WalletGate reason="Connect your linked payout wallet to claim.">
             <Button
               variant="accent"
               loading={claim.busy}
+              disabled={needsGas}
               onClick={async () => {
                 if (await claim.run(onchainId)) onSent();
               }}
@@ -180,8 +183,8 @@ function RefundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void })
         transaction. Anyone may send it, and the money can only go back to the wallet that funded the bounty.
       </Lead>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
-        <Money units={refundable} className="text-[26px]" />
-        <span className="text-[12.5px] text-mut">
+        <Money units={refundable} className="text-[28px]" />
+        <span className="text-[13px] text-mut">
           back to {bounty.funderWallet ? <AddressLink address={bounty.funderWallet} /> : "the funder"}
         </span>
       </div>
@@ -210,13 +213,13 @@ function RefundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void })
 function Waiting({ title, children, hash }: { title: string; children: ReactNode; hash?: string | null }) {
   return (
     <div>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <Spinner className="text-accent" />
         <Heading>{title}</Heading>
       </div>
       <Lead>{children}</Lead>
       {hash && (
-        <p className="mt-3 text-[12.5px] text-mut">
+        <p className="mt-3 text-[13px] text-mut">
           Transaction <TxLink hash={hash} />
         </p>
       )}
@@ -236,10 +239,10 @@ function Receipt({ title, units, line, tx }: { title: string; units: string; lin
           <p className="text-[13px] text-mut">{line}</p>
         </div>
       </div>
-      <div className="mt-4 rounded-card bg-card px-4 py-3.5 shadow-inner-card">
-        <Money units={units} className="text-[30px]" />
+      <div className="mt-4 rounded-card bg-card px-4 py-4 shadow-inner-card">
+        <Money units={units} className="text-[28px]" />
         {tx && (
-          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 border-t border-line/70 pt-3 text-[12.5px] sm:grid-cols-3">
+          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-line pt-3 text-[13px] sm:grid-cols-3">
             <div>
               <dt className="text-mut">Transaction</dt>
               <dd><TxLink hash={tx.txHash} /></dd>

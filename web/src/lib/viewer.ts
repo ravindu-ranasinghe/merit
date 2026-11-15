@@ -1,8 +1,9 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 import { PERSONAS, type PersonaKey } from "@/fixtures/seed";
+import { fetchViewer, loginUrl, logout } from "@/lib/api/http";
 import type { GithubUser } from "@/lib/api/types";
 import { MOCK } from "@/lib/env";
 import { getPersonaKey, subscribePersona } from "@/mock/store";
@@ -23,14 +24,15 @@ function useMockViewer(): Viewer {
   return { user: PERSONAS[persona].user, loading: false, signIn: noop, signOut: noop, persona };
 }
 
+/** Live mode: the backend's httpOnly session cookie decides who this is (GET /me). */
 function useSessionViewer(): Viewer {
-  const { data, status } = useSession();
-  const u = data?.user;
+  const qc = useQueryClient();
+  const me = useQuery({ queryKey: ["me"], queryFn: fetchViewer, retry: false });
   return {
-    user: u?.id ? { id: u.id, login: u.login, name: u.name ?? undefined, avatarUrl: u.image ?? undefined } : null,
-    loading: status === "loading",
-    signIn: () => void signIn("github"),
-    signOut: () => void signOut({ callbackUrl: "/" }),
+    user: me.data ?? null,
+    loading: me.isLoading,
+    signIn: () => window.location.assign(loginUrl),
+    signOut: () => void logout().finally(() => qc.invalidateQueries()),
   };
 }
 

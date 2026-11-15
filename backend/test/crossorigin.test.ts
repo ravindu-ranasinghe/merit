@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildApp, type Ctx } from "../src/app.js";
+import { buildApp, type Ctx } from "../src/fastify-app.js";
 import { loadEnv } from "../src/env.js";
 import { MockGitHubClient } from "../src/github/client.js";
 

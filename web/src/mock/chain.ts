@@ -2,6 +2,7 @@
  * Mock chain driver. It enforces the same rules, with the same custom error names, as
  * contracts/src/BountyEscrow.sol, so every guardrail renders exactly as it will live.
  */
+import { PERSONAS } from "@/fixtures/seed";
 import type { Address, Hex } from "@/lib/api/types";
 import type { ChainDriver, EscrowCall, TxResult } from "@/lib/chain/driver";
 import { ChainError } from "@/lib/chain/errors";
@@ -101,6 +102,11 @@ const CONFIRM_MS = 1100;
 export const mockDriver: ChainDriver = {
   async allowance(owner) {
     return getDb().allowances.get(owner) ?? ZERO;
+  },
+
+  // The "New reviewer" sample wallet is empty, so the faucet step can be seen in mock mode.
+  async usdcBalance(owner) {
+    return owner === PERSONAS.newReviewer.wallet ? ZERO : BigInt(25_000_000);
   },
 
   async approveUsdc(amount, onSubmitted): Promise<TxResult> {

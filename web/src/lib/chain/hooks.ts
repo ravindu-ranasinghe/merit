@@ -6,6 +6,7 @@
  *
  * Adopting a new ABI is `npm run sync-abi`; a changed call shape is an edit to this file.
  */
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { erc20Abi, parseEventLogs } from "viem";
 import { injected, useConnect, useConnection, useDisconnect, useSwitchChain } from "wagmi";
@@ -60,6 +61,9 @@ const realDriver: ChainDriver = {
       args: [owner, escrowAddress()],
       chainId: ARC.chainId,
     }),
+
+  usdcBalance: (owner) =>
+    readContract(wagmiConfig, { address: ARC.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner], chainId: ARC.chainId }),
 
   async approveUsdc(amount, onSubmitted) {
     const hash = await writeContract(wagmiConfig, {
@@ -149,6 +153,21 @@ function useMockWallet(): WalletState {
 
 /** The connected wallet. MOCK is fixed at build time, so the same hook runs on every render. */
 export const useWallet: () => WalletState = MOCK ? useMockWallet : useRealWallet;
+
+/**
+ * True only when the wallet is known to hold no USDC, which on Arc also means no gas.
+ * Unknown (loading, RPC down) is false, so a failed read never blocks anyone. While it is
+ * zero the balance is re-read, so the faucet step clears itself once the USDC arrives.
+ */
+export function useNeedsGas(address: Address | null | undefined): boolean {
+  const { data } = useQuery({
+    queryKey: ["usdc-balance", address],
+    queryFn: () => driver.usdcBalance(address as Address),
+    enabled: !!address,
+    refetchInterval: (q) => (q.state.data === BigInt(0) ? 4000 : false),
+  });
+  return data === BigInt(0);
+}
 
 /* ------------------------------------------------------------------ transactions */
 

@@ -21,6 +21,14 @@ const user = z.object({ id: z.number(), type: z.string().default("User") });
 const repo = z.object({ id: z.number() });
 const pr = z.object({ number: z.number(), user, head: z.object({ sha: z.string() }), merged: z.boolean().optional(), state: z.string().optional() });
 const base = z.object({ repository: repo });
+const installedRepository = z.object({ id: z.number(), full_name: z.string().min(3) });
+const installationEvent = z.object({
+  action: z.string(),
+  installation: z.object({ id: z.number() }),
+  sender: z.object({ id: z.number() }),
+  repositories: z.array(installedRepository).optional(),
+  repositories_added: z.array(installedRepository).optional(),
+});
 const prEvent = base.extend({ action: z.string(), pull_request: pr });
 const commentEvent = base.extend({
   action: z.string(),
@@ -59,6 +67,27 @@ export async function githubWebhook(app: FastifyInstance, ctx: Ctx) {
     try { json = JSON.parse(raw.toString("utf8")); } catch { return reply.code(400).send({ error: "invalid json" }); }
     const event = req.headers["x-github-event"] as string | undefined;
     if (event === "ping") return { ok: true };
+    if (event === "installation" || event === "installation_repositories") {
+      const parsed = installationEvent.parse(json);
+      const added = event === "installation" && parsed.action === "created" ? parsed.repositories
+        : event === "installation_repositories" && parsed.action === "added" ? parsed.repositories_added
+        : undefined;
+      if (added) {
+        for (const r of added) {
+          await ctx.db.insert(repositories).values({
+            github_repo_id: r.id,
+            installation_id: parsed.installation.id,
+            name: r.full_name,
+            maintainer_github_id: parsed.sender.id,
+          }).onConflictDoUpdate({
+            target: repositories.github_repo_id,
+            set: { installation_id: parsed.installation.id, name: r.full_name, maintainer_github_id: parsed.sender.id },
+          });
+        }
+      }
+      seen.add(delivery);
+      return { ok: true, registered: added?.length ?? 0 };
+    }
     if (!["pull_request", "pull_request_review_comment", "pull_request_review_thread"].includes(event ?? "")) return { ok: true, ignored: event };
 
     const { repository } = base.parse(json);

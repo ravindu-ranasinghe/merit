@@ -12,6 +12,7 @@ export interface ReviewComment {
   pull_number: number;
 }
 export interface ChangedFile { filename: string; patch?: string }
+export interface PullRequestInfo { number: number; headSha: string; status: "open" | "closed" | "merged"; authorId: number }
 
 // Everything the backend needs from GitHub. Real impl below; in-memory mock for local dev and tests.
 export interface GitHubClient {
@@ -23,6 +24,7 @@ export interface GitHubClient {
   getRepoPermission(installationId: number, repoFullName: string, userId: number): Promise<string>;
   compareFiles(installationId: number, repoFullName: string, base: string, head: string): Promise<ChangedFile[]>;
   getReviewComment(installationId: number, repoFullName: string, commentId: number): Promise<ReviewComment | null>;
+  getPullRequest(installationId: number, repoFullName: string, prNumber: number): Promise<PullRequestInfo | null>;
 }
 
 export function createOctokitClient(env: Env): GitHubClient {
@@ -71,6 +73,18 @@ export function createOctokitClient(env: Env): GitHubClient {
         return null;
       }
     },
+    async getPullRequest(installationId, repoFullName, prNumber) {
+      const o = await inst(installationId);
+      const { owner, repo } = split(repoFullName);
+      try {
+        const { data: p } = await o.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", { owner, repo, pull_number: prNumber });
+        if (!p.user) return null;
+        return { number: p.number, headSha: p.head.sha, status: p.merged ? "merged" : p.state === "closed" ? "closed" : "open", authorId: Number(p.user.id) };
+      } catch (err) {
+        if ((err as { status?: number }).status === 404) return null;
+        throw err;
+      }
+    },
   };
 }
 
@@ -80,6 +94,7 @@ export class MockGitHubClient implements GitHubClient {
   permissions = new Map<string, string>(); // `${repoFullName}:${userId}` -> permission
   compares = new Map<string, ChangedFile[]>(); // `${base}...${head}`
   comments = new Map<number, ReviewComment>();
+  pullRequests = new Map<string, PullRequestInfo>();
   compareCalls = 0;
   oauthUrl = (state: string) => `/auth/github/callback?code=mock:1001:maintainer-demo&state=${state}`;
   async exchangeCode(code: string) {
@@ -98,6 +113,9 @@ export class MockGitHubClient implements GitHubClient {
   }
   async getReviewComment(_i: number, _r: string, id: number) {
     return this.comments.get(id) ?? null;
+  }
+  async getPullRequest(_i: number, repo: string, prNumber: number) {
+    return this.pullRequests.get(`${repo}#${prNumber}`) ?? null;
   }
 }
 

@@ -1,138 +1,93 @@
-import { HeroBento } from "@/components/hero-bento";
-import { IconArrowRight, IconCheck, IconComment, IconGithub, IconLock, IconPullRequest, IconStream, IconX } from "@/components/icons";
-import { LinkButton, Pill, Tray } from "@/components/ui";
-
-const STEPS = [
-  ["A maintainer locks a reward", "They pick a pull request and put $5 to $10 of testnet USDC into escrow. It is locked before anyone reviews."],
-  ["A reviewer leaves feedback", "On GitHub, as usual. No wallet is needed to review."],
-  ["The author fixes it", "Merit notices a later commit touching the commented code and a resolved thread, and flags the review as a candidate."],
-  ["The maintainer verifies and approves", "They read the evidence and sign the approval themselves. The reviewer claims the reward, once."],
-];
+import Link from "next/link";
+import { AsciiReview } from "@/components/ascii-review";
+import { HowItWorks } from "@/components/how-it-works";
+import { IconArrowRight, IconGithub, IconLock, IconPullRequest, IconStream } from "@/components/icons";
+import styles from "./home.module.css";
 
 const SOURCES = [
-  { icon: IconGithub, name: "GitHub", role: "is the source of truth for reviews", body: "Comments, commits, resolved threads and who has maintainer permission all come from GitHub." },
-  { icon: IconLock, name: "The escrow contract on Arc", role: "is the source of truth for money", body: "It holds the reward and enforces the rules: one payout, never more than was locked, refund only to the funder." },
-  { icon: IconStream, name: "QuickNode Streams", role: "is how money events reach the app", body: "Contract events are indexed into the feed this app reads, so what you see is what the contract did." },
-];
-
-const LIMITS = [
-  "A maintainer can approve a low-quality review. Merit shows evidence; it does not score reviews.",
-  "A maintainer, author and reviewer could collude. A blockchain does not fix that.",
-  "The GitHub signals are heuristics. They can be wrong after a rebase or when lines move.",
-  "This is a payment-coordination prototype on a test network, not a tax, identity or labor-compliance system.",
+  { icon: IconGithub, name: "GitHub", role: "The review", body: "The comments, commits, resolved threads and maintainer permissions. Your review stays where the code lives." },
+  { icon: IconLock, name: "Arc escrow", role: "The reward", body: "Funds locked before the work starts. The contract enforces one payout and returns expired, unapproved funds to the funder." },
+  { icon: IconStream, name: "QuickNode Streams", role: "The record", body: "The event pipeline indexes contract activity so funding and payout states reflect what happened onchain." },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="space-y-3">
-      {/* Hero */}
-      <section className="grid grid-cols-1 items-center gap-8 px-1 pb-6 pt-4 lg:grid-cols-12 lg:gap-10 lg:pt-10">
-        <div className="animate-rise lg:col-span-6">
-          <Pill tone="neutral">Testnet prototype · UBC Hackathon 2026</Pill>
-          <h1 className="mt-4 text-[38px] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-[52px]">
-            Reward the review that led to the fix.
-          </h1>
-          <p className="mt-4 max-w-[52ch] text-[16.5px] leading-relaxed text-ink-2">
-            Typical bounties pay for <em>writing code</em>. Merit pays for{" "}
-            <strong className="font-semibold text-ink">review feedback a maintainer verified led to an improvement</strong>,
-            with the reward locked in escrow before the reviewer starts.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-2.5">
-            <LinkButton href="/maintainer" variant="primary" className="h-11 px-5">
-              I maintain a repository
-              <IconArrowRight size={15} />
-            </LinkButton>
-            <LinkButton href="/reviewer" variant="secondary" className="h-11 px-5">
-              I review code
-            </LinkButton>
+    <div className={`landing-page ${styles.home}`}>
+      <section className={styles.hero} aria-labelledby="hero-title">
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}><span className={styles.plus}>+</span> A good catch deserves a little credit</p>
+          <h1 id="hero-title">Good reviews<br />deserve<br /><span>real credit.</span></h1>
+          <p className={styles.lede}>Fund a code-review reward before the first comment. When feedback leads to a fix, the maintainer approves it. The reviewer claims the reward.</p>
+          <div className={styles.actions}>
+            <Link href="/maintainer" className={styles.primary}>Fund a review <IconArrowRight size={16} /></Link>
+            <Link href="/reviewer" className={styles.secondary}>I review code <IconArrowRight size={16} /></Link>
           </div>
-          <p className="mt-4 text-[12.5px] text-mut">Rewards are testnet USDC on Arc. They have no monetary value.</p>
+          <p className={styles.testnet}><span /> Arc testnet · Test USDC, no monetary value</p>
         </div>
-        <div className="lg:col-span-6">
-          <HeroBento />
+        <AsciiReview />
+        <div className={styles.heroFoot}>
+          <p><IconPullRequest size={16} /> Built for the other half of open source</p>
+          <a href="#difference">A better reason to look closer <span aria-hidden>↓</span></a>
         </div>
       </section>
 
-      {/* The distinction */}
-      <section aria-labelledby="difference" className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <h2 id="difference" className="sr-only">How Merit differs from a typical bounty</h2>
-        <Tray>
-          <p className="text-[12.5px] font-medium text-mut">A typical bounty</p>
-          <p className="mt-1.5 text-[22px] font-semibold tracking-[-0.02em]">Pays for writing code</p>
-          <ul className="mt-4 space-y-2 text-[13.5px] text-ink-2">
-            <li className="flex gap-2.5"><IconPullRequest size={16} className="mt-0.5 shrink-0 text-mut" />Someone opens a pull request that closes an issue.</li>
-            <li className="flex gap-2.5"><IconX size={16} className="mt-0.5 shrink-0 text-mut" />The person who caught the bug in review gets nothing.</li>
-            <li className="flex gap-2.5"><IconX size={16} className="mt-0.5 shrink-0 text-mut" />Payment is often promised, not locked up front.</li>
-          </ul>
-        </Tray>
-        <Tray tone="dark">
-          <p className="text-[12.5px] font-medium text-[#b9b9c0]">Merit</p>
-          <p className="mt-1.5 text-[22px] font-semibold tracking-[-0.02em]">Pays for the review that led to a fix</p>
-          <ul className="mt-4 space-y-2 text-[13.5px] text-[#dedee3]">
-            <li className="flex gap-2.5"><IconComment size={16} className="mt-0.5 shrink-0 text-[#9fb4ff]" />A reviewer&apos;s comment is followed by a fix from the author.</li>
-            <li className="flex gap-2.5"><IconCheck size={16} className="mt-0.5 shrink-0 text-[#9fb4ff]" />The maintainer verifies it and approves the payout themselves.</li>
-            <li className="flex gap-2.5"><IconLock size={16} className="mt-0.5 shrink-0 text-[#9fb4ff]" />The reward was in escrow before the review began.</li>
-          </ul>
-        </Tray>
+      <section id="difference" className={styles.difference} aria-labelledby="difference-title">
+        <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}><span className={styles.sectionIndex}>01 /</span> A different kind of bounty</p>
+          <h2 id="difference-title">The fix matters.<br /><span>So does who spotted it.</span></h2>
+          <p>Writing code gets the credit. The careful review that catches a bug deserves some, too. Merit puts a funded reward behind that work.</p>
+        </div>
+        <div className={styles.diff}>
+          <div className={styles.diffHeader}><span>contribution.md</span><span>− 3&nbsp;&nbsp; <span className={styles.addedCount}>+ 3</span></span></div>
+          <div className={styles.diffGroup}>
+            <p className={styles.diffLabel}>The usual story</p>
+            <p><span>−</span> Bounties reward the person writing the code</p>
+            <p><span>−</span> The reviewer catches the bug, then moves on</p>
+            <p><span>−</span> Payment is a promise for later</p>
+          </div>
+          <div className={`${styles.diffGroup} ${styles.diffAdded}`}>
+            <p className={styles.diffLabel}>The Merit version</p>
+            <p><span>+</span> Feedback leads to an accepted improvement</p>
+            <p><span>+</span> A maintainer verifies and rewards that review</p>
+            <p><span>+</span> The reward is already locked in escrow</p>
+          </div>
+          <div className={styles.diffFooter}><span aria-hidden>↳</span> A small change to how contribution gets valued</div>
+        </div>
       </section>
 
-      {/* How it works */}
-      <Tray as="section">
-        <h2 className="text-[20px] font-semibold tracking-tight">How it works</h2>
-        <ol className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-          {STEPS.map(([title, body], i) => (
-            <li key={title} className="rounded-card bg-card p-4 shadow-inner-card">
-              <span className="flex size-6 items-center justify-center rounded-full bg-ink text-[12px] font-semibold text-white">{i + 1}</span>
-              <p className="mt-3 text-[14.5px] font-semibold">{title}</p>
-              <p className="mt-1 text-[13px] text-mut">{body}</p>
-            </li>
+      <section id="how-it-works" className={styles.workflow} aria-labelledby="workflow-title">
+        <div className={styles.sectionHeading}>
+          <div><p className={styles.eyebrow}><span className={styles.sectionIndex}>02 /</span> From a good catch to a reward</p><h2 id="workflow-title">Your workflow.<br /><span>With credit where it’s due.</span></h2></div>
+          <p>Review on GitHub. Verify the improvement.<br />Let the escrow handle the reward.</p>
+        </div>
+        <HowItWorks />
+      </section>
+
+      <section id="trust" className={styles.trust} aria-labelledby="trust-title">
+        <div className={styles.sectionHeading}>
+          <div><p className={styles.eyebrow}><span className={styles.sectionIndex}>03 /</span> Evidence you can follow</p><h2 id="trust-title">Clear roles.<br /><span>A visible paper trail.</span></h2></div>
+          <p>Merit joins three systems. The server holds no key that can move money. The maintainer decides what deserves a reward and signs the approval.</p>
+        </div>
+        <div className={styles.sources}>
+          {SOURCES.map(({ icon: Icon, name, role, body }, i) => (
+            <article key={name} className={styles.source}>
+              <div className={styles.sourceTop}><Icon size={20} /><span>0{i + 1}</span></div>
+              <p className={styles.sourceRole}>{role}</p>
+              <h3>{name}</h3>
+              <p>{body}</p>
+            </article>
           ))}
-        </ol>
-        <p className="mt-4 text-[13px] text-mut">
-          You do not need to read blockchain documentation to use Merit. Transaction links are there when you want proof.
-        </p>
-      </Tray>
+        </div>
+        <div className={styles.limits}>
+          <div><span className={styles.bracket}>[ ! ]</span><h3>Human judgment stays human.</h3></div>
+          <p>A maintainer can approve a weak review, and collusion remains possible. GitHub signals are heuristics that can break when lines move or commits are rebased. Merit coordinates payments; it does not score review quality or replace tax, identity or labor-compliance systems.</p>
+        </div>
+      </section>
 
-      {/* Trust model */}
-      <section id="trust" aria-labelledby="trust-title" className="grid scroll-mt-28 grid-cols-1 gap-3 lg:grid-cols-12">
-        <Tray className="lg:col-span-7">
-          <h2 id="trust-title" className="text-[20px] font-semibold tracking-tight">How trust works</h2>
-          <p className="mt-1.5 max-w-[60ch] text-[13.5px] text-mut">
-            Three systems each own one thing. The Merit server joins them. It holds no key that can move money, and it does
-            not decide whether a review was useful. A maintainer does, and signs for it.
-          </p>
-          <ul className="mt-4 space-y-2.5">
-            {SOURCES.map(({ icon: Icon, name, role, body }) => (
-              <li key={name} className="flex gap-3.5 rounded-card bg-card p-4 shadow-inner-card">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-[11px] bg-tint text-accent-ink">
-                  <Icon size={18} />
-                </span>
-                <div>
-                  <p className="text-[14px]">
-                    <strong className="font-semibold">{name}</strong> <span className="text-ink-2">{role}.</span>
-                  </p>
-                  <p className="mt-0.5 text-[13px] text-mut">{body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Tray>
-        <Tray tone="white" className="lg:col-span-5">
-          <h2 className="text-[20px] font-semibold tracking-tight">What this does not solve</h2>
-          <p className="mt-1.5 text-[13.5px] text-mut">Stated plainly, because it matters.</p>
-          <ul className="mt-4 space-y-3">
-            {LIMITS.map((l) => (
-              <li key={l} className="flex gap-2.5 text-[13.5px] text-ink-2">
-                <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-mut-2" />
-                {l}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <LinkButton href="/states" variant="secondary">See every state and refusal</LinkButton>
-            <LinkButton href="/events" variant="ghost">Event feed</LinkButton>
-          </div>
-        </Tray>
+      <section className={styles.closing} aria-labelledby="closing-title">
+        <div className={styles.closingMark} aria-hidden>+</div>
+        <div><p className={styles.eyebrow}>Better code is a team effort</p><h2 id="closing-title">Give a good review<br />the credit it deserves.</h2><p>Start with a pull request and a $5–$10 testnet reward.</p></div>
+        <Link href="/maintainer" className={styles.primary}>Fund your first review <IconArrowRight size={16} /></Link>
       </section>
     </div>
   );

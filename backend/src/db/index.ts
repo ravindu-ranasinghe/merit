@@ -1,16 +1,19 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
+import { join } from "node:path";
 import * as schema from "./schema.js";
 
 export type Db = ReturnType<typeof createDb>["db"];
 
 export function createDb(url: string) {
-  const pool = new pg.Pool({ connectionString: url });
+  const pool = new pg.Pool({ connectionString: url, max: 3 });
   return { db: drizzle(pool, { schema }), pool };
 }
 
-export const migrationsFolder = new URL("../../drizzle", import.meta.url).pathname;
+// Vercel bundles src/index.ts into a function, changing import.meta.url.
+// The project root remains the working directory in local, Docker, and Vercel runs.
+export const migrationsFolder = join(process.cwd(), "drizzle");
 
 export const runMigrations = (db: Db) => migrate(db, { migrationsFolder });
 

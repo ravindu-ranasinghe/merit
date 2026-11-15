@@ -1,63 +1,59 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. The visual language follows the team's bento reference: a warm off-white
- * page, grey trays holding white cards, near-black ink, and one accent. Status colors are
+ * Design tokens. Direction: ledger and diff. Grey neutral surfaces separated by hairlines,
+ * near-black ink, three text roles, and one accent: the green of a diff's added line.
+ * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
  * reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #f7f7f5;
-  --color-tray: #eeeeea;
-  --color-tray-2: #e3e3de;
+  --color-bg: #fafafa;
+  --color-tray: #f4f4f5;
+  --color-tray-2: #ebebed;
   --color-card: #ffffff;
-  --color-dark: #0f0f12;
-  --color-ink: #141416;
-  --color-ink-2: #4a4a47;
-  --color-mut: #6b6b67;
-  --color-mut-2: #8b8b87;
-  --color-line: #e1e0d9;
-  --color-accent: #2f5bff;
-  --color-accent-ink: #1f44d6;
-  --color-tint: #eef2ff;
-  --color-good: #0a6b0a;
-  --color-good-bg: #e8f4e6;
+  --color-dark: #171717;
+  --color-ink: #171717;
+  --color-ink-2: #525252;
+  --color-mut: #737373;
+  --color-mut-2: #737373;
+  --color-line: rgb(23 23 23 / 0.09);
+  --color-accent: #1a7f37;
+  --color-accent-ink: #116329;
+  --color-tint: #e6f4ea;
+  --color-good: #116329;
+  --color-good-bg: #e6f4ea;
   --color-warn: #7a4f00;
   --color-warn-bg: #fbf0d4;
   --color-crit: #b02a2a;
   --color-crit-bg: #fbe9e7;
 
-  --radius-tray: 22px;
-  --radius-card: 14px;
-  --radius-ctl: 11px;
+  --radius-tray: 16px;
+  --radius-card: 12px;
+  --radius-ctl: 8px;
 
-  --shadow-card: 0 1px 2px rgb(20 20 30 / 0.05), 0 8px 24px rgb(20 20 30 / 0.05);
-  --shadow-inner-card: 0 1px 2px rgb(20 20 30 / 0.06), 0 4px 14px rgb(20 20 30 / 0.05);
-  --shadow-knob: 0 1px 2px rgb(0 0 0 / 0.08), 0 3px 8px rgb(0 0 0 / 0.06);
+  /* Depth is a hairline, plus a small neutral shadow for things that float. */
+  --shadow-card: 0 0 0 1px rgb(23 23 23 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-inner-card: 0 0 0 1px rgb(23 23 23 / 0.08);
+  --shadow-knob: 0 0 0 1px rgb(23 23 23 / 0.12), 0 1px 2px rgb(0 0 0 / 0.05);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* From-rest damped spring (about 12% overshoot) and a critically damped ease. */
-  --ease-spring: linear(0, 0.138, 0.424, 0.717, 0.939, 1.07, 1.121, 1.117, 1.085, 1.047, 1.015, 0.994, 0.984, 0.983, 0.986, 0.99, 0.995, 0.998, 1);
+  /* One easing curve everywhere. */
   --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --animate-rise: rise 0.7s var(--ease-spring) both;
-  --animate-fade: fade 0.5s var(--ease-soft) both;
-  --animate-pulse-ring: pulse-ring 2s var(--ease-soft) infinite;
+  --animate-rise: rise 0.4s var(--ease-soft) both;
+  --animate-fade: fade 0.4s var(--ease-soft) both;
   --animate-draw: draw 0.5s var(--ease-soft) 0.15s both;
-  --animate-row-in: row-in 0.6s var(--ease-spring) both;
+  --animate-row-in: row-in 0.4s var(--ease-soft) both;
 
   @keyframes rise {
-    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: none; }
   }
   @keyframes fade {
     from { opacity: 0; }
     to { opacity: 1; }
-  }
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgb(47 91 255 / 0.35); }
-    70%, 100% { box-shadow: 0 0 0 8px rgb(47 91 255 / 0); }
   }
   @keyframes draw {
     from { stroke-dashoffset: 1; }
@@ -72,8 +68,7 @@
 html {
   background: var(--color-bg);
   color: var(--color-ink);
-  font-feature-settings: "cv11", "ss01", "tnum";
-  letter-spacing: -0.011em;
+  font-feature-settings: "tnum";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -91,13 +86,19 @@ body {
 }
 
 ::selection {
-  background: #d7e0ff;
+  background: #cdebd5;
+}
+
+/* The rule above the current "How it works" step filling up. */
+@keyframes step-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* Stagger helper: children rise in order. Set --i on each child. */
 .stagger > * {
-  animation: rise 0.7s var(--ease-spring) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  animation: rise 0.4s var(--ease-soft) both;
+  animation-delay: calc(min(var(--i, 0), 5) * 50ms);
 }
 
 @media (prefers-reduced-motion: reduce) {

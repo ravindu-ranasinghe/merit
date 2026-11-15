@@ -42,7 +42,7 @@ export default function StatesPage() {
             </div>
             <StatusRail status={s} />
             {MOCK && (
-              <p className="mt-4 text-center text-[12.5px]">
+              <p className="mt-4 text-center text-[13px]">
                 <Link href={`/bounties/${SAMPLE[s]}`} className="font-medium text-accent-ink hover:underline">
                   Open the sample bounty in this state
                 </Link>
@@ -52,7 +52,7 @@ export default function StatesPage() {
         ))}
       </div>
 
-      <h2 className="mb-1 mt-10 px-1 text-[20px] font-semibold tracking-tight">Refusals</h2>
+      <h2 className="mb-1 mt-10 px-1 text-[20px] font-medium">Refusals</h2>
       <p className="mb-4 max-w-[62ch] px-1 text-[14px] text-mut">
         These are rules of the escrow contract. When one is broken the contract refuses the transaction and no money
         moves. The app shows the refusal as what it is: a guardrail working.
@@ -62,13 +62,13 @@ export default function StatesPage() {
           const copy = describeChainError(error);
           return (
             <Tray key={error.errorName}>
-              <p className="mb-2.5 text-[13px] font-medium text-ink-2">{when}</p>
+              <p className="mb-3 text-[13px] font-medium text-ink-2">{when}</p>
               <GuardrailCard title={copy.title} body={copy.body} code={copy.code} />
             </Tray>
           );
         })}
         <Tray className="lg:col-span-2">
-          <p className="mb-2.5 text-[13px] font-medium text-ink-2">
+          <p className="mb-3 text-[13px] font-medium text-ink-2">
             Someone who is not a maintainer of the repository tries to approve, before any wallet is involved
           </p>
           <Notice tone="critical" title="You are not a maintainer of this repository, so you cannot approve this payout">

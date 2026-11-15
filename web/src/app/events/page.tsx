@@ -22,12 +22,12 @@ export default function EventsPage() {
         <Tray style={{ "--i": 0 } as React.CSSProperties}>
           <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map(([title, body], i) => (
-              <li key={title} className="rounded-card bg-card p-3.5 shadow-inner-card">
-                <p className="flex items-center gap-2 text-[13.5px] font-semibold">
-                  <span className="flex size-5 items-center justify-center rounded-full bg-ink text-[11px] text-white">{i + 1}</span>
+              <li key={title} className="rounded-card bg-card p-4 shadow-inner-card">
+                <p className="flex items-center gap-2 text-[14px] font-medium">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-ink text-[12px] text-white">{i + 1}</span>
                   {title}
                 </p>
-                <p className="mt-1.5 text-[12.5px] text-mut">{body}</p>
+                <p className="mt-2 text-[13px] text-mut">{body}</p>
               </li>
             ))}
           </ol>
