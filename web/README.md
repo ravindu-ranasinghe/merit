@@ -114,19 +114,26 @@ for public repositories.
 
 ## Design notes
 
-The homepage uses `asciify-engine` for a visitor-controlled review → fix → reward
-illustration and a four-step interactive bounty example. The SVG sources and static
-ASCII fallbacks live in `public/art/`; regenerate the fallbacks with
-`node scripts/generate-homepage-art.mjs`. The renderer is loaded after hydration,
-honors reduced motion, and cleans up when leaving the homepage. HTML and static art
-remain available without WebGL. Homepage styles are scoped in `src/app/home.module.css`.
+The landing page and every app route share a graphite and mint theme, sharp corners,
+Geist interface text and Geist Mono for code and ledger values. Tokens live in
+`src/app/globals.css`; the homepage uses the same tokens through `home.module.css`.
 
-Direction: ledger and diff. Grey neutral surfaces separated by hairlines, Geist for the
-interface and Geist Mono for amounts, hashes and blocks, and one accent: the green of a
-diff's added line. Green in the chrome means a primary action or money confirmed onchain.
-Detail rows use a dotted ledger leader. Motion uses one easing curve and never loops, except
-the live-feed dot. Status colors are reserved for state and always come with a label and icon.
+`AmbientField` mounts one persistent `asciify-engine/field` canvas in the root layout.
+A custom GPU effect draws three moving, branching character streams. It targets 60 fps,
+caps pixel ratio at 1 and uses a 96-cell pointer simulation. A warm browser measurement
+on Apple M4 / Chrome at 1440×1000 and DPR 1 recorded 330 frames in 5.5 seconds (60 fps).
+Other hardware and power settings affect actual frame rate.
+
+The renderer survives client navigation, pauses in hidden tabs and follows reduced
+motion. The motion control freezes both the scene and pointer response. Text clear
+zones are cached on layout/scroll changes, and data panels have solid surfaces. The
+CSS fallback at `public/art/currents.svg` remains without WebGL or JavaScript;
+regenerate it with `node scripts/generate-homepage-art.mjs`.
+
+The four-step bounty walkthrough remains interactive and labels its data as illustrative.
+Status colors are reserved for state and always come with a label and icon.
 The original Remotion composition remains in `src/components/how-it-works-video.tsx`.
-Tokens live in `src/app/globals.css`. Homepage design applies the
+The design applies Anthropic’s
+[frontend-design skill](https://github.com/anthropics/skills/tree/main/skills/frontend-design), the
 [unslop skill by Damir Sokolovsky](https://heydamir.design/unslop), licensed CC BY 4.0,
 and [Asciify Engine](https://github.com/ayangabryl/asciify-engine).

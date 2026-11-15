@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AsciiReview } from "@/components/ascii-review";
 import { HowItWorks } from "@/components/how-it-works";
 import { IconArrowRight, IconGithub, IconLock, IconPullRequest, IconStream } from "@/components/icons";
 import styles from "./home.module.css";
@@ -14,9 +13,9 @@ export default function LandingPage() {
   return (
     <div className={`landing-page ${styles.home}`}>
       <section className={styles.hero} aria-labelledby="hero-title">
-        <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}><span className={styles.plus}>+</span> A good catch deserves a little credit</p>
-          <h1 id="hero-title">Good reviews<br />deserve<br /><span>real credit.</span></h1>
+        <div className={styles.heroCopy} data-field-clear="">
+          <p className={styles.eyebrow}><span className={styles.plus}>[ + ]</span> GitHub reviews, given their due</p>
+          <h1 id="hero-title">Good reviews.<br />Better code.<br /><span>Real credit.</span></h1>
           <p className={styles.lede}>Fund a code-review reward before the first comment. When feedback leads to a fix, the maintainer approves it. The reviewer claims the reward.</p>
           <div className={styles.actions}>
             <Link href="/maintainer" className={styles.primary}>Fund a review <IconArrowRight size={16} /></Link>
@@ -24,7 +23,6 @@ export default function LandingPage() {
           </div>
           <p className={styles.testnet}><span /> Arc testnet · Test USDC, no monetary value</p>
         </div>
-        <AsciiReview />
         <div className={styles.heroFoot}>
           <p><IconPullRequest size={16} /> Built for the other half of open source</p>
           <a href="#difference">A better reason to look closer <span aria-hidden>↓</span></a>
@@ -33,7 +31,6 @@ export default function LandingPage() {
 
       <section id="difference" className={styles.difference} aria-labelledby="difference-title">
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}><span className={styles.sectionIndex}>01 /</span> A different kind of bounty</p>
           <h2 id="difference-title">The fix matters.<br /><span>So does who spotted it.</span></h2>
           <p>Writing code gets the credit. The careful review that catches a bug deserves some, too. Merit puts a funded reward behind that work.</p>
         </div>
@@ -57,7 +54,7 @@ export default function LandingPage() {
 
       <section id="how-it-works" className={styles.workflow} aria-labelledby="workflow-title">
         <div className={styles.sectionHeading}>
-          <div><p className={styles.eyebrow}><span className={styles.sectionIndex}>02 /</span> From a good catch to a reward</p><h2 id="workflow-title">Your workflow.<br /><span>With credit where it’s due.</span></h2></div>
+          <div><h2 id="workflow-title">One review.<br /><span>A visible trail.</span></h2></div>
           <p>Review on GitHub. Verify the improvement.<br />Let the escrow handle the reward.</p>
         </div>
         <HowItWorks />
@@ -65,13 +62,13 @@ export default function LandingPage() {
 
       <section id="trust" className={styles.trust} aria-labelledby="trust-title">
         <div className={styles.sectionHeading}>
-          <div><p className={styles.eyebrow}><span className={styles.sectionIndex}>03 /</span> Evidence you can follow</p><h2 id="trust-title">Clear roles.<br /><span>A visible paper trail.</span></h2></div>
+          <div><h2 id="trust-title">Three systems.<br /><span>Clear responsibilities.</span></h2></div>
           <p>Merit joins three systems. The server holds no key that can move money. The maintainer decides what deserves a reward and signs the approval.</p>
         </div>
         <div className={styles.sources}>
-          {SOURCES.map(({ icon: Icon, name, role, body }, i) => (
+          {SOURCES.map(({ icon: Icon, name, role, body }) => (
             <article key={name} className={styles.source}>
-              <div className={styles.sourceTop}><Icon size={20} /><span>0{i + 1}</span></div>
+              <div className={styles.sourceTop}><Icon size={20} /></div>
               <p className={styles.sourceRole}>{role}</p>
               <h3>{name}</h3>
               <p>{body}</p>

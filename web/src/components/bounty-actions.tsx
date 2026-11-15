@@ -77,7 +77,7 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
               <span
                 className={cx(
                   "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-medium",
-                  done ? "bg-ink text-white" : active ? "bg-accent text-white" : "bg-tray-2 text-mut",
+                  done ? "bg-ink text-bg" : active ? "bg-accent text-bg" : "bg-tray-2 text-mut",
                 )}
               >
                 {done ? <IconCheck size={12} /> : active ? <Spinner className="size-3" /> : i + 1}
@@ -231,7 +231,7 @@ function Receipt({ title, units, line, tx }: { title: string; units: string; lin
   return (
     <div>
       <div className="flex items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-full bg-good text-white">
+        <span className="flex size-9 items-center justify-center rounded-full bg-good text-bg">
           <IconCheckDraw size={18} />
         </span>
         <div>

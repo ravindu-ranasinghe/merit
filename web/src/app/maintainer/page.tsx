@@ -107,7 +107,7 @@ function Dashboard() {
               </a>
             ))}
             {repos.data?.length === 0 && (
-              <p className="rounded-card border border-dashed border-[#d4d4d4] px-4 py-4 text-center text-[13px] text-mut">
+              <p className="rounded-card border border-dashed border-line px-4 py-4 text-center text-[13px] text-mut">
                 No repositories connected. You need to maintain a repository to fund bounties on it.
               </p>
             )}

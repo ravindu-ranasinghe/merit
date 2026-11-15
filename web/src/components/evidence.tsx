@@ -6,15 +6,15 @@ import { cx, Pill, UserChip } from "./ui";
 /** A unified diff hunk with added and removed lines tinted, like GitHub renders it. */
 export function DiffHunk({ hunk }: { hunk: string }) {
   return (
-    <pre className="overflow-x-auto rounded-[10px] bg-[#f6f8fa] py-2 font-mono text-[12px] leading-[1.65] shadow-[inset_0_0_0_1px_#e5e5e5]">
+    <pre className="overflow-x-auto rounded-card bg-diff-bg py-2 font-mono text-[12px] leading-[1.65] shadow-inner-card">
       {hunk.split("\n").map((line, i) => (
         <span
           key={i}
           className={cx(
             "block min-w-max px-3",
             line.startsWith("@@") && "text-mut-2",
-            line.startsWith("+") && "bg-[#e3f3e1] text-[#12501a]",
-            line.startsWith("-") && "bg-[#fbe6e3] text-[#8a1f1f]",
+            line.startsWith("+") && "bg-diff-add-bg text-diff-add-ink",
+            line.startsWith("-") && "bg-diff-remove-bg text-diff-remove-ink",
           )}
         >
           {line || " "}
@@ -87,7 +87,7 @@ export function EvidenceCard({ candidate, footer }: { candidate: ReviewCandidate
         </p>
       )}
 
-      <div className="mt-4 rounded-[10px] bg-[#f6f8fa] p-3">
+      <div className="mt-4 rounded-card bg-diff-bg p-3">
         <p className="text-[12px] font-medium text-ink-2">
           Signals from GitHub <span className="font-normal text-mut">· heuristics, not proof</span>
         </p>

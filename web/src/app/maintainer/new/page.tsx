@@ -105,7 +105,7 @@ function NewBounty() {
                   }}
                   className={cx(
                     "flex h-10 items-center gap-2 rounded-ctl px-4 text-[14px] font-medium transition-[background-color,box-shadow,transform] duration-300 ease-soft active:scale-[0.97]",
-                    r.id === activeRepoId ? "bg-ink text-white" : "bg-card shadow-knob hover:bg-[#f4f4f5]",
+                    r.id === activeRepoId ? "bg-ink text-bg" : "bg-card shadow-knob hover:bg-tray",
                   )}
                 >
                   <IconGithub size={15} />
@@ -151,7 +151,7 @@ function NewBounty() {
                     {taken ? (
                       <span className="text-[12px] text-mut">Has a bounty</span>
                     ) : (
-                      <span className={cx("flex size-5 items-center justify-center rounded-full", selected ? "bg-accent text-white" : "shadow-[inset_0_0_0_1.5px_#d4d4d4]")}>
+                      <span className={cx("flex size-5 items-center justify-center rounded-full", selected ? "bg-accent text-bg" : "shadow-knob")}>
                         {selected && <IconCheck size={11} />}
                       </span>
                     )}

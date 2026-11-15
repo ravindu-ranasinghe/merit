@@ -12,7 +12,7 @@ export function RequireSignIn({ why, children }: { why: string; children: ReactN
   if (!viewer.user) {
     return (
       <Tray tone="white" className="mx-auto max-w-md animate-rise text-center">
-        <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-ink text-white">
+        <span className="mx-auto flex size-11 items-center justify-center rounded-ctl bg-accent text-bg">
           <IconGithub size={22} />
         </span>
         <h1 className="mt-4 text-[20px] font-medium">Sign in with GitHub</h1>
