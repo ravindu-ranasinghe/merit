@@ -114,9 +114,11 @@ for public repositories.
 
 ## Design notes
 
-The landing page and every app route share a soft peach, cream, bronze and mauve theme, sharp corners,
+The landing page and every app route share linen, warm stone, taupe and charcoal, sharp corners,
 Geist interface text and Geist Mono for code and ledger values. Tokens live in
 `src/app/globals.css`; the homepage uses the same tokens through `home.module.css`.
+The reference palette is `#EBE2CC`, `#DED6C1`, `#CFC6B1`, `#B7B09E`, with darker
+ink for readable text and restrained semantic colors for statuses.
 
 `AmbientField` mounts one persistent `asciify-engine/field` canvas in the root layout.
 A custom GPU effect draws three moving, branching character streams. It targets 60 fps,
@@ -130,10 +132,22 @@ zones are cached on layout/scroll changes, and data panels have solid surfaces. 
 CSS fallback at `public/art/currents.svg` remains without WebGL or JavaScript;
 regenerate it with `node scripts/generate-homepage-art.mjs`.
 
-The four-step bounty walkthrough remains interactive and labels its data as illustrative.
+The four-step walkthrough is a 26-second, 60 fps Remotion composition in
+`src/components/how-it-works-video.tsx`. It demonstrates funding in Merit, an inline
+GitHub review, the author's fix, then explicit maintainer approval and a separate
+reviewer claim. It is an illustration using sample data, not live activity.
+`review-film.tsx` lazy-loads near the viewport, pauses offscreen and in hidden tabs,
+and supplies play/pause, replay and keyboard-accessible scrubbing. Chapter buttons
+seek the player and track playback. Reduced motion selects readable still frames.
+The mobile composition rearranges the same scene at a taller aspect ratio.
+All composition motion derives from the current frame; matched horizontal scene
+transitions preserve the browser frame and return smoothly to the opening scene.
+
 Status colors are reserved for state and always come with a label and icon.
-The original Remotion composition remains in `src/components/how-it-works-video.tsx`.
 The design applies Anthropic’s
 [frontend-design skill](https://github.com/anthropics/skills/tree/main/skills/frontend-design), the
 [unslop skill by Damir Sokolovsky](https://heydamir.design/unslop), licensed CC BY 4.0,
 and [Asciify Engine](https://github.com/ayangabryl/asciify-engine).
+Motion guidance also comes from [Emil Kowalski's improve-animations](https://github.com/emilkowalski/skills),
+[mblode's ui-animation](https://github.com/mblode/agent-skills), and the
+[Hyperframes motion-doctrine and seam-craft skills](https://github.com/heygen-com/hyperframes).

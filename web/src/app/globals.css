@@ -1,46 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Shared product theme: peach, cream, bronze, olive wood, and mauve ink.
+ * Shared product theme: linen, warm stone, taupe, and charcoal ink.
  * One GPU character field persists behind the landing page and the application.
  * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
  * reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #EDD9A3;
-  --color-tray: #E2E8C0;
-  --color-tray-2: #CEA07E;
-  --color-card: #F4E8C9;
-  --color-dark: #443742;
-  --color-ink: #443742;
-  --color-ink-2: #604D45;
-  --color-mut: #6F5848;
-  --color-mut-2: #6F5848;
-  --color-line: rgb(68 55 66 / 0.16);
-  --color-accent: #443742;
-  --color-accent-ink: #574551;
-  --color-tint: #E2E8C0;
-  --color-good: #456041;
-  --color-good-bg: #E2E8C0;
-  --color-warn: #74532F;
-  --color-warn-bg: #EDD9A3;
-  --color-crit: #7B3940;
-  --color-crit-bg: #EFD2C0;
-  --color-diff-bg: #F0E0B7;
-  --color-diff-add-bg: #E2E8C0;
-  --color-diff-add-ink: #443742;
-  --color-diff-remove-bg: #E6BC9C;
-  --color-diff-remove-ink: #743E41;
-  --color-field-ink: #846C5B;
+  --color-bg: #EBE2CC;
+  --color-tray: #DED6C1;
+  --color-tray-2: #CFC6B1;
+  --color-card: #F4EDDD;
+  --color-dark: #3F3B33;
+  --color-ink: #3F3B33;
+  --color-ink-2: #5C564B;
+  --color-mut: #6A6255;
+  --color-mut-2: #6A6255;
+  --color-line: rgb(63 59 51 / 0.16);
+  --color-accent: #49453B;
+  --color-accent-ink: #625B4D;
+  --color-tint: #DED6C1;
+  --color-good: #4E5843;
+  --color-good-bg: #DEDCC7;
+  --color-warn: #77603B;
+  --color-warn-bg: #E6D9BA;
+  --color-crit: #7E4942;
+  --color-crit-bg: #E8D6C9;
+  --color-diff-bg: #E8DFCB;
+  --color-diff-add-bg: #D7D7C1;
+  --color-diff-add-ink: #434C36;
+  --color-diff-remove-bg: #E5D1C2;
+  --color-diff-remove-ink: #793F38;
+  --color-field-ink: #B7B09E;
 
   --radius-tray: 4px;
   --radius-card: 2px;
   --radius-ctl: 2px;
 
   /* Depth is a hairline, plus a small neutral shadow for things that float. */
-  --shadow-card: 0 0 0 1px rgb(68 55 66 / 0.16);
-  --shadow-inner-card: 0 0 0 1px rgb(68 55 66 / 0.14);
-  --shadow-knob: 0 0 0 1px rgb(68 55 66 / 0.25);
+  --shadow-card: 0 0 0 1px rgb(63 59 51 / 0.16);
+  --shadow-inner-card: 0 0 0 1px rgb(63 59 51 / 0.14);
+  --shadow-knob: 0 0 0 1px rgb(63 59 51 / 0.25);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;

@@ -1,4 +1,4 @@
-/* Shared with the application: light paper, forest ink, a continuous GPU character field.
+/* Shared with the application: linen, warm stone, charcoal, a continuous GPU character field.
  * Design guidance: frontend-design (Anthropic), and Unslop by Damir Sokolovsky
  * https://heydamir.design/unslop (CC BY 4.0).
  */
@@ -53,7 +53,7 @@
 .workflow, .trust { padding: 88px 0; border-bottom: 1px solid var(--home-line); scroll-margin-top: 80px; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
 .sectionHeading > p { max-width: 340px; font-size: 14px; line-height: 24px; color: var(--home-secondary); }
-.walkthrough { display: grid; grid-template-columns: .9fr 1.1fr; gap: 72px; margin-top: 48px; align-items: center; }
+.walkthrough { display: grid; grid-template-columns: .72fr 1.28fr; gap: 40px; margin-top: 48px; align-items: center; }
 .steps { list-style: none; padding: 0; margin: 0; }
 .step { display: flex; align-items: flex-start; gap: 20px; width: 100%; text-align: left; padding: 24px 16px; border-bottom: 1px solid var(--home-line); transition: background 180ms var(--ease-soft); }
 .stepNumber { flex-shrink: 0; padding-top: 3px; color: var(--home-muted); font-family: var(--font-mono); font-size: 11px; }
@@ -63,6 +63,18 @@
 .step[aria-pressed="true"] { background: var(--color-tint); border-left: 2px solid var(--home-green); }
 .step[aria-pressed="true"] .stepNumber, .step[aria-pressed="true"] strong, .step[aria-pressed="true"] > svg { color: var(--home-green); opacity: 1; }
 .step:hover { background: var(--color-tray); }
+.filmExample { min-width: 0; overflow: hidden; border: 1px solid var(--home-line); border-radius: var(--radius-tray); background: var(--color-card); }
+.film { min-width: 0; }
+.filmViewport { overflow: hidden; aspect-ratio: 1120 / 800; }
+.filmControls { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; border-top: 1px solid var(--home-line); background: var(--color-card); }
+.filmControls button { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border: 1px solid var(--home-line); border-radius: var(--radius-ctl); font-size: 19px; }
+.filmControls button:hover { background: var(--color-tray); }
+.filmControls button:disabled { cursor: default; opacity: .45; }
+.filmControls input { min-width: 0; flex: 1; height: 24px; accent-color: var(--color-accent); cursor: pointer; }
+.filmTime { flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; color: var(--home-muted); font-variant-numeric: tabular-nums; }
+.filmPlaceholder { display: grid; place-items: center; aspect-ratio: 1120 / 800; background: var(--color-card); color: var(--home-muted); font-family: var(--font-mono); font-size: 13px; }
+.filmFooter { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px; background: var(--color-tray); border-top: 1px solid var(--home-line); color: var(--home-muted); font-size: 10px; line-height: 18px; }
+.filmFooter a { display: inline-flex; align-items: center; gap: 8px; color: var(--home-ink); white-space: nowrap; }
 .productWindow { min-width: 0; overflow: hidden; border: 1px solid var(--home-line); border-radius: var(--radius-tray); background: var(--color-card); }
 .windowBar { display: flex; gap: 16px; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--home-line); font-size: 11px; font-family: var(--font-mono); color: var(--home-muted); }
 .windowDots { display: flex; gap: 4px; }
@@ -160,6 +172,9 @@
   .sectionHeading { display: block; }
   .sectionHeading > p { margin-top: 24px; font-size: 13px; line-height: 23px; }
   .walkthrough { grid-template-columns: 1fr; gap: 32px; margin-top: 32px; }
+  .filmViewport, .filmPlaceholder { aspect-ratio: 720 / 900; }
+  .filmControls { gap: 8px; padding: 8px; }
+  .filmFooter { padding: 12px; flex-wrap: wrap; gap: 8px; }
   .step { padding: 20px 12px; gap: 16px; }
   .step strong { font-size: 15px; }
   .step > span > span { max-width: none; }
