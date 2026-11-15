@@ -163,7 +163,7 @@ function MockBar() {
                 onClick={() => pick(k)}
                 className={cx(
                   "relative z-10 whitespace-nowrap px-2 text-[12px] font-medium transition-colors duration-300 sm:px-3",
-                  k === persona ? "text-bg" : "text-mut hover:text-ink",
+                  k === persona ? "text-bg" : "text-[#a1a1a6] hover:text-white",
                 )}
               >
                 {PERSONAS[k].label}

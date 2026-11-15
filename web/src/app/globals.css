@@ -1,45 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Shared product theme: terminal graphite, diff green, hard edges, and quiet panels.
+ * Shared product theme: light paper, forest ink, hard edges, and quiet panels.
  * One GPU character field persists behind the landing page and the application.
  * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
  * reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #090e0d;
-  --color-tray: #101a16;
-  --color-tray-2: #203027;
-  --color-card: #111b17;
-  --color-dark: #0c1411;
-  --color-ink: #e3eee7;
-  --color-ink-2: #b4c5ba;
-  --color-mut: #97ac9f;
-  --color-mut-2: #8ca193;
-  --color-line: rgb(171 207 183 / 0.18);
-  --color-accent: #a3efbc;
-  --color-accent-ink: #c3f8d3;
-  --color-tint: #1b3024;
-  --color-good: #a3efbc;
-  --color-good-bg: #183023;
-  --color-warn: #e6ca8b;
-  --color-warn-bg: #30291c;
-  --color-crit: #f1aaa2;
-  --color-crit-bg: #35221f;
-  --color-diff-bg: #0d1712;
-  --color-diff-add-bg: #193523;
-  --color-diff-add-ink: #b4efc5;
-  --color-diff-remove-bg: #37231f;
-  --color-diff-remove-ink: #f0b4a8;
+  --color-bg: #f4f6ef;
+  --color-tray: #edf1e8;
+  --color-tray-2: #dce5d7;
+  --color-card: #fdfefb;
+  --color-dark: #1a2820;
+  --color-ink: #203025;
+  --color-ink-2: #4c5e51;
+  --color-mut: #5f7063;
+  --color-mut-2: #617365;
+  --color-line: rgb(23 51 33 / 0.16);
+  --color-accent: #28633d;
+  --color-accent-ink: #1c4e2e;
+  --color-tint: #e1eddc;
+  --color-good: #25653a;
+  --color-good-bg: #dfeedd;
+  --color-warn: #785408;
+  --color-warn-bg: #f8edd0;
+  --color-crit: #9c3930;
+  --color-crit-bg: #f8e7e2;
+  --color-diff-bg: #f3f6ef;
+  --color-diff-add-bg: #dcefd8;
+  --color-diff-add-ink: #245932;
+  --color-diff-remove-bg: #f7e4df;
+  --color-diff-remove-ink: #8c3229;
+  --color-field-ink: #6a8b72;
 
   --radius-tray: 4px;
   --radius-card: 2px;
   --radius-ctl: 2px;
 
   /* Depth is a hairline, plus a small neutral shadow for things that float. */
-  --shadow-card: 0 0 0 1px rgb(171 207 183 / 0.18);
-  --shadow-inner-card: 0 0 0 1px rgb(171 207 183 / 0.14);
-  --shadow-knob: 0 0 0 1px rgb(171 207 183 / 0.25);
+  --shadow-card: 0 0 0 1px rgb(23 51 33 / 0.16);
+  --shadow-inner-card: 0 0 0 1px rgb(23 51 33 / 0.14);
+  --shadow-knob: 0 0 0 1px rgb(23 51 33 / 0.25);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
@@ -71,7 +72,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   background: var(--color-bg);
   color: var(--color-ink);
   font-feature-settings: "tnum";
@@ -94,27 +95,27 @@ body {
 }
 
 ::selection {
-  background: #a3efbc;
-  color: #090e0d;
+  background: var(--color-accent);
+  color: var(--color-bg);
 }
 
-.ambient-background { position: fixed; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; --field-ink: #86bb9c; }
+.ambient-background { position: fixed; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; --field-ink: var(--color-field-ink); }
 .ambient-canvas, .ambient-poster { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ambient-canvas { opacity: 0; transition: opacity 600ms var(--ease-soft); }
 .ambient-canvas[data-ready="true"] { opacity: .65; }
 .ambient-poster { background: url('/art/currents.svg') center / cover no-repeat; opacity: .35; }
 .ambient-background:has([data-ready="true"]) .ambient-poster { visibility: hidden; }
-.ambient-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgb(9 14 13 / .93) 0%, rgb(9 14 13 / .76) 31%, rgb(9 14 13 / .10) 72%, rgb(9 14 13 / .25)); }
+.ambient-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 93%, transparent) 0%, color-mix(in srgb, var(--color-bg) 76%, transparent) 31%, color-mix(in srgb, var(--color-bg) 10%, transparent) 72%, color-mix(in srgb, var(--color-bg) 25%, transparent)); }
 .app-main { position: relative; min-width: 0; overflow-x: clip; padding-top: 40px; }
-.app-header { background: rgb(9 14 13 / .95); }
-.app-footer { background: rgb(9 14 13 / .92); padding-bottom: 48px; }
+.app-header { background: color-mix(in srgb, var(--color-bg) 95%, transparent); }
+.app-footer { background: color-mix(in srgb, var(--color-bg) 92%, transparent); padding-bottom: 48px; }
 .motion-toggle { position: fixed; right: 24px; bottom: 20px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 2px; background: var(--color-bg); color: var(--color-ink-2); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
 .motion-toggle > span { color: var(--color-accent); }
 .motion-toggle:hover { border-color: var(--color-accent); }
 .motion-toggle:disabled { cursor: default; }
 input, select, textarea { accent-color: var(--color-accent); }
 @media (max-width: 760px) {
-  .ambient-background::after { background: rgb(9 14 13 / .56); }
+  .ambient-background::after { background: color-mix(in srgb, var(--color-bg) 56%, transparent); }
   .ambient-canvas[data-ready="true"] { opacity: .48; }
   .motion-toggle { right: 16px; bottom: 16px; }
 }

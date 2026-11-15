@@ -1,5 +1,5 @@
 // Static fallback for the GPU scene. Run: node scripts/generate-homepage-art.mjs
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { toAsciiGrid, gridToSvg } from "asciify-engine/headless";
 
 const width = 960, height = 640;
@@ -20,5 +20,8 @@ const grid = toAsciiGrid({ data, width, height, channels: 4 }, {
   columns: 160, cellAspect: 1.6, mode: "tone", charset: " .,:;-=+*/<>[]{}01",
   background: "dark", levels: "none", dither: false,
 });
-await writeFile(new URL("../public/art/currents.svg", import.meta.url), gridToSvg(grid, { fontSize: 10, ink: "#86bb9c", color: false }));
+const tokens = await readFile(new URL("../src/app/globals.css", import.meta.url), "utf8");
+const ink = tokens.match(/--color-field-ink:\s*(#[0-9a-fA-F]{6})/)?.[1];
+if (!ink) throw new Error("Missing --color-field-ink theme token");
+await writeFile(new URL("../public/art/currents.svg", import.meta.url), gridToSvg(grid, { fontSize: 10, ink, color: false }));
 console.log("Generated currents.svg");

@@ -1,4 +1,4 @@
-/* Shared with the application: graphite, diff ink, a continuous GPU character field.
+/* Shared with the application: light paper, forest ink, a continuous GPU character field.
  * Design guidance: frontend-design (Anthropic), and Unslop by Damir Sokolovsky
  * https://heydamir.design/unslop (CC BY 4.0).
  */
@@ -35,7 +35,7 @@
 .heroFoot > a { padding: 4px 8px; background: var(--home-ground); }
 .heroFoot > a > span { margin-left: 12px; font-size: 18px; }
 .heroFoot a:hover { color: var(--home-green); }
-.difference, .workflow, .trust, .closing { background: rgb(9 14 13 / .92); }
+.difference, .workflow, .trust, .closing { background: color-mix(in srgb, var(--home-ground) 92%, transparent); }
 .difference { display: grid; grid-template-columns: .85fr 1.15fr; gap: 80px; align-items: center; padding: 96px 0; border-bottom: 1px solid var(--home-line); scroll-margin-top: 100px; }
 .home h2 { font-size: 40px; line-height: 1.16; letter-spacing: -.035em; font-weight: 400; }
 .home h2 span { color: var(--home-muted); }
@@ -115,7 +115,7 @@
 .closing h2 { margin-top: 12px; font-size: 36px; }
 .closing > div > p:last-child { margin-top: 20px; color: var(--home-muted); font-size: 13px; }
 .closingMark { font-family: var(--font-mono); font-size: 88px; line-height: 1; color: var(--home-green); }
-.landingHeader { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--home-line); background: rgb(9 14 13 / .94); }
+.landingHeader { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--home-line); background: color-mix(in srgb, var(--home-ground) 94%, transparent); }
 .headerInner { display: flex; align-items: center; gap: 32px; max-width: 1264px; height: 80px; margin: 0 auto; padding: 0 32px; }
 .headerInner > a:first-child { font-size: 20px; letter-spacing: -.04em; }
 .desktopNav { display: flex; align-items: center; justify-content: center; gap: 32px; flex: 1; font-size: 12px; color: var(--home-secondary); }
@@ -123,7 +123,7 @@
 .headerCta { display: inline-flex; align-items: center; gap: 24px; border: 1px solid var(--home-line); border-radius: var(--radius-ctl); padding: 10px 16px; font-size: 12px; font-weight: 500; }
 .headerCta:hover { background: var(--color-tint); border-color: var(--home-green); }
 .menuButton, .mobileNav { display: none; }
-.landingFooter { padding: 28px max(32px, calc((100vw - 1200px) / 2)) 80px; border-top: 1px solid var(--home-line); background: rgb(9 14 13 / .92); }
+.landingFooter { padding: 28px max(32px, calc((100vw - 1200px) / 2)) 80px; border-top: 1px solid var(--home-line); background: color-mix(in srgb, var(--home-ground) 92%, transparent); }
 .footerTop { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .footerTop > p { margin-right: auto; font-size: 12px; color: var(--home-muted); }
 .footerTop nav { display: flex; gap: 24px; font-size: 12px; color: var(--home-secondary); }
