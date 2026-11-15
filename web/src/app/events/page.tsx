@@ -24,7 +24,7 @@ export default function EventsPage() {
             {STEPS.map(([title, body], i) => (
               <li key={title} className="rounded-card bg-card p-4 shadow-inner-card">
                 <p className="flex items-center gap-2 text-[14px] font-medium">
-                  <span className="flex size-5 items-center justify-center rounded-full bg-ink text-[12px] text-white">{i + 1}</span>
+                  <span className="flex size-5 items-center justify-center rounded-ctl bg-accent text-[12px] text-bg">{i + 1}</span>
                   {title}
                 </p>
                 <p className="mt-2 text-[13px] text-mut">{body}</p>

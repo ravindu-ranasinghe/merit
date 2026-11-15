@@ -98,7 +98,7 @@ export function WalletLinkCard() {
     return (
       <div>
         <p className="flex items-center gap-2 text-[16px] font-medium">
-          <span className="flex size-6 items-center justify-center rounded-full bg-good text-white">
+          <span className="flex size-6 items-center justify-center rounded-full bg-good text-bg">
             <IconCheckDraw size={13} />
           </span>
           Payout wallet linked

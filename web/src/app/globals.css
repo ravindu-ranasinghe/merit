@@ -1,40 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Design tokens. Direction: ledger and diff. Grey neutral surfaces separated by hairlines,
- * near-black ink, three text roles, and one accent: the green of a diff's added line.
+ * Shared product theme: peach, cream, bronze, olive wood, and mauve ink.
+ * One GPU character field persists behind the landing page and the application.
  * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
  * reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #fafafa;
-  --color-tray: #f4f4f5;
-  --color-tray-2: #ebebed;
-  --color-card: #ffffff;
-  --color-dark: #171717;
-  --color-ink: #171717;
-  --color-ink-2: #525252;
-  --color-mut: #737373;
-  --color-mut-2: #737373;
-  --color-line: rgb(23 23 23 / 0.09);
-  --color-accent: #1a7f37;
-  --color-accent-ink: #116329;
-  --color-tint: #e6f4ea;
-  --color-good: #116329;
-  --color-good-bg: #e6f4ea;
-  --color-warn: #7a4f00;
-  --color-warn-bg: #fbf0d4;
-  --color-crit: #b02a2a;
-  --color-crit-bg: #fbe9e7;
+  --color-bg: #EDD9A3;
+  --color-tray: #E2E8C0;
+  --color-tray-2: #CEA07E;
+  --color-card: #F4E8C9;
+  --color-dark: #443742;
+  --color-ink: #443742;
+  --color-ink-2: #604D45;
+  --color-mut: #6F5848;
+  --color-mut-2: #6F5848;
+  --color-line: rgb(68 55 66 / 0.16);
+  --color-accent: #443742;
+  --color-accent-ink: #574551;
+  --color-tint: #E2E8C0;
+  --color-good: #456041;
+  --color-good-bg: #E2E8C0;
+  --color-warn: #74532F;
+  --color-warn-bg: #EDD9A3;
+  --color-crit: #7B3940;
+  --color-crit-bg: #EFD2C0;
+  --color-diff-bg: #F0E0B7;
+  --color-diff-add-bg: #E2E8C0;
+  --color-diff-add-ink: #443742;
+  --color-diff-remove-bg: #E6BC9C;
+  --color-diff-remove-ink: #743E41;
+  --color-field-ink: #846C5B;
 
-  --radius-tray: 16px;
-  --radius-card: 12px;
-  --radius-ctl: 8px;
+  --radius-tray: 4px;
+  --radius-card: 2px;
+  --radius-ctl: 2px;
 
   /* Depth is a hairline, plus a small neutral shadow for things that float. */
-  --shadow-card: 0 0 0 1px rgb(23 23 23 / 0.08), 0 1px 2px rgb(0 0 0 / 0.04);
-  --shadow-inner-card: 0 0 0 1px rgb(23 23 23 / 0.08);
-  --shadow-knob: 0 0 0 1px rgb(23 23 23 / 0.12), 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-card: 0 0 0 1px rgb(68 55 66 / 0.16);
+  --shadow-inner-card: 0 0 0 1px rgb(68 55 66 / 0.14);
+  --shadow-knob: 0 0 0 1px rgb(68 55 66 / 0.25);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
@@ -66,6 +72,7 @@
 }
 
 html {
+  color-scheme: light;
   background: var(--color-bg);
   color: var(--color-ink);
   font-feature-settings: "tnum";
@@ -74,6 +81,8 @@ html {
 }
 
 body {
+  position: relative;
+  isolation: isolate;
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
@@ -86,7 +95,29 @@ body {
 }
 
 ::selection {
-  background: #cdebd5;
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+.ambient-background { position: fixed; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; --field-ink: var(--color-field-ink); }
+.ambient-canvas, .ambient-poster { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ambient-canvas { opacity: 0; transition: opacity 600ms var(--ease-soft); }
+.ambient-canvas[data-ready="true"] { opacity: .65; }
+.ambient-poster { background: url('/art/currents.svg') center / cover no-repeat; opacity: .35; }
+.ambient-background:has([data-ready="true"]) .ambient-poster { visibility: hidden; }
+.ambient-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 93%, transparent) 0%, color-mix(in srgb, var(--color-bg) 76%, transparent) 31%, color-mix(in srgb, var(--color-bg) 10%, transparent) 72%, color-mix(in srgb, var(--color-bg) 25%, transparent)); }
+.app-main { position: relative; min-width: 0; overflow-x: clip; padding-top: 40px; }
+.app-header { background: color-mix(in srgb, var(--color-bg) 95%, transparent); }
+.app-footer { background: color-mix(in srgb, var(--color-bg) 92%, transparent); padding-bottom: 48px; }
+.motion-toggle { position: fixed; right: 24px; bottom: 20px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid var(--color-line); border-radius: 2px; background: var(--color-bg); color: var(--color-ink-2); font-family: var(--font-mono); font-size: 11px; cursor: pointer; }
+.motion-toggle > span { color: var(--color-accent); }
+.motion-toggle:hover { border-color: var(--color-accent); }
+.motion-toggle:disabled { cursor: default; }
+input, select, textarea { accent-color: var(--color-accent); }
+@media (max-width: 760px) {
+  .ambient-background::after { background: color-mix(in srgb, var(--color-bg) 56%, transparent); }
+  .ambient-canvas[data-ready="true"] { opacity: .48; }
+  .motion-toggle { right: 16px; bottom: 16px; }
 }
 
 /* The rule above the current "How it works" step filling up. */

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { AppFooter, AppHeader, AppMain } from "@/components/shell";
 import { Providers } from "./providers";
+import { AmbientField } from "@/components/ambient-field";
 import "./globals.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body className="flex min-h-dvh flex-col" suppressHydrationWarning>
+        <AmbientField />
         <Providers>
           <AppHeader />
           <AppMain>{children}</AppMain>

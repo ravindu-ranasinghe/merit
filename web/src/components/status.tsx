@@ -22,11 +22,11 @@ export function StatusPill({ status }: { status: BountyStatus }) {
 }
 
 const CURRENT: Record<Tone, string> = {
-  neutral: "bg-ink text-white",
-  progress: "bg-ink text-white",
-  good: "bg-good text-white",
-  warning: "bg-[#b7791f] text-white",
-  critical: "bg-crit text-white",
+  neutral: "bg-ink text-bg",
+  progress: "bg-ink text-bg",
+  good: "bg-good text-bg",
+  warning: "bg-warn text-bg",
+  critical: "bg-crit text-bg",
 };
 
 const CURRENT_TEXT: Record<Tone, string> = {
@@ -42,7 +42,7 @@ function Node({ step, index }: { step: RailStep; index: number }) {
   const base = "relative z-10 flex size-7 items-center justify-center rounded-full text-[12px] font-medium transition-colors duration-150 ease-soft";
   if (step.state === "done") {
     return (
-      <span className={cx(base, "bg-ink text-white")}>
+      <span className={cx(base, "bg-ink text-bg")}>
         <IconCheck size={13} />
       </span>
     );
@@ -54,7 +54,7 @@ function Node({ step, index }: { step: RailStep; index: number }) {
       </span>
     );
   }
-  return <span className={cx(base, "bg-card text-mut-2 shadow-[inset_0_0_0_1.5px_#d4d4d4]")}>{index + 1}</span>;
+  return <span className={cx(base, "bg-card text-mut-2 shadow-knob")}>{index + 1}</span>;
 }
 
 /**
@@ -88,7 +88,7 @@ export function StatusRail({ status, className }: { status: BountyStatus; classN
                     step.branch
                       ? "bg-[repeating-linear-gradient(90deg,#a3a3a3_0_5px,transparent_5px_9px)]"
                       : step.state === "upcoming"
-                        ? "bg-[#d4d4d4]"
+                        ? "bg-tray-2"
                         : "bg-ink",
                   )}
                 />
@@ -121,7 +121,7 @@ export function StatusRail({ status, className }: { status: BountyStatus; classN
               key={step.status}
               className={cx(
                 "h-1.5 flex-1 rounded-full",
-                step.state === "upcoming" ? "bg-[#d4d4d4]" : step.state === "current" ? CURRENT[STATUS_META[step.status].tone] : "bg-ink",
+                step.state === "upcoming" ? "bg-tray-2" : step.state === "current" ? CURRENT[STATUS_META[step.status].tone] : "bg-ink",
               )}
             />
           ))}

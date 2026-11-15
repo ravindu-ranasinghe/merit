@@ -138,7 +138,7 @@ export default function ApprovePage() {
               <label className="mt-2 block text-[12px] text-mut" htmlFor="amount">
                 Amount in dollars (this bounty holds {formatUsd(bounty.amountUnits)})
               </label>
-              <div className="mt-1 flex h-10 items-center rounded-ctl bg-card px-3 shadow-[inset_0_0_0_1.5px_#d4d4d4] focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]">
+              <div className="mt-1 flex h-10 items-center rounded-ctl bg-card px-3 shadow-knob focus-within:shadow-[inset_0_0_0_2px_var(--color-accent)]">
                 <span className="text-mut">$</span>
                 <input
                   id="amount"

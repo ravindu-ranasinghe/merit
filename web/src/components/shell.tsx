@@ -23,7 +23,7 @@ const NAV = [
 export function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2 text-[16px] font-medium">
-      <span className="flex size-7 items-center justify-center rounded-md bg-ink text-white">
+      <span className="flex size-7 items-center justify-center rounded-ctl bg-accent text-bg">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M4 18V7l8 7 8-7v11" />
         </svg>
@@ -60,7 +60,7 @@ function LandingHeader() {
 
 export function AppMain({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  return <main id="main-content" className={pathname === "/" ? "w-full flex-1" : "mx-auto w-full max-w-[1280px] flex-1 px-4 pb-16 pt-6 sm:px-6"}>{children}</main>;
+  return <main id="main-content" className={pathname === "/" ? "w-full flex-1" : "app-main mx-auto w-full max-w-[1280px] flex-1 px-4 pb-24 sm:px-6"}>{children}</main>;
 }
 
 function DashboardHeader() {
@@ -71,7 +71,7 @@ function DashboardHeader() {
   return (
     <div className="sticky top-0 z-30">
       {MOCK && <MockBar />}
-      <header className="border-b border-line bg-bg">
+      <header className="app-header border-b border-line">
         <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
           <Logo />
           <nav aria-label="Main" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
@@ -151,7 +151,7 @@ function MockBar() {
           <div role="radiogroup" aria-label="Sample persona" className="relative grid h-7 grid-cols-4 rounded-[9px] bg-white/10 p-0.5">
             <span
               aria-hidden
-              className="absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%-4px)/4)] rounded-[7px] bg-white transition-transform duration-500 ease-soft"
+              className="absolute bottom-0.5 left-0.5 top-0.5 w-[calc((100%-4px)/4)] rounded-ctl bg-accent transition-transform duration-500 ease-soft"
               style={{ transform: `translateX(${index * 100}%)` }}
             />
             {keys.map((k) => (
@@ -163,7 +163,7 @@ function MockBar() {
                 onClick={() => pick(k)}
                 className={cx(
                   "relative z-10 whitespace-nowrap px-2 text-[12px] font-medium transition-colors duration-300 sm:px-3",
-                  k === persona ? "text-ink" : "text-[#a1a1a6] hover:text-white",
+                  k === persona ? "text-bg" : "text-[#a1a1a6] hover:text-white",
                 )}
               >
                 {PERSONAS[k].label}
@@ -196,7 +196,7 @@ export function AppFooter() {
     </footer>
   );
   return (
-    <footer className="border-t border-line">
+    <footer className="app-footer border-t border-line">
       <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[13px] text-mut sm:px-6">
         <p>
           Testnet prototype. Rewards are testnet USDC on Arc and have no monetary value.

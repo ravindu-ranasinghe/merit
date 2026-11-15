@@ -31,7 +31,7 @@ export function Tray({
       style={style}
       className={cx(
         "rounded-tray p-5 sm:p-6",
-        tone === "tray" && "border border-line",
+        tone === "tray" && "border border-line bg-tray/95",
         tone === "white" && "bg-card shadow-card",
         tone === "dark" && "bg-dark text-white",
         className,
@@ -56,8 +56,8 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 type ButtonVariant = "primary" | "accent" | "secondary" | "ghost";
 
 const BTN: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-white hover:bg-black",
-  accent: "bg-accent text-white hover:bg-accent-ink",
+  primary: "bg-accent text-bg hover:bg-accent-ink",
+  accent: "bg-accent text-bg hover:bg-accent-ink",
   secondary: "bg-card text-ink shadow-knob hover:bg-tray",
   ghost: "text-ink-2 hover:bg-tray-2",
 };
@@ -329,7 +329,7 @@ export function BlockLink({ block, className }: { block: number; className?: str
 
 export function PageHeader({ title, lead, action, eyebrow }: { title: string; lead?: ReactNode; action?: ReactNode; eyebrow?: ReactNode }) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-4 px-1">
+    <header data-field-clear="" className="mb-5 flex flex-wrap items-end justify-between gap-4 px-1">
       <div className="min-w-0">
         {eyebrow && <div className="mb-2 text-[13px] text-mut">{eyebrow}</div>}
         <h1 className="text-[28px] font-medium leading-tight tracking-[-0.02em]">{title}</h1>
@@ -342,7 +342,7 @@ export function PageHeader({ title, lead, action, eyebrow }: { title: string; le
 
 export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-card border border-dashed border-[#d4d4d4] px-5 py-8 text-center">
+    <div className="rounded-card border border-dashed border-line px-5 py-8 text-center">
       <p className="font-medium">{title}</p>
       {children && <p className="mx-auto mt-1 max-w-[46ch] text-[13px] text-mut">{children}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
