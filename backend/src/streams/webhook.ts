@@ -42,7 +42,15 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
 
   app.post("/webhooks/streams", async (req, reply) => {
     const body = req.body as string;
-    if (!validSig(ctx.env.qnSecurityToken, req.headers, body)) return reply.code(401).send({ error: "bad signature" });
+    if (!validSig(ctx.env.qnSecurityToken, req.headers, body)) {
+      req.log.warn({
+        hasNonce: typeof req.headers["x-qn-nonce"] === "string",
+        hasTimestamp: typeof req.headers["x-qn-timestamp"] === "string",
+        hasSignature: typeof req.headers["x-qn-signature"] === "string",
+        contentEncoding: req.headers["content-encoding"] ?? "none",
+      }, "QuickNode signature rejected");
+      return reply.code(401).send({ error: "bad signature" });
+    }
     let json: unknown;
     try { json = JSON.parse(body); } catch { return reply.code(400).send({ error: "invalid json" }); }
 
