@@ -17,6 +17,13 @@ export async function buildApp(ctx: Ctx, opts: { logger?: boolean; app?: Fastify
   await app.register(cors, { origin: ctx.env.webOrigin, credentials: true });
   await app.register(cookie, { secret: ctx.env.sessionSecret });
 
+  // CSRF: a browser always sends Origin on a cross-site write, so a write from any other site is
+  // refused even though the SameSite=None session cookie rides along. Webhooks send no Origin.
+  app.addHook("onRequest", async (req) => {
+    const o = req.headers.origin;
+    if (o && o !== ctx.env.webOrigin && !["GET", "HEAD", "OPTIONS"].includes(req.method)) throw new HttpError(403, "cross-site request refused");
+  });
+
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ZodError) return reply.code(400).send({ error: "invalid request", issues: err.issues });
     if (err instanceof HttpError) return reply.code(err.status).send({ error: err.message });
