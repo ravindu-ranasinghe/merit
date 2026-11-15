@@ -114,7 +114,7 @@ for public repositories.
 
 ## Design notes
 
-The landing page and every app route share a light paper and forest-green theme, sharp corners,
+The landing page and every app route share a soft peach, cream, bronze and mauve theme, sharp corners,
 Geist interface text and Geist Mono for code and ledger values. Tokens live in
 `src/app/globals.css`; the homepage uses the same tokens through `home.module.css`.
 

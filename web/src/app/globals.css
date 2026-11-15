@@ -1,46 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Shared product theme: light paper, forest ink, hard edges, and quiet panels.
+ * Shared product theme: peach, cream, bronze, olive wood, and mauve ink.
  * One GPU character field persists behind the landing page and the application.
  * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
  * reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #f4f6ef;
-  --color-tray: #edf1e8;
-  --color-tray-2: #dce5d7;
-  --color-card: #fdfefb;
-  --color-dark: #1a2820;
-  --color-ink: #203025;
-  --color-ink-2: #4c5e51;
-  --color-mut: #5f7063;
-  --color-mut-2: #617365;
-  --color-line: rgb(23 51 33 / 0.16);
-  --color-accent: #28633d;
-  --color-accent-ink: #1c4e2e;
-  --color-tint: #e1eddc;
-  --color-good: #25653a;
-  --color-good-bg: #dfeedd;
-  --color-warn: #785408;
-  --color-warn-bg: #f8edd0;
-  --color-crit: #9c3930;
-  --color-crit-bg: #f8e7e2;
-  --color-diff-bg: #f3f6ef;
-  --color-diff-add-bg: #dcefd8;
-  --color-diff-add-ink: #245932;
-  --color-diff-remove-bg: #f7e4df;
-  --color-diff-remove-ink: #8c3229;
-  --color-field-ink: #6a8b72;
+  --color-bg: #EDD9A3;
+  --color-tray: #E2E8C0;
+  --color-tray-2: #CEA07E;
+  --color-card: #F4E8C9;
+  --color-dark: #443742;
+  --color-ink: #443742;
+  --color-ink-2: #604D45;
+  --color-mut: #6F5848;
+  --color-mut-2: #6F5848;
+  --color-line: rgb(68 55 66 / 0.16);
+  --color-accent: #443742;
+  --color-accent-ink: #574551;
+  --color-tint: #E2E8C0;
+  --color-good: #456041;
+  --color-good-bg: #E2E8C0;
+  --color-warn: #74532F;
+  --color-warn-bg: #EDD9A3;
+  --color-crit: #7B3940;
+  --color-crit-bg: #EFD2C0;
+  --color-diff-bg: #F0E0B7;
+  --color-diff-add-bg: #E2E8C0;
+  --color-diff-add-ink: #443742;
+  --color-diff-remove-bg: #E6BC9C;
+  --color-diff-remove-ink: #743E41;
+  --color-field-ink: #846C5B;
 
   --radius-tray: 4px;
   --radius-card: 2px;
   --radius-ctl: 2px;
 
   /* Depth is a hairline, plus a small neutral shadow for things that float. */
-  --shadow-card: 0 0 0 1px rgb(23 51 33 / 0.16);
-  --shadow-inner-card: 0 0 0 1px rgb(23 51 33 / 0.14);
-  --shadow-knob: 0 0 0 1px rgb(23 51 33 / 0.25);
+  --shadow-card: 0 0 0 1px rgb(68 55 66 / 0.16);
+  --shadow-inner-card: 0 0 0 1px rgb(68 55 66 / 0.14);
+  --shadow-knob: 0 0 0 1px rgb(68 55 66 / 0.25);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
