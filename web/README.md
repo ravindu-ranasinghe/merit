@@ -114,11 +114,19 @@ for public repositories.
 
 ## Design notes
 
+The homepage uses `asciify-engine` for a visitor-controlled review → fix → reward
+illustration and a four-step interactive bounty example. The SVG sources and static
+ASCII fallbacks live in `public/art/`; regenerate the fallbacks with
+`node scripts/generate-homepage-art.mjs`. The renderer is loaded after hydration,
+honors reduced motion, and cleans up when leaving the homepage. HTML and static art
+remain available without WebGL. Homepage styles are scoped in `src/app/home.module.css`.
+
 Direction: ledger and diff. Grey neutral surfaces separated by hairlines, Geist for the
 interface and Geist Mono for amounts, hashes and blocks, and one accent: the green of a
 diff's added line. Green in the chrome means a primary action or money confirmed onchain.
 Detail rows use a dotted ledger leader. Motion uses one easing curve and never loops, except
 the live-feed dot. Status colors are reserved for state and always come with a label and icon.
-The landing page's "How it works" is a simulated screen recording drawn in code and played with
-`@remotion/player` (`src/components/how-it-works-video.tsx`); Remotion is free for teams of up to
-three and needs a company license above that. Tokens live in `src/app/globals.css`. Restyled with the unslop skill by Damir Sokolovsky.
+The original Remotion composition remains in `src/components/how-it-works-video.tsx`.
+Tokens live in `src/app/globals.css`. Homepage design applies the
+[unslop skill by Damir Sokolovsky](https://heydamir.design/unslop), licensed CC BY 4.0,
+and [Asciify Engine](https://github.com/ayangabryl/asciify-engine).

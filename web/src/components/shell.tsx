@@ -3,13 +3,15 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import homeStyles from "@/app/home.module.css";
 import { PERSONAS, type PersonaKey } from "@/fixtures/seed";
 import { useWallet } from "@/lib/chain/hooks";
 import { MOCK } from "@/lib/env";
 import { shortHash } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 import { resetDb, setPersonaKey } from "@/mock/store";
-import { IconGithub, IconRefresh, IconWallet } from "./icons";
+import { IconArrowRight, IconGithub, IconRefresh, IconWallet } from "./icons";
 import { Avatar, Button, cx } from "./ui";
 
 const NAV = [
@@ -32,6 +34,36 @@ export function Logo() {
 }
 
 export function AppHeader() {
+  const pathname = usePathname();
+  return pathname === "/" ? <LandingHeader /> : <DashboardHeader />;
+}
+
+function LandingHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const links = [
+    { href: "/#how-it-works", label: "How it works" },
+    { href: "/#trust", label: "Trust model" },
+    { href: "/events", label: "Event feed" },
+  ];
+  return (
+    <header className={homeStyles.landingHeader}>
+      <div className={homeStyles.headerInner}>
+        <Logo />
+        <nav className={homeStyles.desktopNav} aria-label="Main">{links.map(({ href, label }) => <Link key={href} href={href}>{label}</Link>)}</nav>
+        <Link className={homeStyles.headerCta} href="/maintainer">Open app <IconArrowRight size={14} /></Link>
+        <button type="button" className={homeStyles.menuButton} aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} aria-controls="home-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button>
+      </div>
+      {menuOpen && <nav id="home-mobile-nav" className={homeStyles.mobileNav} aria-label="Mobile">{links.map(({ href, label }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}</nav>}
+    </header>
+  );
+}
+
+export function AppMain({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  return <main id="main-content" className={pathname === "/" ? "w-full flex-1" : "mx-auto w-full max-w-[1280px] flex-1 px-4 pb-16 pt-6 sm:px-6"}>{children}</main>;
+}
+
+function DashboardHeader() {
   const pathname = usePathname();
   const viewer = useViewer();
   const wallet = useWallet();
@@ -156,6 +188,13 @@ function MockBar() {
 }
 
 export function AppFooter() {
+  const pathname = usePathname();
+  if (pathname === "/") return (
+    <footer className={homeStyles.landingFooter}>
+      <div className={homeStyles.footerTop}><Logo /><p>A little credit for a good catch.</p><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
+      <div className={homeStyles.footerBottom}><p>Testnet prototype · Test USDC on Arc has no monetary value</p><p>Made for UBC Hackathon 2026</p></div>
+    </footer>
+  );
   return (
     <footer className="border-t border-line">
       <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[13px] text-mut sm:px-6">

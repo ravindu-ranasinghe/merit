@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
-import { AppFooter, AppHeader } from "@/components/shell";
+import { AppFooter, AppHeader, AppMain } from "@/components/shell";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="flex min-h-dvh flex-col" suppressHydrationWarning>
         <Providers>
           <AppHeader />
-          <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 pb-16 pt-6 sm:px-6">{children}</main>
+          <AppMain>{children}</AppMain>
           <AppFooter />
         </Providers>
       </body>

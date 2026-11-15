@@ -1,92 +1,43 @@
 "use client";
 
-import { Player, type PlayerRef } from "@remotion/player";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FPS, HEIGHT, HowItWorksVideo, SCENE, SCENES, WIDTH } from "./how-it-works-video";
-import { cx } from "./ui";
+import Link from "next/link";
+import { useState } from "react";
+import { IconArrowRight, IconCheck, IconComment, IconCommit, IconGithub, IconLock, IconPullRequest } from "./icons";
+import styles from "@/app/home.module.css";
 
 const STEPS = [
-  ["A maintainer locks a reward", "They pick a pull request and put $5 to $10 of testnet USDC into escrow. It is locked before anyone reviews."],
-  ["A reviewer leaves feedback", "On GitHub, as usual. No wallet is needed to review."],
-  ["The author fixes it", "Merit notices a later commit touching the commented code and a resolved thread, and flags the review as a candidate."],
-  ["The maintainer verifies and approves", "They read the evidence and sign the approval themselves. The reviewer claims the reward, once."],
+  { title: "Fund the review", body: "Pick a pull request. Lock $5–$10 of testnet USDC in escrow before the review starts." },
+  { title: "Leave a good catch", body: "Review on GitHub, just as you do today. No wallet is needed to leave feedback." },
+  { title: "Make the code better", body: "The author pushes a fix. GitHub signals flag a review candidate for the maintainer to verify." },
+  { title: "Approve. Claim. Credit.", body: "The maintainer checks the evidence and signs approval. The linked reviewer claims once." },
 ] as const;
 
-const REDUCED = "(prefers-reduced-motion: reduce)";
-const subscribe = (cb: () => void) => {
-  const mq = window.matchMedia(REDUCED);
-  mq.addEventListener("change", cb);
-  return () => mq.removeEventListener("change", cb);
-};
-
-/**
- * The four steps as a looping, simulated screen recording, with the step text above it lit
- * in time with it: the player's frame is the only clock. Clicking a step jumps to it.
- * With reduced motion nothing plays; the last frame and every step are shown instead.
- */
 export function HowItWorks() {
-  const player = useRef<PlayerRef>(null);
-  const reduced = useSyncExternalStore(subscribe, () => window.matchMedia(REDUCED).matches, () => false);
   const [active, setActive] = useState(0);
-
-  useEffect(() => {
-    const p = player.current;
-    if (!p) return;
-    const onFrame = (e: { detail: { frame: number } }) => setActive(Math.min(SCENES - 1, Math.floor(e.detail.frame / SCENE)));
-    p.addEventListener("frameupdate", onFrame);
-    return () => p.removeEventListener("frameupdate", onFrame);
-  }, []);
-
   return (
-    <div className="mt-5">
-      <ol className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
-        {STEPS.map(([title, body], i) => {
-          const reached = reduced || i <= active;
-          return (
-            <li key={title} aria-current={!reduced && i === active ? "step" : undefined}>
-              <button
-                type="button"
-                onClick={() => player.current?.seekTo(i * SCENE)}
-                className="block w-full cursor-pointer rounded-md text-left"
-              >
-                <span aria-hidden className="block h-px bg-ink/15">
-                  <span
-                    // Remounted when it becomes current, so the fill restarts from empty.
-                    key={i === active ? `on-${active}` : "off"}
-                    className={cx("block h-px origin-left bg-ink", reduced || i < active ? "scale-x-100" : i > active && "scale-x-0")}
-                    style={!reduced && i === active ? { animation: `step-fill ${(SCENE / FPS) * 1000}ms linear both` } : undefined}
-                  />
-                </span>
-                <span className={cx("block pt-3 transition-opacity duration-300 ease-soft", reached ? "opacity-100" : "opacity-45")}>
-                  <span className="block font-mono text-[12px] text-mut">0{i + 1}</span>
-                  <span className="mt-2 block text-[14px] font-medium">{title}</span>
-                  <span className="mt-1 block text-[13px] text-mut">{body}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
+    <div className={styles.walkthrough}>
+      <ol className={styles.steps}>
+        {STEPS.map(({ title, body }, i) => (
+          <li key={title}>
+            <button type="button" onClick={() => setActive(i)} aria-pressed={active === i} aria-controls="workflow-example" className={styles.step}>
+              <span className={styles.stepNumber}>0{i + 1}</span>
+              <span><strong>{title}</strong><span>{body}</span></span>
+              <IconArrowRight size={16} />
+            </button>
+          </li>
+        ))}
       </ol>
-      <div
-        role="img"
-        aria-label="Illustration of the four steps: a maintainer funds a bounty in Merit, a reviewer comments on GitHub, the author pushes a fix, and the maintainer approves the payout in Merit"
-        className="mx-auto mt-8 max-w-[720px] overflow-hidden rounded-card shadow-card"
-      >
-        <Player
-          ref={player}
-          component={HowItWorksVideo}
-          durationInFrames={SCENE * SCENES}
-          compositionWidth={WIDTH}
-          compositionHeight={HEIGHT}
-          fps={FPS}
-          // Remounted when the motion preference changes, so autoplay and the start frame follow it.
-          key={String(reduced)}
-          autoPlay={!reduced}
-          initialFrame={reduced ? SCENE * SCENES - 1 : 0}
-          loop
-          acknowledgeRemotionLicense
-          style={{ width: "100%" }}
-        />
+      <div className={styles.productWindow} id="workflow-example" role="region" aria-label={`${STEPS[active].title}: illustrated example`}>
+        <div className={styles.windowBar}><span className={styles.windowDots} aria-hidden><i /><i /><i /></span><span>merit / review reward</span><span className={styles.sampleLabel}>Sample data</span></div>
+        <div className={styles.productBody}>
+          <div className={styles.prMeta}><span><IconGithub size={16} /> acme / editor</span><span>#482</span></div>
+          <h3>Fix autosave writing after close</h3>
+          <div className={styles.rewardRow}><div><span>Review reward</span><p>10.00 <span>testnet USDC</span></p></div><span className={styles.rewardStatus}><IconCheck size={13} />{active === 3 ? "Claimed" : "Funded in escrow"}</span></div>
+          <div className={styles.exampleContent} aria-live="polite" aria-atomic="true">
+            {active === 0 ? <><div className={styles.exampleLabel}><IconLock size={15} /> Reward secured before the review</div><dl className={styles.exampleDetails}><div><dt>Pull request</dt><dd><IconPullRequest size={14} /> acme/editor #482</dd></div><div><dt>Amount</dt><dd>10.00 testnet USDC</dd></div><div><dt>Recipient</dt><dd>One approved reviewer</dd></div><div><dt>Network</dt><dd>Arc testnet</dd></div></dl><p className={styles.exampleNote}>If the bounty expires without an approval, the original funder can submit a refund transaction.</p></> : active === 1 ? <><div className={styles.exampleLabel}><IconComment size={15} /> jun-park left a review</div><p className={styles.filePath}>src/editor/autosave.ts</p><blockquote>The debounce timer is never cleared, so a late tick writes to a closed file handle. Could we clear it on dispose?</blockquote><p className={styles.exampleNote}>A specific catch, in the context of the code.</p></> : active === 2 ? <><div className={styles.exampleLabel}><IconCommit size={15} /> Feedback becomes a fix</div><p className={styles.filePath}>src/editor/autosave.ts</p><pre className={styles.codeDiff}><code>{"   dispose() {\n     this.disposed = true;\n"}<span>{"+    clearTimeout(this.timer);\n"}</span>{"   }"}</code></pre><p className={styles.exampleNote}>Commit a41c9e7 · Thread resolved<br />These signals are heuristics. A maintainer still verifies the improvement.</p></> : <><div className={styles.exampleLabel}><IconCheck size={15} /> Verified by the maintainer</div><div className={styles.payoutReceipt}><span>Reward claimed by jun-park</span><p>+10.00 <span>testnet USDC</span></p><span>One reviewer. One payout.</span></div><p className={styles.exampleNote}>The reviewer links a wallet and claims the approved reward. The indexed contract event confirms the paid state.</p></>}
+          </div>
+        </div>
+        <div className={styles.productBottom}><span><span className={styles.statusDot} /> Illustrated workflow · Arc testnet</span><Link href={active === 3 ? "/reviewer" : "/maintainer"}>Try the app <IconArrowRight size={13} /></Link></div>
       </div>
     </div>
   );
