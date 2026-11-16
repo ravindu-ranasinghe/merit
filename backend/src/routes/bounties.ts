@@ -7,8 +7,9 @@ import { HttpError, type Ctx } from "../ctx.js";
 import { isUniqueViolation } from "../db/index.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { MANUAL_LIMITATIONS } from "../github/evidence.js";
-import { repoOfPr, requireMaintainer, requireSession } from "../session.js";
-import { approvalsOfBounty, bountyViews, candidatesOfPr, eventView } from "./view.js";
+import { syncReviews } from "../github/sync.js";
+import { repoOfPr, requireMaintainer, requireSession, type Session } from "../session.js";
+import { approvalsOfBounty, bountyViews, candidatesOfPr, canReadRepository, eventView } from "./view.js";
 
 const units = z.string().regex(/^[1-9]\d{0,77}$/, "decimal string of integer units");
 const id = z.coerce.number().int().positive();
@@ -25,7 +26,13 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.get("/bounties", async (req) => {
     const q = z.object({ status: z.string().optional(), repo: z.string().optional() }).parse(req.query);
-    let rows = await bountyViews(ctx);
+    let session: Session | undefined;
+    try { session = requireSession(req); } catch { /* public discovery needs no session */ }
+    const repos = await ctx.db.select().from(repositories);
+    const access = await Promise.all(repos.map(async (r) => await canReadRepository(ctx, r, session) ? r.id : null));
+    const visible = access.filter((id) => id !== null);
+    let rows = visible.length ? await bountyViews(ctx, inArray(bounties.pr_id,
+      ctx.db.select({ id: pull_requests.id }).from(pull_requests).where(inArray(pull_requests.repo_id, visible)))) : [];
     if (q.status) rows = rows.filter((r) => r.status === q.status);
     if (q.repo) rows = rows.filter((r) => r.repo.name === q.repo);
     return { bounties: rows };
@@ -38,8 +45,36 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     return { v, prId: pr!.id };
   };
 
+  const refreshing = new Set<number>();
+  const refreshedAt = new Map<number, number>();
+  app.post("/bounties/:id/refresh", async (req) => {
+    const session = requireSession(req);
+    const { prId } = await loadBounty(id.parse((req.params as { id: string }).id));
+    const { repo } = await repoOfPr(ctx, prId);
+    const info = await ctx.gh.getRepository(repo.installation_id, repo.name).catch(() => {
+      throw new HttpError(502, "GitHub repository access could not be verified. Try again shortly.");
+    });
+    if (!info.isPublic) await requireMaintainer(ctx, session, repo);
+    if (refreshing.has(prId) || Date.now() - (refreshedAt.get(prId) ?? 0) < 10_000)
+      throw new HttpError(429, "GitHub was just checked. Try again in a few seconds.");
+    refreshing.add(prId);
+    try {
+      await syncReviews(ctx, prId);
+      if (refreshedAt.size >= 1000) refreshedAt.delete(refreshedAt.keys().next().value!);
+      refreshedAt.set(prId, Date.now());
+      return { ok: true, checked_at: new Date().toISOString() };
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(502, "GitHub could not be checked. Your review is still pending; try again.");
+    } finally { refreshing.delete(prId); }
+  });
+
   app.get("/bounties/:id", async (req) => {
     const { v, prId } = await loadBounty(id.parse((req.params as { id: string }).id));
+    const { repo } = await repoOfPr(ctx, prId);
+    let session: Session | undefined;
+    try { session = requireSession(req); } catch { /* public bounties need no session */ }
+    if (!(await canReadRepository(ctx, repo, session))) throw new HttpError(404, "bounty not found or repository access unavailable");
     const events = v.onchain_bounty_id === null ? [] :
       await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, v.onchain_bounty_id)).orderBy(desc(chain_events.block_number), desc(chain_events.log_index));
     return { ...v, candidates: await candidatesOfPr(ctx, prId), approvals: await approvalsOfBounty(ctx, v.id), events: events.map((e) => eventView(ctx, e)) };
@@ -47,6 +82,10 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.get("/bounties/:id/candidates", async (req) => {
     const { prId } = await loadBounty(id.parse((req.params as { id: string }).id));
+    const { repo } = await repoOfPr(ctx, prId);
+    let session: Session | undefined;
+    try { session = requireSession(req); } catch { /* public bounties need no session */ }
+    if (!(await canReadRepository(ctx, repo, session))) throw new HttpError(404, "bounty not found or repository access unavailable");
     return { candidates: await candidatesOfPr(ctx, prId) };
   });
 
@@ -105,7 +144,8 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     const c = await ctx.gh.getReviewComment(repo.installation_id, repo.name, Number(m[3]));
     if (!c || c.pull_number !== pr.github_pr_number) throw new HttpError(404, "review comment not found on this pull request");
     if (c.user.type === "Bot" || c.user.id === pr.author_github_id) throw new HttpError(409, "bots and the pull request author cannot be reviewers");
-    const evidence = { method: "manual", limitations: MANUAL_LIMITATIONS, evidence_url, line: c.line, confirmed_by_github_id: s.id };
+    const evidence = { method: "manual", limitations: MANUAL_LIMITATIONS, evidence_url, line: c.line, confirmed_by_github_id: s.id,
+      reviewer: c.user, comment_body: c.body, commented_at: c.created_at };
     const [existing] = await ctx.db.select().from(review_candidates).where(eq(review_candidates.github_comment_id, c.id));
     if (existing && existing.status !== "pending") throw new HttpError(409, "this comment is already a " + existing.status + " candidate");
     const vals = { status: "candidate", qualification_evidence: evidence };

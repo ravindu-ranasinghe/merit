@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { BountyActions } from "@/components/bounty-actions";
+import { BountyShare } from "@/components/bounty-share";
 import { EventFeed } from "@/components/event-feed";
 import { EvidenceCard } from "@/components/evidence";
 import { checksFor, GuardrailPanel } from "@/components/guardrails";
-import { IconExternal, IconGithub } from "@/components/icons";
+import { IconExternal, IconGithub, IconRefresh } from "@/components/icons";
+import { ReviewTimeline } from "@/components/review-timeline";
 import { StatusRail } from "@/components/status";
 import { AddressLink, BlockLink, Button, LinkButton, Money, Row, Skeleton, Tray, TxLink, UserChip } from "@/components/ui";
-import { useBounty, useRejectCandidate } from "@/lib/api/queries";
+import { useBounty, useRefreshBounty, useRejectCandidate } from "@/lib/api/queries";
 import type { Bounty, ReviewCandidate } from "@/lib/api/types";
 import { escrowContractAddress } from "@/lib/chain/hooks";
 import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
@@ -50,6 +52,7 @@ export default function BountyPage() {
   const [watching, setWatching] = useState(false);
   const now = useNow();
   const { data: bounty, isLoading, error } = useBounty(id, watching);
+  const refresh = useRefreshBounty();
 
   if (isLoading) {
     return (
@@ -115,12 +118,17 @@ export default function BountyPage() {
         </Tray>
 
         {/* Evidence */}
-        {bounty.candidates.length > 0 && (
           <Tray>
-            <h2 className="text-[16px] font-medium">Review evidence</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[16px] font-medium">Review evidence</h2>
+              <Button variant="secondary" loading={refresh.isPending} onClick={() => user ? refresh.mutate(id) : undefined} disabled={!user} title={user ? "Fetch the latest comments, thread status, and fixes" : "Sign in to recheck GitHub"}><IconRefresh size={13} />Recheck GitHub</Button>
+            </div>
             <p className="mt-1 text-[13px] text-mut">
               What GitHub shows about each review. The maintainer reads it and decides; Merit does not score reviews.
             </p>
+            {!user && <p className="mt-2 text-[12px] text-mut">Sign in to fetch the latest review evidence from GitHub.</p>}
+            <div role="status" className="mt-2 text-[13px]">{refresh.error ? <span className="text-crit">{refresh.error.message}</span> : refresh.isSuccess ? <span className="text-good">GitHub checked. Review evidence is up to date.</span> : null}</div>
+            {bounty.candidates.length === 0 && <p className="mt-3 text-[13px] text-mut">Start with an inline comment under “Files changed” on GitHub. After a relevant fix is pushed and the thread is resolved, the review can become a candidate.</p>}
             <div className="mt-3 space-y-3">
               {bounty.candidates.map((cand) => (
                 <EvidenceCard
@@ -131,10 +139,12 @@ export default function BountyPage() {
               ))}
             </div>
           </Tray>
-        )}
+
+        <Tray><ReviewTimeline bounty={bounty} /></Tray>
       </div>
 
       <div className="space-y-3 lg:col-span-5" style={{ "--i": 2 } as React.CSSProperties}>
+        <Tray><BountyShare bounty={bounty} /></Tray>
         {/* The money, in plain words; chain detail on demand */}
         <Tray>
           <h2 className="text-[16px] font-medium">The reward</h2>

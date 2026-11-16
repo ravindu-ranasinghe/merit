@@ -74,8 +74,10 @@ For Vercel, set `NEXT_PUBLIC_BACKEND_URL=/api/merit` and
 in `next.config.ts` keeps API requests and the GitHub OAuth callback on the web
 origin. See `backend/README.md` for the backend database, secrets, and webhook setup.
 
-Fields the backend does not store are placeholders in live mode: pull request titles
-("Pull request #n"), other people's logins ("user <id>") and review comment text.
+The backend enriches PR titles and GitHub identities from GitHub, with bounded display caches.
+Review comment text is retained with qualification evidence. Use **Recheck GitHub** on a bounty
+to backfill comments and thread state that predate deployment or arrived in missed webhooks.
+Comparison failures remain pending and are labelled as unverified rather than a missing fix.
 The new-bounty page lists open pull requests from GitHub's public API, so it only works
 for public repositories.
 
@@ -89,6 +91,9 @@ for public repositories.
 | `/bounties/[id]` | One bounty: status rail, next step (fund, claim, refund), evidence, events, guardrails |
 | `/bounties/[id]/approve/[candidateId]` | The approval screen: recipient, amount and the review being paid for |
 | `/reviewer` | Reviewer dashboard: link a payout wallet, bounties on PRs you reviewed |
+| `/open-source` | Public, funded, open rewards with search, language filtering, and value/deadline sorting |
+| `/reviewers/[id]` | Public review contributions, confirmed acceptances, and paid earnings |
+| `/bounties/[id]/receipt` | Shareable payout record, available only after an indexed payment |
 | `/events` | The indexed event feed with block and transaction references |
 | `/states` | Reference: all ten states and every refusal |
 

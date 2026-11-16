@@ -300,8 +300,8 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
           <Heading>{isFunder ? "The reward is locked. Waiting for reviews" : "This reward is locked and waiting for a review"}</Heading>
           <Lead>
             {isFunder
-              ? "When a review comment is followed by a fix and its thread is resolved, it appears here as a candidate for you to decide on."
-              : "Leave a review on the pull request. If your feedback leads to a fix and the maintainer agrees, they can approve the reward for you."}
+              ? "An inline comment under Files changed can qualify after a later commit changes code near it and the thread is resolved. You decide whether the review earned the reward."
+              : "Leave an inline comment under Files changed on GitHub. After a later commit addresses it and the thread is resolved, the maintainer can review it for payment. A PR approval alone does not qualify."}
           </Lead>
           <div className="mt-4">
             <LinkButton href={bounty.pr.url} external variant="secondary">

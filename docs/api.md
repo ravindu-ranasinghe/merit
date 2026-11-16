@@ -8,7 +8,8 @@ This is the contract for the web app. Breaking changes are announced to C the sa
 - **Amounts and onchain ids are decimal strings** of integer 6-decimal USDC units (`"10000000"` = $10.00).
   Never numbers, never floats. Format for humans in the UI only.
 - **GitHub ids are JSON numbers** (`github_user_id`, `github_repo_id`, `github_comment_id`). Ids are immutable;
-  logins are not stored. For an avatar use `https://avatars.githubusercontent.com/u/<id>`.
+  display logins never determine access. Review evidence retains the signed comment body and reviewer display
+  metadata; PR titles and other identities are fetched from GitHub with short display caches.
 - Timestamps are ISO-8601 UTC strings. `deadline` is the onchain expiry.
 - Addresses and hashes are lowercase `0x` hex.
 - **Errors**: `{ "error": "message" }` with 400 (bad input; also carries `issues`), 401 (no/invalid session),
@@ -72,6 +73,38 @@ ChainEvent = {
 
 `qualification_evidence.method` is `"heuristic"` (comment, later commit touched the file near the comment, thread
 resolved; breaks on rebase and line movement) or `"manual"` (maintainer supplied the evidence URL).
+
+### Discovery, review display, and recovery
+
+`Bounty.pr` also includes optional `title` and `author: { id, login, avatar_url? }`.
+`Bounty.repo` includes `maintainer` in the same identity shape. Candidates and approvals carry
+reviewer identities; approvals also carry the approver identity. These are display fields only.
+
+`qualification_evidence` can include `comment_body`, `commented_at`, `reviewer`, `line`,
+`checked_at`, `resolved_at`, `compared_head`, and `later_commit_touched: boolean | null`.
+`resolved_at` is when Merit observed the resolution, not an asserted GitHub event timestamp.
+`check_reason` is one of `waiting_for_commit`, `waiting_for_fix`, `waiting_for_resolution`,
+`github_unavailable`, `missing_line`, or `ready`. A null touched signal means unverified.
+
+- `GET /open-source` returns `{ bounties }`: public repositories verified live through GitHub,
+  with an open PR, indexed funding, an unexpired deadline, and no pending/committed payout.
+  Rows include `description` and `language` from GitHub. Failed visibility checks exclude the repository.
+- `GET /reviewers/:id` returns `{ user, bounties }`: public contributions by numeric GitHub ID,
+  including their candidates, committed approvals, and indexed events. The UI counts earnings only
+  with a `RewardPaid` event, not a prepared approval or unclaimed reward. Paid approvals must match
+  the indexed claim ID and recipient; the display amount is taken from that payment event.
+- `GET /bounties/:id/badge.svg` returns a live SVG reward/status badge for a verified public
+  repository, with a 30-second public cache. Amounts are explicitly test USDC. Private badges return 404.
+- `POST /bounties/:id/refresh` requires a signed session. Public repositories can be rechecked
+  by any signed-in user; private repositories require live maintainer permission. It fetches the
+  current head, all review comments, and paginated review threads, then reevaluates the heuristics.
+  It backfills missing events while preserving rejected/manual decisions. Response:
+  `{ ok: true, checked_at }`. Concurrent or repeated checks within ten seconds return 429;
+  unavailable GitHub returns 502. A failed file comparison is recorded as unverified pending evidence.
+
+The bounty listing and detail/candidate reads verify visibility. Private repositories require
+a signed session and current repository read access. Unauthorized detail reads return 404.
+No new table or database migration is needed; review display metadata stays in the existing evidence JSON.
 
 ## Routes
 

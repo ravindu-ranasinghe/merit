@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prHash } from "../chain/escrow.js";
@@ -17,7 +17,7 @@ function validSignature(secret: string, raw: Buffer, header: string | undefined)
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-const user = z.object({ id: z.number(), type: z.string().default("User") });
+const user = z.object({ id: z.number(), type: z.string().default("User"), login: z.string().optional(), avatar_url: z.string().optional() });
 const repo = z.object({ id: z.number() });
 const pr = z.object({ number: z.number(), user, head: z.object({ sha: z.string() }), merged: z.boolean().optional(), state: z.string().optional() });
 const base = z.object({ repository: repo });
@@ -35,6 +35,7 @@ const commentEvent = base.extend({
   pull_request: pr,
   comment: z.object({
     id: z.number(), user, path: z.string(), diff_hunk: z.string(),
+    body: z.string().optional(), created_at: z.string().optional(),
     commit_id: z.string().optional(), original_commit_id: z.string().optional(),
     line: z.number().nullish(), original_line: z.number().nullish(), in_reply_to_id: z.number().nullish(),
   }),
@@ -120,7 +121,7 @@ async function upsertPr(ctx: Ctx, repoRow: Repo, p: z.infer<typeof pr>) {
 
 async function reevaluate(ctx: Ctx, prId: number) {
   const pend = await ctx.db.select({ id: review_candidates.id }).from(review_candidates)
-    .where(and(eq(review_candidates.pr_id, prId), eq(review_candidates.status, "pending")));
+    .where(eq(review_candidates.pr_id, prId));
   for (const c of pend) await evaluateCandidate(ctx, c.id);
   await refreshBountiesOfPr(ctx, prId);
 }
@@ -136,11 +137,13 @@ async function onComment(ctx: Ctx, repoRow: Repo, e: z.infer<typeof commentEvent
   if (e.action !== "created" || c.in_reply_to_id) return; // only top-level review comments can become candidates
   // Immutable numeric ids, never logins. Bots and the PR author are never candidates.
   if (c.user.type === "Bot" || c.user.id === row.author_github_id) return;
-  await ctx.db.insert(review_candidates).values({
+  const [candidate] = await ctx.db.insert(review_candidates).values({
     pr_id: row.id, github_comment_id: c.id, github_reviewer_id: c.user.id,
     file_path: c.path, diff_hunk: c.diff_hunk, commit_sha: c.original_commit_id ?? c.commit_id ?? "",
-    qualification_evidence: { method: "heuristic", limitations: LIMITATIONS, line: c.original_line ?? c.line ?? 0 },
-  }).onConflictDoNothing({ target: review_candidates.github_comment_id });
+    qualification_evidence: { method: "heuristic", limitations: LIMITATIONS, line: c.original_line ?? c.line ?? 0,
+      reviewer: c.user, comment_body: c.body, commented_at: c.created_at },
+  }).onConflictDoNothing({ target: review_candidates.github_comment_id }).returning();
+  if (candidate) await evaluateCandidate(ctx, candidate.id);
 }
 
 async function onThread(ctx: Ctx, repoRow: Repo, e: z.infer<typeof threadEvent>) {
@@ -149,8 +152,11 @@ async function onThread(ctx: Ctx, repoRow: Repo, e: z.infer<typeof threadEvent>)
   if (!resolved && e.action !== "unresolved") return;
   const rootId = e.thread.comments[0]!.id;
   await ctx.db.update(review_candidates)
-    .set({ thread_node_id: e.thread.node_id, thread_resolved: resolved })
+    .set({ thread_node_id: e.thread.node_id, thread_resolved: resolved,
+      qualification_evidence: resolved
+        ? sql`jsonb_set(${review_candidates.qualification_evidence}, '{resolved_at}', ${JSON.stringify(new Date().toISOString())}::jsonb)`
+        : sql`${review_candidates.qualification_evidence} - 'resolved_at'` })
     .where(and(eq(review_candidates.pr_id, row.id), eq(review_candidates.github_comment_id, rootId)));
-  if (resolved) await reevaluate(ctx, row.id);
+  await reevaluate(ctx, row.id);
 }
 

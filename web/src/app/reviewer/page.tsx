@@ -2,7 +2,7 @@
 
 import { BountyRow } from "@/components/bounty-row";
 import { RequireSignIn } from "@/components/sign-in";
-import { Empty, Money, Notice, PageHeader, Roll, Skeleton, Tray } from "@/components/ui";
+import { Empty, LinkButton, Money, Notice, PageHeader, Roll, Skeleton, Tray } from "@/components/ui";
 import { WalletLinkCard } from "@/components/wallet";
 import { useBounties, useWalletLink } from "@/lib/api/queries";
 import type { Bounty } from "@/lib/api/types";
@@ -43,6 +43,7 @@ function Dashboard() {
       <PageHeader
         title="Reviewer dashboard"
         lead="Bounties on pull requests you reviewed. A maintainer decides whether a review earned the reward; you claim it once they approve."
+        action={<div className="flex gap-2"><LinkButton href={`/reviewers/${user?.id}`} variant="secondary">My public profile</LinkButton><LinkButton href="/open-source">Find a bounty</LinkButton></div>}
       />
 
       <div className="stagger grid grid-cols-1 gap-3 md:grid-cols-12">

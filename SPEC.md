@@ -48,13 +48,21 @@ the core flow is done and tested is the main way this project fails:
 
 - automatic review quality scoring
 - multi-reviewer splitting
-- global bounty discovery feed
 - 48-hour auto-approval / objection timers
 - walletless or gas-sponsored claiming, embedded wallet creation
 - contract upgradeability, multi-tenant treasury
 - delegated claims
 
 Testnet USDC only. **No real-money claims anywhere in the product or the pitch.**
+
+### Discovery and evidence presentation
+
+The application includes discovery of funded, open bounties on verified public repositories,
+GitHub reward badges, public reviewer profiles, a review-to-payment timeline, and shareable
+receipts backed by indexed payments. A signed-in user can recheck public review evidence to
+recover missed GitHub events; private repository reads require current repository access.
+These views reuse the existing escrow rules and seven database tables. They do not score
+reviews, automatically approve rewards, or count unclaimed approvals as earnings.
 
 ---
 
