@@ -57,8 +57,13 @@ export interface TxRef {
 /** The three heuristics from SPEC.md. They are signals for the maintainer, not proof. */
 export interface QualificationEvidence {
   commentExists: boolean;
-  laterCommitTouchedContext: boolean;
+  laterCommitTouchedContext: boolean | null;
   threadResolved: boolean;
+  line?: number;
+  checkedAt?: string;
+  resolvedAt?: string;
+  method?: "heuristic" | "manual";
+  checkReason?: "waiting_for_commit" | "waiting_for_fix" | "waiting_for_resolution" | "github_unavailable" | "missing_line" | "ready";
   note?: string;
 }
 
@@ -116,6 +121,14 @@ export interface Bounty {
   /** A transaction the user sent that the indexer has not confirmed yet. */
   pendingTxHash?: Hex | null;
   createdAt: string;
+  repositoryDescription?: string | null;
+  language?: string | null;
+}
+
+export interface ReviewerProfile {
+  user: GithubUser;
+  /** Public repository contributions only. Earnings require an indexed RewardPaid event. */
+  bounties: Bounty[];
 }
 
 export interface CreateBountyInput {
@@ -192,6 +205,9 @@ export interface Api {
   listPullRequests(repoId: string): Promise<PullRequest[]>;
   listBounties(scope: "funded-by-me" | "reviewed-by-me"): Promise<Bounty[]>;
   getBounty(id: string): Promise<Bounty>;
+  listOpenSource(): Promise<Bounty[]>;
+  refreshBounty(id: string): Promise<Bounty>;
+  getReviewerProfile(id: string): Promise<ReviewerProfile>;
   createBounty(input: CreateBountyInput): Promise<Bounty>;
   reportFundingTx(bountyId: string, txHash: Hex): Promise<Bounty>;
   rejectCandidate(bountyId: string, candidateId: string): Promise<Bounty>;

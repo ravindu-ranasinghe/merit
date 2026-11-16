@@ -17,6 +17,7 @@ export async function setup() {
   await db.execute(sql`truncate approvals, chain_events, review_candidates, wallet_links, bounties, pull_requests, repositories restart identity cascade`);
   await seed(db);
   const gh = new MockGitHubClient();
+  gh.repos.set(DEMO.name, { isPublic: true, description: null, language: null });
   gh.permissions.set(`${DEMO.name}:${DEMO.maintainerId}`, "admin");
   const env = loadEnv({
     DATABASE_URL: TEST_DB_URL, ESCROW_ADDRESS: ESCROW, SESSION_SECRET: "test-session-secret-0123456789",

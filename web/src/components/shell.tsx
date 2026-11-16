@@ -15,6 +15,7 @@ import { IconArrowRight, IconGithub, IconRefresh, IconWallet } from "./icons";
 import { Avatar, Button, cx } from "./ui";
 
 const NAV = [
+  { href: "/open-source", label: "Open source" },
   { href: "/maintainer", label: "Maintainer" },
   { href: "/reviewer", label: "Reviewer" },
   { href: "/events", label: "Event feed" },
@@ -41,6 +42,7 @@ export function AppHeader() {
 function LandingHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const links = [
+    { href: "/open-source", label: "Open rewards" },
     { href: "/#how-it-works", label: "How it works" },
     { href: "/#trust", label: "Trust model" },
     { href: "/events", label: "Event feed" },
@@ -72,9 +74,9 @@ function DashboardHeader() {
     <div className="sticky top-0 z-30">
       {MOCK && <MockBar />}
       <header className="app-header border-b border-line">
-        <div className="mx-auto flex h-14 w-full max-w-[1280px] items-center gap-3 px-4 sm:gap-6 sm:px-6">
+        <div className="mx-auto flex min-h-14 w-full max-w-[1280px] flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 sm:h-14 sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-0">
           <Logo />
-          <nav aria-label="Main" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+          <nav aria-label="Main" className="order-last flex w-full min-w-0 items-center gap-0.5 overflow-x-auto sm:order-none sm:w-auto sm:flex-1">
             {NAV.map((n) => {
               const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
               return (
@@ -83,7 +85,7 @@ function DashboardHeader() {
                   href={n.href}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "whitespace-nowrap rounded-[9px] px-3 py-2 text-[14px] font-medium transition-colors",
+                    "whitespace-nowrap rounded-[9px] px-2 py-2 text-[12px] font-medium transition-colors sm:px-3 sm:text-[14px]",
                     active ? "bg-tray text-ink" : "text-mut hover:text-ink",
                   )}
                 >
@@ -93,7 +95,7 @@ function DashboardHeader() {
             })}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2 sm:ml-0">
             {/* The wallet is a detail, not the front door: a quiet chip, only once connected. */}
             {wallet.connected && wallet.address && (
               <span

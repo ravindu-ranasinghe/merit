@@ -44,6 +44,19 @@ export function useBounty(id: string, watching = false) {
   });
 }
 
+export function useOpenSource() {
+  return useQuery({ queryKey: ["open-source"], queryFn: api.listOpenSource, refetchInterval: 30_000 });
+}
+
+export function useReviewerProfile(id: string) {
+  return useQuery({ queryKey: ["reviewer-profile", id], queryFn: () => api.getReviewerProfile(id) });
+}
+
+export function useRefreshBounty() {
+  const invalidate = useInvalidate();
+  return useMutation({ mutationFn: (id: string) => api.refreshBounty(id), onSuccess: invalidate });
+}
+
 export function useEvents(bountyId?: string) {
   return useQuery({
     queryKey: ["events", bountyId ?? "all"],
@@ -63,6 +76,8 @@ function useInvalidate() {
     qc.invalidateQueries({ queryKey: ["bounty"] }),
     qc.invalidateQueries({ queryKey: ["bounties"] }),
     qc.invalidateQueries({ queryKey: ["pulls"] }),
+    qc.invalidateQueries({ queryKey: ["open-source"] }),
+    qc.invalidateQueries({ queryKey: ["reviewer-profile"] }),
   ]);
 }
 

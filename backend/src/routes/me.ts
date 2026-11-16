@@ -1,9 +1,9 @@
 import { eq, getTableColumns } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { Ctx } from "../ctx.js";
-import { approvals, bounties, repositories, review_candidates, wallet_links } from "../db/schema.js";
-import { requireSession } from "../session.js";
-import { bountyViews } from "./view.js";
+import { bounties, chain_events, repositories, review_candidates, wallet_links } from "../db/schema.js";
+import { repoOfPr, requireSession } from "../session.js";
+import { approvalsOfBounty, bountyViews, canReadRepository } from "./view.js";
 
 export function meRoutes(app: FastifyInstance, ctx: Ctx) {
   app.get("/me", async (req) => {
@@ -16,10 +16,13 @@ export function meRoutes(app: FastifyInstance, ctx: Ctx) {
       .where(eq(review_candidates.github_reviewer_id, s.id));
     const as_reviewer = [];
     for (const candidate of mine) {
+      const { repo } = await repoOfPr(ctx, candidate.pr_id);
+      if (!(await canReadRepository(ctx, repo, s))) continue;
       for (const bounty of await bountyViews(ctx, eq(bounties.pr_id, candidate.pr_id))) {
-        const [approval] = await ctx.db.select().from(approvals)
-          .where(eq(approvals.candidate_id, candidate.id));
-        as_reviewer.push({ candidate, bounty, approval: approval ?? null });
+        const approval = (await approvalsOfBounty(ctx, bounty.id)).find((a) => a.candidate_id === candidate.id);
+        const events = bounty.onchain_bounty_id === null ? [] : await ctx.db.select().from(chain_events)
+          .where(eq(chain_events.onchain_bounty_id, bounty.onchain_bounty_id));
+        as_reviewer.push({ candidate, bounty: { ...bounty, events }, approval: approval ?? null });
       }
     }
     return {

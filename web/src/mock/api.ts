@@ -42,6 +42,27 @@ export const mockApi: Api = {
     return copy(find(id));
   },
 
+  async listOpenSource() {
+    await sleep(LATENCY_MS);
+    return copy(getDb().bounties.filter((b) => b.onchainBountyId && ["funded", "review_candidate"].includes(b.status)
+      && b.pr.state === "open" && new Date(b.deadline).getTime() > Date.now()));
+  },
+
+  async refreshBounty(id) {
+    await sleep(LATENCY_MS);
+    const b = find(id);
+    for (const c of b.candidates) c.evidence.checkedAt = new Date().toISOString();
+    return copy(b);
+  },
+
+  async getReviewerProfile(id) {
+    await sleep(LATENCY_MS);
+    const bounties = getDb().bounties.filter((b) => b.candidates.some((c) => c.reviewer.id === id));
+    const user = bounties.flatMap((b) => b.candidates).find((c) => c.reviewer.id === id)?.reviewer;
+    if (!user) throw new ApiError("not_found", "This reviewer has no public contributions yet.");
+    return copy({ user, bounties });
+  },
+
   async createBounty(input) {
     await sleep(LATENCY_MS);
     const d = getDb();

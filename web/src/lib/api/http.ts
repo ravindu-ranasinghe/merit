@@ -6,8 +6,7 @@
  * The browser calls the backend directly with its httpOnly `merit_session` cookie
  * (credentials: "include"). It never sees a token or asserts a role.
  *
- * The backend stores GitHub ids, not logins, titles or comment text, so those fields are
- * placeholders here (see `user`, `toBounty`, `toCandidate`).
+ * GitHub display metadata accompanies immutable ids. Only the ids are used for identity checks.
  */
 import {
   ApiError,
@@ -22,11 +21,13 @@ import {
   type PullRequest,
   type ReviewCandidate,
   type TxRef,
+  type QualificationEvidence,
 } from "@/lib/api/types";
 import { BACKEND_URL } from "@/lib/env";
 
 /* ------------------------------------------------------------------ wire shapes (docs/api.md) */
 
+interface WUser { id: number; login?: string; avatar_url?: string }
 interface WBounty {
   id: number;
   onchain_bounty_id: string | null;
@@ -35,8 +36,10 @@ interface WBounty {
   funder_wallet: Address | null;
   deadline: string;
   created_at: string;
-  pr: { github_pr_number: number; head_sha: string; status: "open" | "closed" | "merged"; author_github_id: number };
-  repo: { github_repo_id: number; name: string; maintainer_github_id: number };
+  pr: { github_pr_number: number; head_sha: string; status: "open" | "closed" | "merged"; author_github_id: number; title?: string; author?: WUser };
+  repo: { github_repo_id: number; name: string; maintainer_github_id: number; maintainer?: WUser };
+  description?: string | null;
+  language?: string | null;
   candidates?: WCandidate[];
   approvals?: WApproval[];
   events?: WEvent[];
@@ -49,7 +52,11 @@ interface WCandidate {
   diff_hunk: string;
   thread_resolved: boolean;
   status: "pending" | "candidate" | "confirmed" | "rejected";
-  qualification_evidence: { method: "heuristic" | "manual"; limitations: string; file_touched?: string };
+  reviewer?: WUser;
+  qualification_evidence: { method: "heuristic" | "manual"; limitations: string; file_touched?: string;
+    reviewer?: WUser; comment_body?: string; commented_at?: string; line?: number;
+    compared_head?: string; later_commit_touched?: boolean | null; checked_at?: string;
+    resolved_at?: string; check_reason?: QualificationEvidence["checkReason"] };
   reviewer_wallet: Address | null;
   created_at: string;
 }
@@ -64,6 +71,8 @@ interface WApproval {
   chain_tx_hash: Hex | null;
   status: "prepared" | "signed" | "paid";
   created_at: string;
+  reviewer?: WUser;
+  approver?: WUser;
 }
 interface WEvent {
   chain_id: number;
@@ -125,17 +134,19 @@ const q = (params: Record<string, string | undefined>) => {
 
 /* ------------------------------------------------------------------ mapping */
 
-/** The backend keeps immutable ids only, so anyone but the viewer is shown by id. */
 const user = (id: number, login = `user ${id}`): GithubUser => ({
   id: String(id),
   login,
   avatarUrl: `https://avatars.githubusercontent.com/u/${id}`,
 });
+const identity = (value: WUser | undefined, id: number): GithubUser => ({
+  ...user(id, value?.login), ...(value?.avatar_url ? { avatarUrl: value.avatar_url } : {}),
+});
 
 const toApproval = (a: WApproval): Approval => ({
   candidateId: String(a.candidate_id),
-  reviewer: user(a.reviewer_id),
-  approver: user(a.approver_github_id),
+  reviewer: identity(a.reviewer, a.reviewer_id),
+  approver: identity(a.approver, a.approver_github_id),
   amountUnits: a.amount_units,
   approvedRecipient: a.approved_recipient,
   claimId: a.claim_id,
@@ -147,23 +158,34 @@ const toApproval = (a: WApproval): Approval => ({
 const pickApproval = (list: WApproval[] = []) => list.find((a) => a.status !== "prepared") ?? list.at(-1) ?? null;
 
 function toCandidate(c: WCandidate, b: WBounty, approval: WApproval | null): ReviewCandidate {
-  const touched = !!c.qualification_evidence.file_touched;
+  const ev = c.qualification_evidence;
+  const touched = ev.later_commit_touched ?? (ev.file_touched ? true : null);
+  const location = `${c.file_path}${ev.line ? `:${ev.line}` : ""}`;
+  const reasons: Record<NonNullable<QualificationEvidence["checkReason"]>, string> = {
+    waiting_for_commit: `Push a new commit to this pull request with a fix near ${location}.`,
+    waiting_for_fix: `The later commits did not change code near ${location}. Push the relevant fix, then recheck.`,
+    waiting_for_resolution: "A later change was found. Resolve the review thread on GitHub, then recheck.",
+    github_unavailable: "GitHub could not be checked. This review is pending; recheck when GitHub is available.",
+    missing_line: "GitHub did not provide enough line context to check this review automatically.",
+    ready: "Ready for the maintainer to review.",
+  };
   return {
     id: String(c.id),
     githubCommentId: String(c.github_comment_id),
-    reviewer: user(c.github_reviewer_id),
+    reviewer: identity(c.reviewer ?? ev.reviewer, c.github_reviewer_id),
     reviewerWallet: c.reviewer_wallet,
     filePath: c.file_path,
     diffHunk: c.diff_hunk,
-    commentBody: "The backend does not store comment text. Open the comment on GitHub to read it.",
+    commentBody: ev.comment_body ?? "Open this review on GitHub, or recheck to load the original comment.",
     commentUrl: `https://github.com/${b.repo.name}/pull/${b.pr.github_pr_number}#discussion_r${c.github_comment_id}`,
-    commentedAt: c.created_at,
-    commitSha: touched ? b.pr.head_sha : null,
+    commentedAt: ev.commented_at ?? c.created_at,
+    commitSha: touched ? ev.compared_head ?? null : null,
     evidence: {
       commentExists: true,
       laterCommitTouchedContext: touched,
       threadResolved: c.thread_resolved,
-      note: c.qualification_evidence.limitations,
+      note: ev.limitations,
+      line: ev.line, method: ev.method, checkedAt: ev.checked_at, resolvedAt: ev.resolved_at, checkReason: ev.check_reason,
     },
     status:
       c.status === "rejected" ? "rejected"
@@ -172,7 +194,9 @@ function toCandidate(c: WCandidate, b: WBounty, approval: WApproval | null): Rev
       : "candidate",
     ineligibleReason:
       c.status === "pending"
-        ? "Not a candidate yet: the thread is unresolved or no later commit touched this code."
+        ? ev.check_reason ? reasons[ev.check_reason] : !c.thread_resolved
+          ? "Resolve the review thread after pushing a fix, then recheck GitHub."
+          : "The fix has not been verified yet. Recheck GitHub to see what is missing."
         : undefined,
   };
 }
@@ -225,14 +249,14 @@ function toBounty(b: WBounty): Bounty {
     pr: {
       repoId,
       number: b.pr.github_pr_number,
-      title: `Pull request #${b.pr.github_pr_number}`, // the backend does not store PR titles
-      author: user(b.pr.author_github_id),
+      title: b.pr.title ?? `Pull request #${b.pr.github_pr_number}`,
+      author: identity(b.pr.author, b.pr.author_github_id),
       headSha: b.pr.head_sha,
       url: `https://github.com/${b.repo.name}/pull/${b.pr.github_pr_number}`,
       state: b.pr.status,
     },
     // The backend has no funder GitHub id; only the repository maintainer can create a bounty.
-    funder: user(b.repo.maintainer_github_id),
+    funder: identity(b.repo.maintainer, b.repo.maintainer_github_id),
     funderWallet: b.funder_wallet,
     amountUnits: b.amount_units,
     deadline: b.deadline,
@@ -242,6 +266,8 @@ function toBounty(b: WBounty): Bounty {
     chain,
     pendingTxHash: deposit ?? (approval?.status === "signed" ? approval.chain_tx_hash : null),
     createdAt: b.created_at,
+    repositoryDescription: b.description,
+    language: b.language,
   };
 }
 
@@ -319,6 +345,21 @@ export const httpApi: Api = {
   },
 
   getBounty,
+
+  async listOpenSource() {
+    const { bounties } = await request<{ bounties: WBounty[] }>("/open-source");
+    return bounties.map(toBounty);
+  },
+
+  async refreshBounty(id) {
+    await request(`/bounties/${id}/refresh`, { method: "POST" });
+    return getBounty(id);
+  },
+
+  async getReviewerProfile(id) {
+    const r = await request<{ user: WUser; bounties: WBounty[] }>(`/reviewers/${encodeURIComponent(id)}`);
+    return { user: identity(r.user, Number(id)), bounties: r.bounties.map(toBounty) };
+  },
 
   async createBounty(input) {
     const { bounty } = await request<{ bounty: WBounty }>("/bounties", {
