@@ -15,7 +15,7 @@ import { AddressLink, BlockLink, Button, LinkButton, Money, Row, Skeleton, Tray,
 import { useBounty, useRefreshBounty, useRejectCandidate } from "@/lib/api/queries";
 import type { Bounty, ReviewCandidate } from "@/lib/api/types";
 import { escrowContractAddress } from "@/lib/chain/hooks";
-import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
+import { formatDate, formatUsdc, relativeTime, formatDeadline } from "@/lib/format";
 import { useNow } from "@/lib/now";
 import { useViewer } from "@/lib/viewer";
 
@@ -104,7 +104,7 @@ export default function BountyPage() {
           <div className="text-left sm:text-right">
             <Money units={bounty.amountUnits} className="text-[40px] leading-none" />
             <p className="mt-2 text-[13px] text-mut">
-              {expiredAt ? `Deadline passed ${relativeTime(bounty.deadline)}` : `Open until ${formatDate(bounty.deadline)}`}
+              {expiredAt ? `Deadline passed ${relativeTime(bounty.deadline)}` : `Open until ${formatDeadline(bounty.deadline)}`}
             </p>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function BountyPage() {
           <dl className="mt-2 divide-y divide-line/70">
             <Row label="Amount">{formatUsdc(bounty.amountUnits)}</Row>
             <Row label="Held in escrow since">{c.funded ? formatDate(c.funded.at) : "Not funded yet"}</Row>
-            <Row label="Deadline">{formatDate(bounty.deadline)}</Row>
+            <Row label="Deadline">{formatDeadline(bounty.deadline)}</Row>
             <Row label="Approved for">
               {bounty.approval ? <UserChip user={bounty.approval.reviewer} size={18} /> : <span className="text-mut">No one yet</span>}
             </Row>
