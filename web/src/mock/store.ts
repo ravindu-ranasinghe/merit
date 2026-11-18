@@ -26,8 +26,11 @@ export function getDb(): Db {
       ...seed,
       allowances: new Map(),
       usedClaimIds: new Set([...seed.onchain.values()].flatMap((o) => (o.claimId ? [o.claimId] : []))),
-      nextOnchainId: seed.onchain.size + 1,
-      nextBountyNumber: 111,
+      // Highest seeded onchain id + 1, not the count: seeded ids have gaps (drafts are never onchain), and a reused
+      // id would route a new bounty's events to a fixture.
+      nextOnchainId: Math.max(0, ...[...seed.onchain.keys()].map(Number)) + 1,
+      // After the highest seeded id (b-101 … b-112 today), so a new bounty never reuses a fixture's id.
+      nextBountyNumber: Math.max(100, ...seed.bounties.map((b) => Number(b.id.replace(/\D/g, "")) || 0)) + 1,
       challenges: new Map(),
       txCount: 0,
     };
