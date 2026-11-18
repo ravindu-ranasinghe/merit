@@ -204,6 +204,8 @@ describe("read routes, auth and /me", () => {
     expect(list.bounties).toHaveLength(1);
     expect(list.bounties[0]).toMatchObject({ id: b.id, onchain_bounty_id: "7", amount_units: "10000000", funder_wallet: FUNDER, repo: { name: DEMO.name } });
     expect((await h.app.inject({ method: "GET", url: "/bounties?status=paid" })).json().bounties).toHaveLength(0);
+    // List rows carry their indexed events, so a dashboard can read confirmed amounts.
+    expect(list.bounties[0].events).toEqual([expect.objectContaining({ event_type: "BountyFunded", payload: expect.objectContaining({ amount: "10000000" }) })]);
     const d = (await h.app.inject({ method: "GET", url: `/bounties/${b.id}` })).json();
     expect(d.candidates[0].qualification_evidence.method).toBe("heuristic");
     expect(d.events[0]).toMatchObject({ event_type: "BountyFunded", explorer_url: expect.stringContaining("/tx/0x") });

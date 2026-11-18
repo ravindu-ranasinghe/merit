@@ -36,7 +36,12 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
       ctx.db.select({ id: pull_requests.id }).from(pull_requests).where(inArray(pull_requests.repo_id, visible)))) : [];
     if (q.status) rows = rows.filter((r) => r.status === q.status);
     if (q.repo) rows = rows.filter((r) => r.repo.name === q.repo);
-    return { bounties: rows };
+    // Each row carries its indexed events (the same shape as GET /bounties/:id), so a list can show confirmed
+    // funded, paid and refunded amounts without a request per bounty. One query for the whole list.
+    const ids = rows.flatMap((r) => (r.onchain_bounty_id === null ? [] : [r.onchain_bounty_id]));
+    const events = ids.length ? await ctx.db.select().from(chain_events).where(inArray(chain_events.onchain_bounty_id, ids))
+      .orderBy(desc(chain_events.block_number), desc(chain_events.log_index)) : [];
+    return { bounties: rows.map((r) => ({ ...r, events: events.filter((e) => e.onchain_bounty_id === r.onchain_bounty_id).map((e) => eventView(ctx, e)) })) };
   });
 
   const loadBounty = async (bountyId: number) => {

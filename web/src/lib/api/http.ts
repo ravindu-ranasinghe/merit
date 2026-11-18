@@ -229,7 +229,7 @@ function toBounty(b: WBounty): Bounty {
   const deposit = b.status === "funding_pending" ? depositHash(b.id) : null;
   const chain: Bounty["chain"] = {};
   for (const e of b.events ?? []) {
-    const ref: TxRef = { txHash: e.tx_hash, blockNumber: e.block_number, logIndex: e.log_index, at: e.ingestion_timestamp };
+    const ref: TxRef = { txHash: e.tx_hash, blockNumber: e.block_number, logIndex: e.log_index, at: e.ingestion_timestamp, amountUnits: e.payload.amount };
     const key = CHAIN_KEY[e.event_type];
     if (key === "refunded") chain.refunded = { ...ref, amountUnits: e.payload.amount ?? "0" };
     else chain[key] = ref;

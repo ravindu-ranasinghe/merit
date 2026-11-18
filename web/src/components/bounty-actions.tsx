@@ -5,7 +5,9 @@ import type { ReactNode } from "react";
 import { useReportFundingTx } from "@/lib/api/queries";
 import type { Bounty } from "@/lib/api/types";
 import { useClaim, useFundBounty, useNeedsGas, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
+import { escrowAmounts } from "@/lib/accounting";
 import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
+import { useNow } from "@/lib/now";
 import { useViewer } from "@/lib/viewer";
 import { IconCheck, IconCheckDraw, IconExternal, IconGithub, IconLock } from "./icons";
 import { ChainErrorView, TxProgress } from "./tx";
@@ -203,17 +205,26 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
 
 function RefundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
   const refund = useRefundExpired();
+  const now = useNow();
   if (!bounty.onchainBountyId) return null;
   const onchainId = bounty.onchainBountyId;
-  const committed = bounty.approval && !bounty.chain.paid ? BigInt(bounty.approval.amountUnits) : BigInt(0);
-  const refundable = (BigInt(bounty.amountUnits) - committed).toString();
+  const a = escrowAmounts(bounty, now);
+  const refundable = a.refundable.toString();
+  const partial = a.approved > BigInt(0);
 
   return (
     <div>
-      <Heading>This bounty expired without a payout</Heading>
+      <Heading>{partial ? "Refund the unapproved remainder" : "This bounty expired without a payout"}</Heading>
       <Lead>
-        The deadline passed {relativeTime(bounty.deadline)}. The contract cannot act on a clock, so the refund needs one
-        transaction. Anyone may send it, and the money can only go back to the wallet that funded the bounty.
+        The deadline passed {relativeTime(bounty.deadline)}.{" "}
+        {partial && (
+          <>
+            {formatUsdc(a.approved)} of the {formatUsdc(a.funded)} was approved for the reviewer
+            {a.paid > BigInt(0) ? " and has been paid" : " and stays reserved for them to claim"}; the rest can go back.{" "}
+          </>
+        )}
+        The contract cannot act on a clock, so the refund needs one transaction. Anyone may send it, and the money can
+        only go back to the wallet that funded the bounty.
       </Lead>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-card bg-card px-4 py-3 shadow-inner-card">
         <Money units={refundable} className="text-[28px]" />
@@ -307,7 +318,24 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
   const myCandidate = user ? bounty.candidates.find((c) => c.reviewer.id === user.id) : undefined;
   const isRecipient = !!user && bounty.approval?.reviewer.id === user.id;
   const openCandidates = bounty.candidates.filter((c) => c.status === "candidate");
+  const now = useNow();
+  const amounts = escrowAmounts(bounty, now);
 
+  const primary = primaryPanel();
+  // A partial payout leaves an unapproved remainder. Once the deadline passes it is refundable whether or not
+  // the reviewer has claimed yet, so offer it beside the claim or receipt instead of hiding it.
+  const remainder = amounts.refundOpen && (bounty.status === "claimable" || bounty.status === "paid");
+  if (!remainder) return primary;
+  return (
+    <div className="space-y-6">
+      {primary}
+      <div className="border-t border-line pt-6">
+        <RefundPanel bounty={bounty} onSent={onSent} />
+      </div>
+    </div>
+  );
+
+  function primaryPanel() {
   switch (bounty.status) {
     case "draft":
       return isFunder ? (
@@ -400,8 +428,9 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
           <Lead>
             {bounty.approval && (
               <>
-                {formatUsdc(bounty.approval.amountUnits)} is committed to <UserChip user={bounty.approval.reviewer} />. Only
-                their linked wallet can claim it, and it can no longer be refunded.
+                {formatUsdc(amounts.reserved > BigInt(0) ? amounts.reserved : BigInt(bounty.approval.amountUnits))} is reserved for{" "}
+                <UserChip user={bounty.approval.reviewer} />. Only their linked wallet can claim it, and it can no longer be
+                refunded.{amounts.funded > amounts.approved && " Anything unapproved can be refunded to the funder after the deadline."}
               </>
             )}
           </Lead>
@@ -412,7 +441,7 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
       return (
         <Receipt
           title={isRecipient ? "You were paid" : "Paid"}
-          units={bounty.approval?.amountUnits ?? bounty.amountUnits}
+          units={amounts.paid > BigInt(0) ? amounts.paid.toString() : (bounty.approval?.amountUnits ?? bounty.amountUnits)}
           line={isRecipient ? "for your review, to your linked wallet" : bounty.approval ? <>to <UserChip user={bounty.approval.reviewer} size={16} /> for their review</> : "to the approved reviewer"}
           tx={bounty.chain.paid}
         />
@@ -444,5 +473,6 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
           </p>
         </div>
       );
+  }
   }
 }

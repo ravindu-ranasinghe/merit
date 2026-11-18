@@ -9,7 +9,8 @@
     "lint": "eslint",
     "sync-abi": "node scripts/sync-abi.mjs",
     "typecheck": "tsc --noEmit",
-    "check:deposit": "node --test scripts/deposit-recovery.test.mjs"
+    "check:deposit": "node --test scripts/deposit-recovery.test.mjs",
+    "check:accounting": "node --test scripts/accounting.test.mjs"
   },
   "dependencies": {
     "@remotion/player": "^4.0.543",

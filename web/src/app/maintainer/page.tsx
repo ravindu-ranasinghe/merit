@@ -5,13 +5,11 @@ import { IconExternal, IconGithub, IconPlus } from "@/components/icons";
 import { RequireSignIn } from "@/components/sign-in";
 import { Empty, LinkButton, Money, Notice, PageHeader, Roll, Skeleton, Tray } from "@/components/ui";
 import { useBounties, useRepositories } from "@/lib/api/queries";
-import type { Bounty, BountyStatus } from "@/lib/api/types";
+import type { BountyStatus } from "@/lib/api/types";
+import { escrowAmounts, totalAmounts } from "@/lib/accounting";
+import { formatUsdc } from "@/lib/format";
+import { useNow } from "@/lib/now";
 import { GITHUB_APP_SLUG, MOCK } from "@/lib/env";
-
-/** Statuses where the contract still holds this bounty's money. */
-const HOLDING: BountyStatus[] = ["funded", "review_candidate", "approved", "claimable", "expired", "rejected"];
-
-const sum = (list: Bounty[]) => list.reduce((t, b) => t + BigInt(b.amountUnits), BigInt(0)).toString();
 
 const ORDER: BountyStatus[] = ["review_candidate", "draft", "expired", "funding_pending", "approved", "claimable", "funded", "rejected", "paid", "refunded"];
 
@@ -27,6 +25,10 @@ function Dashboard() {
   const list = bounties.data ?? [];
   const sorted = [...list].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   const deciding = list.filter((b) => b.status === "review_candidate").length;
+  // Confirmed amounts from indexed events, not status labels: a paid bounty can still hold an unrefunded
+  // remainder, and an expired one can still hold a reviewer's reserved reward.
+  const now = useNow();
+  const totals = totalAmounts(list, now);
   const installUrl = GITHUB_APP_SLUG ? `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new` : null;
 
   return (
@@ -46,13 +48,15 @@ function Dashboard() {
         {/* Stat tiles: one headline number each */}
         <Tray tone="white" className="md:col-span-4" style={{ "--i": 0 } as React.CSSProperties}>
           <p className="text-[13px] font-medium text-mut">Held in escrow</p>
-          <Money units={sum(list.filter((b) => HOLDING.includes(b.status)))} className="mt-1 text-[28px]" />
-          <p className="mt-1 text-[13px] text-mut">Locked for reviews, confirmed onchain</p>
+          <Money units={totals.held} className="mt-1 text-[28px]" />
+          <p className="mt-1 text-[13px] text-mut">
+            {totals.reserved > BigInt(0) ? `Confirmed onchain, including ${formatUsdc(totals.reserved)} approved and not yet claimed` : "Locked for reviews, confirmed onchain"}
+          </p>
         </Tray>
         <Tray tone="white" className="md:col-span-4" style={{ "--i": 1 } as React.CSSProperties}>
           <p className="text-[13px] font-medium text-mut">Paid to reviewers</p>
-          <Money units={sum(list.filter((b) => b.status === "paid"))} className="mt-1 text-[28px]" />
-          <p className="mt-1 text-[13px] text-mut">Across {list.filter((b) => b.status === "paid").length} paid {list.filter((b) => b.status === "paid").length === 1 ? "bounty" : "bounties"}</p>
+          <Money units={totals.paid} className="mt-1 text-[28px]" />
+          <p className="mt-1 text-[13px] text-mut">Claimed by reviewers across {totals.paidCount} {totals.paidCount === 1 ? "bounty" : "bounties"}</p>
         </Tray>
         <Tray tone={deciding > 0 ? "dark" : "white"} className="md:col-span-4" style={{ "--i": 2 } as React.CSSProperties}>
           <p className={deciding > 0 ? "text-[13px] font-medium text-[#a1a1a6]" : "text-[13px] font-medium text-mut"}>Waiting for your decision</p>
@@ -82,7 +86,7 @@ function Dashboard() {
           ) : (
             <div className="space-y-2">
               {sorted.map((b) => (
-                <BountyRow key={b.id} bounty={b} hint={HINT[b.status]} />
+                <BountyRow key={b.id} bounty={b} hint={escrowAmounts(b, now).refundOpen && b.status !== "expired" ? "Remainder refund available" : HINT[b.status]} />
               ))}
             </div>
           )}

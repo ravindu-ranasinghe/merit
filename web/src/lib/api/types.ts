@@ -52,6 +52,8 @@ export interface TxRef {
   blockNumber: number | null;
   logIndex?: number;
   at: string;
+  /** The event's own amount (integer units): funded, approved, paid or refunded. */
+  amountUnits?: string;
 }
 
 /** The three heuristics from SPEC.md. They are signals for the maintainer, not proof. */
