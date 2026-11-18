@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { CopyButton } from "@/components/copy-button";
 import { useSiteOrigin } from "@/components/bounty-share";
+import { PaymentRecord } from "@/components/payment-record";
 import { ReviewTimeline } from "@/components/review-timeline";
 import { AddressLink, LinkButton, Money, Notice, PageHeader, Pill, Row, Skeleton, Tray, TxLink, UserChip } from "@/components/ui";
 import { useBounty } from "@/lib/api/queries";
@@ -46,6 +47,7 @@ export default function ReceiptPage() {
         <p className="my-4 text-[12px] text-mut">Testnet USDC has no monetary value. This receipt records a testnet payout; review usefulness was assessed by the maintainer.</p>
         <div className="flex flex-wrap gap-3"><CopyButton value={`${origin}/bounties/${id}/receipt`} label="Copy receipt link" /><LinkButton href={`/bounties/${id}`} variant="secondary">View bounty</LinkButton></div>
       </Tray>
+      <Tray><PaymentRecord bounty={b} /></Tray>
       <Tray><ReviewTimeline bounty={b} /></Tray>
     </div>
   );

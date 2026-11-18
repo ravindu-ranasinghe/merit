@@ -69,3 +69,34 @@ export function formatDateTime(iso: string): string {
 export function formatBlock(n: number): string {
   return n.toLocaleString("en-US");
 }
+
+/**
+ * A network fee in wei of Arc's native USDC (18 decimals), for people: "$0.00164 USDC".
+ * Rounded up to the 6-decimal unit so a fee never reads as smaller than it was.
+ */
+export function formatNetworkFee(wei: bigint): string {
+  if (wei <= BigInt(0)) return "$0.00 USDC";
+  const step = BigInt(1_000_000_000_000); // 1e18 / 1e6
+  const units = (wei + step - BigInt(1)) / step;
+  return `${formatUsd(units)} USDC`;
+}
+
+/**
+ * A delay between two clocks, for people. Block timestamps have one-second precision, so
+ * anything under 1.5 s reads as "under 2 s" rather than a false decimal.
+ */
+export function formatDelay(ms: number): string {
+  if (ms < 1500) return "under 2 s";
+  const s = Math.round(ms / 1000);
+  if (s < 90) return `${s} s`;
+  const m = Math.round(s / 60);
+  if (m < 90) return `${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 36) return `${h} h`;
+  return `${Math.round(h / 24)} days`;
+}
+
+/** A measured confirmation time: "0.8 s". */
+export function formatSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
+}

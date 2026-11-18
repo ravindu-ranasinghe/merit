@@ -8,18 +8,20 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState, useSyncExternalStore } from "react";
-import { erc20Abi, parseEventLogs } from "viem";
+import { erc20Abi, numberToHex, parseEventLogs, TransactionReceiptNotFoundError } from "viem";
 import { injected, useConnect, useConnection, useDisconnect, useSwitchChain } from "wagmi";
 import {
+  getBlock,
   getConnection,
+  getTransactionReceipt,
   readContract,
   signMessage,
   simulateContract,
   waitForTransactionReceipt,
   writeContract,
 } from "wagmi/actions";
-import type { Address, Hex, PreparedApproval } from "@/lib/api/types";
-import { computePrHash, type ChainDriver, type EscrowCall, type TxResult } from "@/lib/chain/driver";
+import type { Address, ChainEventType, Hex, PreparedApproval, TxRef } from "@/lib/api/types";
+import { computePrHash, eventTopic, type ChainDriver, type EscrowCall, type TxDetails, type TxResult } from "@/lib/chain/driver";
 import { ChainError, toChainError } from "@/lib/chain/errors";
 import { escrowAbi } from "@/lib/chain/escrow-abi";
 import { wagmiConfig } from "@/lib/chain/wagmi";
@@ -29,6 +31,12 @@ import { PERSONAS } from "@/fixtures/seed";
 import { getPersonaKey, subscribePersona } from "@/mock/store";
 
 /* ------------------------------------------------------------------ real driver */
+
+/**
+ * Arc produces blocks in well under a second, so poll for receipts often. The confirmation
+ * time shown after a transaction is measured from this wait, so it is accurate to about this.
+ */
+const RECEIPT_POLL_MS = 250;
 
 function escrowAddress(): Address {
   if (!ESCROW_ADDRESS) {
@@ -74,7 +82,7 @@ const realDriver: ChainDriver = {
       chainId: ARC.chainId,
     });
     onSubmitted?.(hash);
-    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId });
+    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS });
     if (receipt.status !== "success") throw new ChainError("revert", "The USDC approval reverted.");
     return { hash };
   },
@@ -84,7 +92,7 @@ const realDriver: ChainDriver = {
     await simulateContract(wagmiConfig, { ...typed(call), account: connectedAccount() });
     const hash = await writeContract(wagmiConfig, typed(call));
     onSubmitted?.(hash);
-    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId });
+    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS });
     if (receipt.status !== "success") throw new ChainError("revert", "The transaction reverted onchain.");
     const result: TxResult = { hash };
     if (call.fn === "createBounty") {
@@ -99,6 +107,25 @@ const realDriver: ChainDriver = {
   },
 
   signMessage: (message) => signMessage(wagmiConfig, { message }),
+
+  async txDetails(hash) {
+    let receipt;
+    try {
+      receipt = await getTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId });
+    } catch (err) {
+      if (err instanceof TransactionReceiptNotFoundError) return null;
+      throw err;
+    }
+    const block = await getBlock(wagmiConfig, { blockNumber: receipt.blockNumber, chainId: ARC.chainId });
+    return {
+      success: receipt.status === "success",
+      blockNumber: receipt.blockNumber,
+      blockTimestamp: Number(block.timestamp),
+      gasUsed: receipt.gasUsed,
+      effectiveGasPrice: receipt.effectiveGasPrice,
+      logs: receipt.logs.map((l) => ({ address: l.address, logIndex: l.logIndex, topics: l.topics })),
+    };
+  },
 };
 
 const driver: ChainDriver = MOCK ? mockDriver : realDriver;
@@ -177,21 +204,31 @@ export interface TxState {
   phase: TxPhase;
   hash: Hex | null;
   error: ChainError | null;
+  /**
+   * Milliseconds from the wallet handing back the transaction hash to this browser seeing
+   * the receipt. Measured here, so it includes RPC round trips; accurate to about RECEIPT_POLL_MS.
+   */
+  confirmedInMs: number | null;
 }
 
-const IDLE: TxState = { phase: "idle", hash: null, error: null };
+const IDLE: TxState = { phase: "idle", hash: null, error: null, confirmedInMs: null };
 
 function useTx<A>(fn: (args: A, onSubmitted: (hash: Hex) => void) => Promise<TxResult>) {
   const [state, setState] = useState<TxState>(IDLE);
   const run = useCallback(
     async (args: A): Promise<TxResult | null> => {
-      setState({ phase: "wallet", hash: null, error: null });
+      setState({ ...IDLE, phase: "wallet" });
+      let submittedAt: number | null = null;
       try {
-        const result = await fn(args, (hash) => setState({ phase: "confirming", hash, error: null }));
-        setState({ phase: "done", hash: result.hash, error: null });
+        const result = await fn(args, (hash) => {
+          submittedAt = performance.now();
+          setState({ ...IDLE, phase: "confirming", hash });
+        });
+        const confirmedInMs = submittedAt === null ? null : Math.round(performance.now() - submittedAt);
+        setState({ phase: "done", hash: result.hash, error: null, confirmedInMs });
         return result;
       } catch (err) {
-        setState((s) => ({ phase: "error", hash: s.hash, error: toChainError(err) }));
+        setState((s) => ({ ...s, phase: "error", error: toChainError(err) }));
         return null;
       }
     },
@@ -341,3 +378,63 @@ export function useGuardrailCheck() {
 }
 
 export type { EscrowCall } from "@/lib/chain/driver";
+
+/* ------------------------------------------------------------------ payment measurements */
+
+export type ReceiptCheck =
+  /** Arc's receipt has this event at this log index, from the escrow contract, for this bounty. */
+  | "matched"
+  /** Arc knows the transaction, but its logs do not match what the indexer stored. */
+  | "mismatch"
+  /** Arc reports the transaction as reverted. */
+  | "reverted"
+  /** Arc RPC does not know this hash. */
+  | "not_found";
+
+export interface TxMeasurement {
+  /** Gas paid by the sender, in wei of native USDC (18 decimals). */
+  feeWei: bigint;
+  /** Block timestamp in ms. One-second precision. */
+  blockTimeMs: number;
+  /** Indexer delivery time minus block time, in ms. Can read slightly negative from clock skew. */
+  indexedAfterMs: number;
+  check: ReceiptCheck;
+}
+
+/**
+ * Measures one indexed escrow event against Arc itself: the fee its transaction paid, when its
+ * block was produced, how long the event pipeline took to deliver it, and whether the receipt
+ * really contains the event the indexer stored. Transactions are immutable, so this never refetches.
+ */
+export function useTxMeasurement(ref: TxRef | undefined, eventType: ChainEventType, onchainBountyId: string | null) {
+  return useQuery({
+    queryKey: ["tx-measurement", ref?.txHash, ref?.logIndex, eventType, onchainBountyId],
+    enabled: !!ref && !!onchainBountyId,
+    staleTime: Infinity,
+    retry: 1,
+    queryFn: async (): Promise<TxMeasurement | { check: "not_found" }> => {
+      const details = await driver.txDetails(ref!.txHash);
+      if (!details) return { check: "not_found" };
+      const blockTimeMs = details.blockTimestamp * 1000;
+      return {
+        feeWei: details.gasUsed * details.effectiveGasPrice,
+        blockTimeMs,
+        indexedAfterMs: new Date(ref!.at).getTime() - blockTimeMs,
+        check: checkReceipt(details, ref!, eventType, onchainBountyId!),
+      };
+    },
+  });
+}
+
+function checkReceipt(d: TxDetails, ref: TxRef, eventType: ChainEventType, onchainBountyId: string): ReceiptCheck {
+  if (!d.success) return "reverted";
+  const escrow = escrowContractAddress?.toLowerCase();
+  const topic0 = eventTopic(eventType);
+  const topic1 = numberToHex(BigInt(onchainBountyId), { size: 32 });
+  const found = d.logs.some((l) =>
+    l.address.toLowerCase() === escrow
+    && (ref.logIndex === undefined || l.logIndex === ref.logIndex)
+    && l.topics[0]?.toLowerCase() === topic0.toLowerCase()
+    && l.topics[1]?.toLowerCase() === topic1.toLowerCase());
+  return found ? "matched" : "mismatch";
+}
