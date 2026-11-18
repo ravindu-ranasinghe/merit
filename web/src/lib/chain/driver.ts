@@ -1,5 +1,6 @@
-import { encodeAbiParameters, keccak256 } from "viem";
-import type { Address, Hex } from "@/lib/api/types";
+import { encodeAbiParameters, getAbiItem, keccak256, toEventSelector, type AbiEvent } from "viem";
+import type { Address, ChainEventType, Hex } from "@/lib/api/types";
+import { escrowAbi } from "@/lib/chain/escrow-abi";
 
 /** The four state-changing calls on BountyEscrow, in the frozen SPEC.md argument order. */
 export type EscrowCall =
@@ -7,6 +8,25 @@ export type EscrowCall =
   | { fn: "approveReward"; args: readonly [bountyId: bigint, recipient: Address, amount: bigint, claimId: Hex] }
   | { fn: "claim"; args: readonly [bountyId: bigint] }
   | { fn: "refundExpired"; args: readonly [bountyId: bigint] };
+
+/** One log from a transaction receipt, as read from Arc RPC. */
+export interface TxLog {
+  address: Address;
+  logIndex: number;
+  topics: readonly Hex[];
+}
+
+/** What Arc says about a mined transaction. Read straight from RPC, not from the indexer. */
+export interface TxDetails {
+  success: boolean;
+  blockNumber: bigint;
+  /** Unix seconds. Block timestamps have one-second precision. */
+  blockTimestamp: number;
+  gasUsed: bigint;
+  /** Wei of native USDC (18 decimals) per gas. Arc charges gas in USDC. */
+  effectiveGasPrice: bigint;
+  logs: TxLog[];
+}
 
 export interface TxResult {
   hash: Hex;
@@ -29,6 +49,8 @@ export interface ChainDriver {
   send(call: EscrowCall, onSubmitted?: (hash: Hex) => void): Promise<TxResult>;
   /** Dry-runs a call as `from` without sending anything. Rejects with the contract's error. */
   simulate(call: EscrowCall, from: Address): Promise<void>;
+  /** Receipt and block for a mined transaction, or null if Arc does not know the hash. */
+  txDetails(hash: Hex): Promise<TxDetails | null>;
   signMessage(message: string): Promise<Hex>;
 }
 
@@ -37,4 +59,9 @@ export function computePrHash(githubRepoId: string, prNumber: number): Hex {
   return keccak256(
     encodeAbiParameters([{ type: "uint256" }, { type: "uint256" }], [BigInt(githubRepoId), BigInt(prNumber)]),
   );
+}
+
+/** topic0 of an escrow event, from the generated ABI. */
+export function eventTopic(name: ChainEventType): Hex {
+  return toEventSelector(getAbiItem({ abi: escrowAbi, name }) as AbiEvent);
 }

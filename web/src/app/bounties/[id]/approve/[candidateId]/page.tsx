@@ -255,7 +255,7 @@ export default function ApprovePage() {
                   </Button>
                 </WalletGate>
               )}
-              <TxProgress phase={tx.phase} hash={tx.hash} error={tx.error} indexedLabel="Taking you back to the bounty." />
+              <TxProgress phase={tx.phase} hash={tx.hash} error={tx.error} confirmedInMs={tx.confirmedInMs} indexedLabel="Taking you back to the bounty." />
               {prepare.error && !forbidden && (
                 prepare.error instanceof ChainError ? (
                   <ChainErrorView error={prepare.error} />

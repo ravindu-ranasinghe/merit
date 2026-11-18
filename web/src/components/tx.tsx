@@ -1,6 +1,7 @@
 import type { Hex } from "@/lib/api/types";
 import { describeChainError, type ChainError } from "@/lib/chain/errors";
 import type { TxPhase } from "@/lib/chain/hooks";
+import { formatSeconds } from "@/lib/format";
 import { IconCheck } from "./icons";
 import { GuardrailCard, Notice, Spinner, TxLink } from "./ui";
 
@@ -19,12 +20,15 @@ export function TxProgress({
   hash,
   error,
   indexedLabel,
+  confirmedInMs = null,
 }: {
   phase: TxPhase;
   hash: Hex | null;
   error: ChainError | null;
   /** What we are waiting for once the transaction is confirmed. */
   indexedLabel: string;
+  /** Measured from the wallet returning the hash to this browser seeing the receipt. */
+  confirmedInMs?: number | null;
 }) {
   if (phase === "idle") return null;
   if (phase === "error" && error) return <ChainErrorView error={error} />;
@@ -34,7 +38,9 @@ export function TxProgress({
       <span className="font-medium">
         {phase === "wallet" && "Confirm in your wallet"}
         {phase === "confirming" && "Sent. Waiting for the network"}
-        {phase === "done" && "Transaction confirmed"}
+        {phase === "done" && (confirmedInMs !== null
+          ? <>Confirmed on Arc in {formatSeconds(confirmedInMs)} <span className="font-normal text-mut">(measured in this browser)</span></>
+          : "Transaction confirmed")}
       </span>
       {phase === "done" && <span className="text-ink-2">{indexedLabel}</span>}
       {hash && <TxLink hash={hash} className="ml-auto" />}

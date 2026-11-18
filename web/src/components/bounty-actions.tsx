@@ -160,7 +160,7 @@ function ClaimPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) 
             </Button>
           </WalletGate>
         )}
-        <TxProgress phase={claim.phase} hash={claim.hash} error={claim.error} indexedLabel="Waiting for the payout event to be indexed." />
+        <TxProgress phase={claim.phase} hash={claim.hash} error={claim.error} confirmedInMs={claim.confirmedInMs} indexedLabel="Waiting for the payout event to be indexed." />
       </div>
     </div>
   );
@@ -202,7 +202,7 @@ function RefundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void })
             </Button>
           </WalletGate>
         )}
-        <TxProgress phase={refund.phase} hash={refund.hash} error={refund.error} indexedLabel="Waiting for the refund event to be indexed." />
+        <TxProgress phase={refund.phase} hash={refund.hash} error={refund.error} confirmedInMs={refund.confirmedInMs} indexedLabel="Waiting for the refund event to be indexed." />
       </div>
     </div>
   );
