@@ -4,7 +4,8 @@
  */
 import { PERSONAS } from "@/fixtures/seed";
 import type { Address, Hex } from "@/lib/api/types";
-import type { ChainDriver, EscrowCall, TxResult } from "@/lib/chain/driver";
+import { numberToHex } from "viem";
+import { eventTopic, type ChainDriver, type EscrowCall, type TxResult } from "@/lib/chain/driver";
 import { ChainError } from "@/lib/chain/errors";
 import { currentPersona, getDb, indexEvent, newTxHash, sleep } from "@/mock/store";
 
@@ -96,6 +97,9 @@ function check(call: EscrowCall, from: Address): () => { event: Parameters<typeo
   };
 }
 
+/** Gas each escrow call used on Arc testnet for bounty 1 (refund estimated). */
+const MOCK_GAS: Record<string, number> = { BountyFunded: 163_560, RewardApproved: 130_400, RewardPaid: 65_594, BountyRefunded: 80_000 };
+
 const WALLET_MS = 700;
 const CONFIRM_MS = 1100;
 
@@ -134,6 +138,25 @@ export const mockDriver: ChainDriver = {
   async simulate(call, from) {
     await sleep(500);
     check(call, from);
+  },
+
+  // Sample receipt data for an indexed mock event: one escrow log, gas close to what each call used
+  // on real Arc testnet at 25 gwei of native USDC, and a block about 1.7 s before the mock indexer stored it.
+  async txDetails(hash) {
+    const e = getDb().events.find((x) => x.txHash === hash);
+    if (!e) return null;
+    return {
+      success: true,
+      blockNumber: BigInt(e.blockNumber),
+      blockTimestamp: Math.floor((new Date(e.ingestionTimestamp).getTime() - 1700) / 1000),
+      gasUsed: BigInt(MOCK_GAS[e.eventType]),
+      effectiveGasPrice: BigInt(25_000_000_000),
+      logs: [{
+        address: e.contract,
+        logIndex: e.logIndex,
+        topics: [eventTopic(e.eventType), numberToHex(BigInt(e.payload.bountyId), { size: 32 })],
+      }],
+    };
   },
 
   async signMessage(message): Promise<Hex> {
