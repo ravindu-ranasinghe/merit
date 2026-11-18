@@ -99,6 +99,20 @@ wallet binding (valid, replayed, expired, wrong user, wrong signer), Streams (sa
 backfill, partial refund stays claimable), SQL unique constraints, approval gate, production env refusal and
 session cookie forgery.
 
+### Replay demo
+
+```sh
+docker compose up -d db
+npm run replay-demo
+```
+
+Reads every escrow log since the deploy block from Arc RPC and rebuilds a separate `merit_replay` database
+through the real Streams receiver. It then replays the history three more ways and checks the state is
+identical each time: a full backfill on top, every log twice in shuffled order, and a fresh database that
+missed a third of the history and was then backfilled. Last, it compares the rebuilt state with the
+contract's own `bounties(id)` view. It replays Arc logs through Merit's receiver; it does not call
+QuickNode's backfill API. Exit code 1 means a mismatch.
+
 ## QuickNode Streams
 
 Streams is how escrow state reaches the database and the UI. The backend never polls the chain: `funded`,

@@ -11,7 +11,8 @@
     "seed": "tsx src/db/seed.ts",
     "db:generate": "drizzle-kit generate",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "replay-demo": "tsx scripts/replay-demo.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
