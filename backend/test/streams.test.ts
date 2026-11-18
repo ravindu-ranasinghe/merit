@@ -117,6 +117,20 @@ describe("POST /webhooks/streams", () => {
     expect((await state()).status).toBe("claimable");
   });
 
+  it("re-delivering an old bounty's events never links them to a newer bounty on the same PR", async () => {
+    // Bounty A is funded and refunded; the maintainer then opens bounty B on the same PR, not yet funded.
+    const a = await seedBounty();
+    await deliver([log(EV.funded, 1, 0), log(EV.refunded, 2, 0)]);
+    const [pr] = await h.db.select().from(pull_requests);
+    const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, amount_units: "5000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
+    // A backfill, a retry or a late event for A arrives again.
+    const r = await deliver([log(EV.funded, 1, 0), log(EV.refunded, 2, 0)]);
+    expect(r.statusCode).toBe(200);
+    const rows = Object.fromEntries((await h.db.select().from(bounties)).map((x) => [x.id, x]));
+    expect(rows[a.id]).toMatchObject({ onchain_bounty_id: "7", status: "refunded" });
+    expect(rows[b!.id]).toMatchObject({ onchain_bounty_id: null, status: "funding_pending", amount_units: "5000000" });
+  });
+
   it("a plain BountyRefunded (nothing approved) is refunded", async () => {
     await seedBounty();
     await deliver([log(EV.funded, 1, 0), log(EV.refunded, 2, 0)]);

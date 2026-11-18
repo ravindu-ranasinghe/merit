@@ -99,9 +99,12 @@ const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };
 export async function reconcile(ctx: Ctx, onchainId: string) {
   const events = await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, onchainId));
 
-  // 1. Link the offchain bounty row to its onchain id (matched by pr_hash from BountyFunded).
+  // 1. Link the offchain bounty row to its onchain id (matched by pr_hash from BountyFunded), once.
+  // A replay of an already-linked bounty must not link it again: a newer unfunded bounty on the same PR
+  // would otherwise be picked, hitting the unique onchain id (a 500 that QuickNode retries forever).
   const funded = events.find((e) => e.event_type === "BountyFunded");
-  if (funded) {
+  const [linked] = await ctx.db.select({ id: bounties.id }).from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
+  if (funded && !linked) {
     const p = funded.payload as { funder: string; prHash: string; amount: string; expiry: string };
     const [prRow] = await ctx.db.select({ id: pull_requests.id }).from(pull_requests).where(eq(pull_requests.pr_hash, p.prHash));
     if (prRow) {
