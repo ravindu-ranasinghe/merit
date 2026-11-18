@@ -115,7 +115,7 @@ No new table or database migration is needed; review display metadata stays in t
 |---|---|
 | `GET /health` | `{ ok: true, github_mock: boolean }`. `github_mock: true` means the GitHub App is not configured. |
 | `GET /config` | `{ chain_id: number, escrow_address: string, usdc_address: string, usdc_decimals: 6, explorer_url: string }` |
-| `GET /bounties?status=&repo=` | `{ bounties: Bounty[] }`, newest first. `repo` is `owner/repo`. Both filters optional. |
+| `GET /bounties?status=&repo=` | `{ bounties: (Bounty & { events: ChainEvent[] })[] }`, newest first. Each row carries its indexed events (newest first), so a list can show confirmed funded, approved, paid and refunded amounts. `repo` is `owner/repo`. Both filters optional. |
 | `GET /bounties/:id` | `BountyDetail`. 404 if unknown. |
 | `GET /bounties/:id/candidates` | `{ candidates: Candidate[] }` |
 | `GET /events?bounty_id=&limit=50&before=` | `{ events: ChainEvent[], next_before: number \| null }`, newest first. `bounty_id` is the backend id. `before` is an event `id` for paging. `limit` max 200. |

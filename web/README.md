@@ -24,6 +24,7 @@ npm run dev                  # http://localhost:3000
 | `npm run lint` | ESLint (must be clean) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run sync-abi` | Regenerates `src/lib/chain/escrow-abi.ts` from `docs/escrow-abi.json` |
+| `npm run check:accounting` | Regression check: partial payouts, refunds and dashboard totals in integer units |
 | `npm run check:deposit` | Regression check: a broadcast deposit plus a receipt failure never leads to a second deposit |
 
 CI runs lint, typecheck and build with `NEXT_PUBLIC_MOCK=1`.
@@ -38,7 +39,8 @@ are hard to reproduce live, and the demo-day contingency.
   people: **Maintainer** (funds and approves), **Reviewer** (linked wallet, can claim),
   **New reviewer** (no wallet linked yet) and **No access** (blocked from approving).
 - There is one sample bounty in each of the ten states, `b-101` to `b-110`. `/states` links
-  to each.
+  to each. `b-111` and `b-112` are partial payouts ($10 funded, $4 approved, deadline passed):
+  `b-111` is unclaimed (refund the $6 remainder first, then claim), `b-112` is already paid.
 - The mock chain (`src/mock/chain.ts`) enforces the same rules as `BountyEscrow.sol` and
   throws the same custom error names, so refusals look exactly as they will live.
 - Money states change only when the mock indexer delivers an event, about 1.6 seconds after
@@ -49,6 +51,15 @@ are hard to reproduce live, and the demo-day contingency.
 
 Suggested walk-through: `/maintainer/new` → create and fund → open `/bounties/b-107` →
 "Review and approve payout" → switch to **Reviewer** → Claim → "Try a second claim".
+
+## Where the money is
+
+Every amount shown for a bounty comes from its indexed events through `src/lib/accounting.ts`, never from
+its status label. Held is funded minus paid minus refunded. An approval reserves its amount: after the
+deadline only funded minus approved is refundable, and the approved recipient can still claim whether or
+not that remainder was refunded first. Prepared or signed approvals reserve nothing until `RewardApproved`
+is indexed. The dashboard's "Held in escrow" and "Paid to reviewers" are sums of these amounts, which is why
+`GET /bounties` rows carry their events.
 
 ## Funding recovery
 

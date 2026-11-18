@@ -121,6 +121,8 @@ interface Spec {
   approvedAgo?: number;
   paidAgo?: number;
   refundedAgo?: number;
+  /** Approve less than the funded amount (a partial payout). Defaults to the full amount. */
+  approvedDollars?: string;
   prState?: PullRequest["state"];
 }
 
@@ -260,6 +262,39 @@ export function buildSeed(now: number = Date.now()): Seed {
     { n: 8, repo: 0, pr: 219, title: "Add retry with backoff to sync client", status: "funded", dollars: "10", fundedAgo: 3 * HOUR, deadlineIn: 7 * DAY },
     { n: 9, repo: 0, pr: 221, title: "Validate webhook payload sizes", status: "funding_pending", dollars: "7.5", fundedAgo: 0, deadlineIn: 7 * DAY },
     { n: 10, repo: 0, pr: 223, title: "Lazy-load the emoji picker", status: "draft", dollars: "5", fundedAgo: 0, deadlineIn: 7 * DAY },
+    // Partial payouts: $10 funded, $4 approved, deadline passed. The $6 remainder is refundable either way.
+    {
+      n: 11, repo: 0, pr: 230, title: "Strip trailing whitespace in code blocks", status: "claimable", dollars: "10", approvedDollars: "4",
+      fundedAgo: 9 * DAY, deadlineIn: -2 * HOUR, approvedAgo: 3 * DAY,
+      candidates: [
+        candidate("c-111", jun.user, jun.wallet, {
+          filePath: "src/markdown/code.ts",
+          diffHunk: `@@ -14,6 +14,6 @@ export function renderCode(src: string) {
+-  return lines.join("\\n");
++  return lines.map((l) => l.trimEnd()).join("\\n");`,
+          commentBody: "Trailing whitespace survives into the rendered block. Trim each line before joining.",
+          commentedAt: iso(4 * DAY), commitSha: "b81f02c", commitMessage: "code: trim trailing whitespace per line",
+          evidence: { commentExists: true, laterCommitTouchedContext: true, threadResolved: true },
+          status: "approved",
+        }, prUrl(0, 230)),
+      ],
+    },
+    {
+      n: 12, repo: 0, pr: 231, title: "Respect reduced motion in the editor", status: "paid", dollars: "10", approvedDollars: "4",
+      fundedAgo: 10 * DAY, deadlineIn: -3 * HOUR, approvedAgo: 4 * DAY, paidAgo: 3 * DAY, prState: "merged",
+      candidates: [
+        candidate("c-121", jun.user, jun.wallet, {
+          filePath: "src/editor/caret.ts",
+          diffHunk: `@@ -8,6 +8,7 @@ export function blinkCaret(el: HTMLElement) {
++  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+   el.animate(BLINK, { duration: 1000, iterations: Infinity });`,
+          commentBody: "The caret keeps blinking with reduced motion on. Skip the animation when the user asks for less motion.",
+          commentedAt: iso(5 * DAY), commitSha: "0c4d9ae", commitMessage: "editor: honour prefers-reduced-motion for the caret",
+          evidence: { commentExists: true, laterCommitTouchedContext: true, threadResolved: true },
+          status: "approved",
+        }, prUrl(0, 231)),
+      ],
+    },
   ];
 
   const toUnits = (d: string) => String(Math.round(Number(d) * 100) * 10_000);
@@ -292,7 +327,7 @@ export function buildSeed(now: number = Date.now()): Seed {
       ingestionTimestamp: new Date(now - msAgo + 1800).toISOString(),
       bountyId,
     });
-    return { txHash, blockNumber, logIndex: eventType === "BountyFunded" ? 1 : 0, at: iso(msAgo) };
+    return { txHash, blockNumber, logIndex: eventType === "BountyFunded" ? 1 : 0, at: iso(msAgo), amountUnits: payload.amount };
   };
 
   for (const s of specs) {
@@ -328,10 +363,11 @@ export function buildSeed(now: number = Date.now()): Seed {
       };
 
       const approved = b.candidates.find((c) => c.status === "approved");
+      const approvedUnits = toUnits(s.approvedDollars ?? s.dollars);
       if (approved && approved.reviewerWallet) {
         const claimId = fakeHash(`claim:${approved.githubCommentId}`);
         b.approval = {
-          candidateId: approved.id, reviewer: approved.reviewer, approver: mira.user, amountUnits,
+          candidateId: approved.id, reviewer: approved.reviewer, approver: mira.user, amountUnits: approvedUnits,
           approvedRecipient: approved.reviewerWallet, claimId, chainTxHash: null,
           approvedAt: iso(s.approvedAgo ?? 5 * MIN),
         };
@@ -339,23 +375,24 @@ export function buildSeed(now: number = Date.now()): Seed {
           b.pendingTxHash = fakeHash(`pending-approve:${id}`);
         } else if (s.approvedAgo !== undefined) {
           const ref = pushEvent("RewardApproved", s.approvedAgo, id, {
-            bountyId: onchainId, recipient: approved.reviewerWallet, amount: amountUnits, claimId,
+            bountyId: onchainId, recipient: approved.reviewerWallet, amount: approvedUnits, claimId,
           });
           b.chain.approved = ref;
           b.approval.chainTxHash = ref.txHash;
           oc.recipient = approved.reviewerWallet;
           oc.claimId = claimId;
-          oc.approvedAmount = BigInt(amountUnits);
+          oc.approvedAmount = BigInt(approvedUnits);
         }
         if (s.paidAgo !== undefined) {
           b.chain.paid = pushEvent("RewardPaid", s.paidAgo, id, {
-            bountyId: onchainId, recipient: approved.reviewerWallet, amount: amountUnits, claimId,
+            bountyId: onchainId, recipient: approved.reviewerWallet, amount: approvedUnits, claimId,
           });
           oc.paid = true;
         }
       }
       if (s.refundedAgo !== undefined) {
-        b.chain.refunded = { ...pushEvent("BountyRefunded", s.refundedAgo, id, { bountyId: onchainId, funder: mira.wallet, amount: amountUnits }), amountUnits };
+        const refundUnits = String(BigInt(amountUnits) - oc.approvedAmount); // the contract refunds funded minus approved
+        b.chain.refunded = { ...pushEvent("BountyRefunded", s.refundedAgo, id, { bountyId: onchainId, funder: mira.wallet, amount: refundUnits }), amountUnits: refundUnits };
         oc.refunded = true;
       }
       onchain.set(onchainId, oc);

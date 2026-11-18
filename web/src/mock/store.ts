@@ -140,20 +140,22 @@ export function indexEvent(
         bounty.onchainBountyId = onchainId;
         bounty.funderWallet = payload.funder as Address;
         bounty.status = "funded";
-        bounty.chain.funded = { txHash, blockNumber, logIndex: 1, at };
+        bounty.chain.funded = { txHash, blockNumber, logIndex: 1, at, amountUnits: payload.amount };
         bounty.pendingTxHash = null;
       }
     } else if (bounty && eventType === "RewardApproved") {
       bounty.status = "claimable";
-      bounty.chain.approved = { txHash, blockNumber, logIndex: 0, at };
+      bounty.chain.approved = { txHash, blockNumber, logIndex: 0, at, amountUnits: payload.amount };
       if (bounty.approval) bounty.approval.chainTxHash = txHash;
       bounty.pendingTxHash = null;
     } else if (bounty && eventType === "RewardPaid") {
       bounty.status = "paid";
-      bounty.chain.paid = { txHash, blockNumber, logIndex: 0, at };
+      bounty.chain.paid = { txHash, blockNumber, logIndex: 0, at, amountUnits: payload.amount };
       bounty.pendingTxHash = null;
     } else if (bounty && eventType === "BountyRefunded") {
-      if (bounty.status !== "paid") bounty.status = "refunded";
+      // Same precedence as the backend (streams/project.ts): paid > claimable > refunded. Refunding the
+      // unapproved remainder leaves an approved, unclaimed reward claimable.
+      if (bounty.status !== "paid") bounty.status = bounty.chain.approved ? "claimable" : "refunded";
       bounty.chain.refunded = { txHash, blockNumber, logIndex: 0, at, amountUnits: payload.amount };
       bounty.pendingTxHash = null;
     }
