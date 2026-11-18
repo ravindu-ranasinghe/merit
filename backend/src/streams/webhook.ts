@@ -5,6 +5,7 @@ import { decodeLog } from "../chain/escrow.js";
 import { refreshBounty } from "../bounty.js";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests } from "../db/schema.js";
+import { syncPrStatusComment } from "../github/pr-status.js";
 import { isUniqueViolation } from "../db/index.js";
 
 /**
@@ -70,8 +71,26 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
     }
     // Reconcile every touched bounty even when the log was a duplicate: it is idempotent and heals partial runs.
     for (const id of touched) await reconcile(ctx, id);
+    // Then mirror the confirmed state onto the PR. GitHub trouble must never fail or delay indexing much:
+    // errors are logged, and each sync is capped so QuickNode's delivery does not time out.
+    for (const id of touched) {
+      try {
+        const result = await withTimeout(syncPrStatusComment(ctx, id), PR_COMMENT_TIMEOUT_MS);
+        if (result === "created" || result === "updated") req.log.info({ onchainBountyId: id, result }, "PR status comment synced");
+      } catch (err) {
+        req.log.warn({ err, onchainBountyId: id }, "PR status comment not updated");
+      }
+    }
     return { ok: true, inserted };
   });
+}
+
+const PR_COMMENT_TIMEOUT_MS = 8000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms); });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
 const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };

@@ -19,6 +19,8 @@ const schema = z.object({
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
+  // "0" turns off the PR status comment (src/github/pr-status.ts) without a redeploy of code.
+  GITHUB_PR_COMMENTS: z.enum(["0", "1"]).default("1"),
 });
 
 export interface Env {
@@ -39,6 +41,8 @@ export interface Env {
     webhookSecret: string;
     clientId: string;
     clientSecret: string;
+    /** Post and update one Merit status comment on each funded PR, driven by indexed events. */
+    prComments: boolean;
   };
   warnings: string[];
 }
@@ -88,6 +92,7 @@ export function loadEnv(src: Record<string, string | undefined> = process.env): 
       webhookSecret: mock ? (e.GITHUB_WEBHOOK_SECRET ?? "dev-webhook-secret") : e.GITHUB_WEBHOOK_SECRET!,
       clientId: e.GITHUB_CLIENT_ID ?? "",
       clientSecret: e.GITHUB_CLIENT_SECRET ?? "",
+      prComments: e.GITHUB_PR_COMMENTS === "1",
     },
     warnings,
   };
