@@ -108,13 +108,19 @@ export async function githubWebhook(app: FastifyInstance, ctx: Ctx) {
 type Repo = typeof repositories.$inferSelect;
 
 async function upsertPr(ctx: Ctx, repoRow: Repo, p: z.infer<typeof pr>) {
+  // pull_request events carry `merged`; review-comment and review-thread payloads omit it, so a closed PR in
+  // them may or may not be merged. Without a merge flag this reads as "closed", and a first sighting never
+  // invents a merge.
   const status = p.merged ? "merged" : p.state === "closed" ? "closed" : "open";
   const [row] = await ctx.db.insert(pull_requests).values({
     repo_id: repoRow.id, github_pr_number: p.number, head_sha: p.head.sha, status,
     author_github_id: p.user.id, pr_hash: prHash(repoRow.github_repo_id, p.number),
   }).onConflictDoUpdate({
     target: [pull_requests.repo_id, pull_requests.github_pr_number],
-    set: { head_sha: p.head.sha, status },
+    // A merge is final on GitHub (a merged PR cannot be reopened or unmerged), so a known "merged" is kept
+    // against any later payload: a sparse one without the flag, or a delayed older delivery. Done in the
+    // same statement, so concurrent deliveries cannot race past it.
+    set: { head_sha: p.head.sha, status: sql`case when ${pull_requests.status} = 'merged' then 'merged' else excluded.status end` },
   }).returning();
   return row!;
 }

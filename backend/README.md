@@ -199,7 +199,8 @@ function main(stream) {
   - **Still unexercised:** the review-comment fetch used by `POST /bounties/:id/candidates/manual`.
   - **Fixtures vs real payloads:** the fixtures are hand-written. Real `pull_request_review_comment` payloads leave
     out `comment.in_reply_to_id` on top-level comments and `pull_request.merged` entirely; the schema accepts both.
-    `upsertPr` therefore computes `closed` for a review-comment event on an already-merged PR, overwriting `merged`.
+    `upsertPr` reads a closed PR without the flag as `closed`, but keeps a PR already recorded as `merged`
+    (a merge is final on GitHub), so a later review-comment or thread event no longer downgrades it.
 - **QuickNode Streams with the filter on:** the filter output is verified in QuickNode's test runner. A real escrow
   event delivered through the filtered stream is still pending; all the deliveries above came before the filter.
 - **Escrow**: deployed and source-verified on Arc testnet at `0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727` (deploy

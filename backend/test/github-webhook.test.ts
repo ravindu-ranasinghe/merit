@@ -70,6 +70,57 @@ describe("POST /webhooks/github", () => {
   });
 });
 
+describe("pull request status from webhooks", () => {
+  // Real pull_request_review_comment / _thread payloads omit pull_request.merged; pull_request events carry it.
+  const payload = (name: string, pr: { state?: string; merged?: boolean | undefined; head?: string }) => {
+    const j = JSON.parse(fx(name));
+    if ("merged" in pr) { if (pr.merged === undefined) delete j.pull_request.merged; else j.pull_request.merged = pr.merged; }
+    if (pr.state) j.pull_request.state = pr.state;
+    if (pr.head) j.pull_request.head.sha = pr.head;
+    return JSON.stringify(j);
+  };
+  const prEvent = (pr: Parameters<typeof payload>[1], action = "closed") =>
+    JSON.stringify({ ...JSON.parse(payload("pr_synchronize", pr)), action });
+  let n = 0;
+  const send = (body: string, event: string) => post(body, event, `status-${++n}`);
+  const status = async () => (await h.db.select().from(pull_requests))[0]!.status;
+
+  it("a sparse review-comment payload after a merge keeps the PR merged", async () => {
+    expect((await send(prEvent({ state: "closed", merged: true }), "pull_request")).statusCode).toBe(200);
+    expect(await status()).toBe("merged");
+    expect((await send(payload("review_comment_created", { state: "closed", merged: undefined }), "pull_request_review_comment")).statusCode).toBe(200);
+    expect(await status()).toBe("merged");
+  });
+
+  it("a sparse review-thread payload after a merge keeps the PR merged", async () => {
+    await send(prEvent({ state: "closed", merged: true }), "pull_request");
+    await send(payload("review_thread_resolved", { state: "closed", merged: undefined }), "pull_request_review_thread");
+    expect(await status()).toBe("merged");
+  });
+
+  it("a closed, unmerged PR stays closed, and reopening an unmerged PR makes it open", async () => {
+    await send(prEvent({ state: "closed", merged: false }), "pull_request");
+    expect(await status()).toBe("closed");
+    await send(payload("review_comment_created", { state: "closed", merged: undefined }), "pull_request_review_comment");
+    expect(await status()).toBe("closed");
+    await send(prEvent({ state: "open", merged: false }, "reopened"), "pull_request");
+    expect(await status()).toBe("open");
+  });
+
+  it("first sighting through a sparse closed payload does not invent a merge", async () => {
+    await h.db.delete(pull_requests);
+    await send(payload("review_comment_created", { state: "closed", merged: undefined }), "pull_request_review_comment");
+    expect(await status()).toBe("closed");
+  });
+
+  it("head sha updates still apply to a merged PR", async () => {
+    await send(prEvent({ state: "closed", merged: true }), "pull_request");
+    await send(payload("review_thread_resolved", { state: "closed", merged: undefined, head: "after-merge-sha" }), "pull_request_review_thread");
+    const [pr] = await h.db.select().from(pull_requests);
+    expect(pr).toMatchObject({ status: "merged", head_sha: "after-merge-sha" });
+  });
+});
+
 describe("review evidence pipeline", () => {
   const comment = (over: object = {}) => {
     const j = JSON.parse(fx("review_comment_created"));
