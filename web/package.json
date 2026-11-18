@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "sync-abi": "node scripts/sync-abi.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:deposit": "node --test scripts/deposit-recovery.test.mjs"
   },
   "dependencies": {
     "@remotion/player": "^4.0.543",

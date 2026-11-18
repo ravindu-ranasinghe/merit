@@ -7,7 +7,7 @@ import type { Address, Hex } from "@/lib/api/types";
 import { numberToHex } from "viem";
 import { eventTopic, type ChainDriver, type EscrowCall, type TxResult } from "@/lib/chain/driver";
 import { ChainError } from "@/lib/chain/errors";
-import { currentPersona, getDb, indexEvent, newTxHash, sleep } from "@/mock/store";
+import { currentPersona, getDb, indexEvent, mockTxOutcomes, newTxHash, sleep, takeMockFault } from "@/mock/store";
 
 const ZERO = BigInt(0);
 const nowSec = () => Math.floor(Date.now() / 1000);
@@ -128,11 +128,36 @@ export const mockDriver: ChainDriver = {
     await sleep(WALLET_MS);
     const apply = check(call, from);
     const hash = newTxHash();
+    const fault = call.fn === "createBounty" ? takeMockFault() : null;
+    mockTxOutcomes.set(hash, "pending");
     onSubmitted?.(hash);
     await sleep(CONFIRM_MS);
+    if (fault === "revert-after-broadcast") {
+      mockTxOutcomes.set(hash, "reverted");
+      throw new ChainError("revert", "The transaction reverted onchain.");
+    }
+    mockTxOutcomes.delete(hash);
     const effect = apply();
     indexEvent(effect.event, hash, effect.payload);
+    if (fault === "receipt-timeout") {
+      throw new ChainError("network", "Timed out waiting for the transaction receipt.");
+    }
     return { hash, bountyId: effect.bountyId };
+  },
+
+  async blockNumber() {
+    return BigInt(getDb().headBlock);
+  },
+
+  // Mined mock transactions are known once applied; the mock indexer stores their event a moment later.
+  async checkDeposit(record) {
+    const state = mockTxOutcomes.get(record.hash);
+    if (state === "reverted") return { outcome: "reverted" };
+    if (state === "pending") return { outcome: "pending" };
+    const onchain = [...getDb().onchain.values()].some((b) =>
+      b.funder.toLowerCase() === record.wallet.toLowerCase() && b.amount === BigInt(record.expect.amount)
+      && BigInt(b.expiry) === BigInt(record.expect.expiry));
+    return { outcome: onchain ? "confirmed" : "pending" };
   },
 
   async simulate(call, from) {

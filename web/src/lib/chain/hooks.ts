@@ -7,12 +7,14 @@
  * Adopting a new ABI is `npm run sync-abi`; a changed call shape is an edit to this file.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { erc20Abi, numberToHex, parseEventLogs, TransactionReceiptNotFoundError } from "viem";
 import { injected, useConnect, useConnection, useDisconnect, useSwitchChain } from "wagmi";
 import {
   getBlock,
+  getBlockNumber,
   getConnection,
+  getPublicClient,
   getTransactionReceipt,
   readContract,
   signMessage,
@@ -22,13 +24,15 @@ import {
 } from "wagmi/actions";
 import type { Address, ChainEventType, Hex, PreparedApproval, TxRef } from "@/lib/api/types";
 import { computePrHash, eventTopic, type ChainDriver, type EscrowCall, type TxDetails, type TxResult } from "@/lib/chain/driver";
+import { fund, resolveDeposit, type DepositCheck, type DepositRecord, type DepositStore, type FundEvent, type FundingChain, type FundResult } from "@/lib/chain/deposit-flow";
+import { browserDepositStore } from "@/lib/chain/deposit-store";
 import { ChainError, toChainError } from "@/lib/chain/errors";
 import { escrowAbi } from "@/lib/chain/escrow-abi";
 import { wagmiConfig } from "@/lib/chain/wagmi";
 import { ARC, ESCROW_ADDRESS, MOCK, MOCK_ESCROW_ADDRESS } from "@/lib/env";
 import { mockDriver } from "@/mock/chain";
 import { PERSONAS } from "@/fixtures/seed";
-import { getPersonaKey, subscribePersona } from "@/mock/store";
+import { getPersonaKey, mockDepositStore, subscribePersona } from "@/mock/store";
 
 /* ------------------------------------------------------------------ real driver */
 
@@ -108,6 +112,10 @@ const realDriver: ChainDriver = {
 
   signMessage: (message) => signMessage(wagmiConfig, { message }),
 
+  blockNumber: () => getBlockNumber(wagmiConfig, { chainId: ARC.chainId }),
+
+  checkDeposit: checkDepositOnArc,
+
   async txDetails(hash) {
     let receipt;
     try {
@@ -127,6 +135,64 @@ const realDriver: ChainDriver = {
     };
   },
 };
+
+/** Arc RPC refuses eth_getLogs over more blocks than this. */
+const LOG_RANGE = BigInt(10_000);
+
+/** A BountyFunded from the deposit's wallet, for its PR hash, amount and expiry, since it was sent. */
+async function findFunding(record: DepositRecord): Promise<Hex | null> {
+  const client = getPublicClient(wagmiConfig, { chainId: ARC.chainId });
+  if (!client) return null;
+  const head = await client.getBlockNumber();
+  const event = escrowAbi.find((x) => x.type === "event" && x.name === "BountyFunded")!;
+  for (let from = BigInt(record.fromBlock); from <= head; from += LOG_RANGE) {
+    const to = from + LOG_RANGE - BigInt(1) < head ? from + LOG_RANGE - BigInt(1) : head;
+    const logs = await client.getLogs({
+      address: record.escrow, event, fromBlock: from, toBlock: to,
+      args: { funder: record.wallet, prHash: record.expect.prHash },
+    } as Parameters<typeof client.getLogs>[0]);
+    for (const l of logs as unknown as { transactionHash: Hex; args: { amount: bigint; expiry: bigint } }[]) {
+      if (l.args.amount === BigInt(record.expect.amount) && l.args.expiry === BigInt(record.expect.expiry)) return l.transactionHash;
+    }
+  }
+  return null;
+}
+
+/** The deposit's own receipt: confirmed or reverted, or null while it is not mined. */
+async function ownReceipt(hash: Hex): Promise<"confirmed" | "reverted" | null> {
+  try {
+    const r = await getTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId });
+    return r.status === "success" ? "confirmed" : "reverted";
+  } catch (err) {
+    if (err instanceof TransactionReceiptNotFoundError) return null;
+    throw err;
+  }
+}
+
+async function checkDepositOnArc(record: DepositRecord): Promise<DepositCheck> {
+  const own = await ownReceipt(record.hash);
+  if (own) return { outcome: own };
+  if (record.chainId === 0) return { outcome: "pending" }; // an older hash-only record: receipt is all we can check
+  const fundedBy = await findFunding(record);
+  if (fundedBy) return { outcome: "confirmed", fundedBy };
+
+  // Not mined and nothing funded: was its nonce used by another transaction? Learn the nonce while a
+  // node still knows the transaction; without it, keep waiting rather than guess.
+  const client = getPublicClient(wagmiConfig, { chainId: ARC.chainId });
+  let nonce = record.nonce;
+  if (nonce === null && client) {
+    try { nonce = (await client.getTransaction({ hash: record.hash })).nonce; } catch { /* not known to this node */ }
+  }
+  if (nonce === null || !client) return { outcome: "pending" };
+  const used = await client.getTransactionCount({ address: record.wallet, blockTag: "latest" });
+  if (used <= nonce) return { outcome: "pending", nonce };
+  // The nonce is used. Check once more, in case this very deposit was mined between the reads above.
+  const again = await ownReceipt(record.hash);
+  if (again) return { outcome: again, nonce };
+  const late = await findFunding(record);
+  if (late) return { outcome: "confirmed", fundedBy: late, nonce };
+  return { outcome: "replaced", nonce };
+}
 
 const driver: ChainDriver = MOCK ? mockDriver : realDriver;
 
@@ -263,12 +329,20 @@ export const useApproveReward = () => useTx(sendApproval);
 
 export type FundPhase =
   | "idle"
+  /** Checking a recorded deposit against the chain. */
   | "checking"
   | "approve_wallet"
   | "approve_confirming"
   | "deposit_wallet"
   | "deposit_confirming"
+  /** The deposit is confirmed onchain. Waiting for the indexer; never offer Fund again. */
   | "done"
+  /** A deposit was broadcast and is not resolved yet. Retry checks it; it never sends another. */
+  | "pending"
+  /** The recorded deposit did not fund the bounty (reverted or replaced). Funding may start again. */
+  | "not_funded"
+  /** A deposit from another wallet is recorded for this bounty. */
+  | "other_wallet"
   | "error";
 
 export interface FundInput {
@@ -284,50 +358,100 @@ export interface FundState {
   approveHash: Hex | null;
   depositHash: Hex | null;
   error: ChainError | null;
+  notFundedReason: "reverted" | "replaced" | null;
+  otherWallet: Address | null;
 }
 
-const FUND_IDLE: FundState = { phase: "idle", approveHash: null, depositHash: null, error: null };
+const FUND_IDLE: FundState = { phase: "idle", approveHash: null, depositHash: null, error: null, notFundedReason: null, otherWallet: null };
+
+const fundingChain: FundingChain = {
+  allowance: (owner) => driver.allowance(owner),
+  approveUsdc: (amount, onSubmitted) => driver.approveUsdc(amount, onSubmitted),
+  blockNumber: () => driver.blockNumber(),
+  createBounty: (args, onSubmitted) => driver.send({ fn: "createBounty", args }, onSubmitted),
+  checkDeposit: (record) => driver.checkDeposit(record),
+};
+
+const depositStore = (): DepositStore =>
+  MOCK ? mockDepositStore : browserDepositStore({ chainId: ARC.chainId, escrow: escrowContractAddress });
+
+function applyResult(r: FundResult, prev: FundState): FundState {
+  switch (r.kind) {
+    case "confirmed": return { ...prev, phase: "done", depositHash: r.hash, error: null };
+    case "pending": return { ...prev, phase: "pending", depositHash: r.hash, error: null };
+    case "not_funded": return { ...prev, phase: "not_funded", depositHash: r.hash, notFundedReason: r.reason, error: null };
+    case "other_wallet": return { ...prev, phase: "other_wallet", depositHash: r.hash, otherWallet: r.wallet };
+    case "busy": return prev;
+  }
+}
 
 /**
- * Funding a bounty: allow the escrow contract to take exactly this amount of USDC, then
- * createBounty, which pulls it. The allowance step is skipped when it is already enough.
+ * Funding a bounty: allow the escrow contract to take exactly this amount of USDC, then createBounty.
+ * The deposit is recorded the moment the wallet broadcasts it. While that record is unresolved, run()
+ * and recheck() only check it against the chain; another deposit is possible only once the chain shows
+ * the recorded one did not fund the bounty. A refresh resumes from the record. See deposit-flow.ts.
  */
-export function useFundBounty() {
-  const [state, setState] = useState<FundState>(FUND_IDLE);
+export function useFundBounty(bountyId: string, owner: Address | null, onDepositSubmitted?: (hash: Hex) => void) {
+  const recorded = depositStore().get(bountyId);
+  const [state, setState] = useState<FundState>(() =>
+    recorded ? { ...FUND_IDLE, phase: "checking", depositHash: recorded.hash } : FUND_IDLE);
+  const submitted = useRef(onDepositSubmitted);
+  useEffect(() => { submitted.current = onDepositSubmitted; }, [onDepositSubmitted]);
 
-  const run = useCallback(async (input: FundInput, owner: Address): Promise<TxResult | null> => {
-    const amount = BigInt(input.amountUnits);
-    setState({ ...FUND_IDLE, phase: "checking" });
-    try {
-      if ((await driver.allowance(owner)) < amount) {
-        setState((s) => ({ ...s, phase: "approve_wallet" }));
-        await driver.approveUsdc(amount, (approveHash) =>
-          setState((s) => ({ ...s, phase: "approve_confirming", approveHash })),
-        );
+  // Resume a deposit recorded before this page loaded (a refresh, or an earlier failure).
+  const recordedHash = recorded?.hash ?? null;
+  useEffect(() => {
+    if (!recordedHash) return;
+    let live = true;
+    const record = depositStore().get(bountyId);
+    if (!record) return;
+    void resolveDeposit(fundingChain, depositStore(), record, owner).then((r) => { if (live) setState((s) => applyResult(r, s)); });
+    return () => { live = false; };
+  }, [bountyId, owner, recordedHash]);
+
+  const onEvent = useCallback((e: FundEvent) => {
+    setState((s) => {
+      switch (e.type) {
+        case "approve_wallet": return { ...s, phase: "approve_wallet" };
+        case "approve_submitted": return { ...s, phase: "approve_confirming", approveHash: e.hash };
+        case "deposit_wallet": return { ...s, phase: "deposit_wallet" };
+        case "deposit_submitted": return { ...s, phase: "deposit_confirming", depositHash: e.hash };
+        case "checking": return { ...s, phase: "checking", depositHash: e.hash };
       }
-      setState((s) => ({ ...s, phase: "deposit_wallet" }));
-      const result = await driver.send(
-        {
-          fn: "createBounty",
-          args: [
-            computePrHash(input.githubRepoId, input.prNumber),
-            amount,
-            BigInt(Math.floor(new Date(input.deadline).getTime() / 1000)),
-          ],
-        },
-        (depositHash) => setState((s) => ({ ...s, phase: "deposit_confirming", depositHash })),
-      );
-      setState((s) => ({ ...s, phase: "done", depositHash: result.hash }));
+    });
+    if (e.type === "deposit_submitted") submitted.current?.(e.hash);
+  }, []);
+
+  const run = useCallback(async (input: FundInput): Promise<FundResult | null> => {
+    if (!owner) return null;
+    setState((s) => ({ ...s, phase: "checking", error: null, notFundedReason: null }));
+    try {
+      const result = await fund(fundingChain, depositStore(), {
+        bountyId, owner, chainId: ARC.chainId, escrow: escrowContractAddress as Address,
+        prHash: computePrHash(input.githubRepoId, input.prNumber), amount: BigInt(input.amountUnits),
+        expiry: BigInt(Math.floor(new Date(input.deadline).getTime() / 1000)),
+      }, onEvent);
+      setState((s) => applyResult(result, s));
       return result;
     } catch (err) {
+      // Only reachable before a deposit was broadcast (wallet rejection, allowance failure, simulation revert).
       setState((s) => ({ ...s, phase: "error", error: toChainError(err) }));
       return null;
     }
-  }, []);
+  }, [bountyId, owner, onEvent]);
 
-  const reset = useCallback(() => setState(FUND_IDLE), []);
-  const busy = !["idle", "done", "error"].includes(state.phase);
-  return { ...state, busy, run, reset };
+  const recheck = useCallback(async () => {
+    const record = depositStore().get(bountyId);
+    if (!record) return;
+    setState((s) => ({ ...s, phase: "checking" }));
+    const r = await resolveDeposit(fundingChain, depositStore(), record, owner);
+    setState((s) => applyResult(r, s));
+  }, [bountyId, owner]);
+
+  const busy = ["checking", "approve_wallet", "approve_confirming", "deposit_wallet", "deposit_confirming"].includes(state.phase);
+  /** True when the next action must be a fresh deposit (nothing recorded, or the recorded one did not fund). */
+  const canFund = ["idle", "error", "not_funded"].includes(state.phase);
+  return { ...state, busy, canFund, run, recheck };
 }
 
 /* ------------------------------------------------------------------ signing */

@@ -22,43 +22,45 @@ function Lead({ children }: { children: ReactNode }) {
 
 /* ---------- funding ---------- */
 
-const FUND_STEPS: { title: string; body: string; active: FundPhase[]; doneAfter: FundPhase[] }[] = [
+type FundStep = { title: string; body: string; active: (p: FundPhase, sent: boolean) => boolean; done: (p: FundPhase, sent: boolean) => boolean };
+
+const FUND_STEPS: FundStep[] = [
   {
     title: "Allow the escrow contract to take this amount",
     body: "A one-time permission for exactly this bounty's amount of your testnet USDC.",
-    active: ["checking", "approve_wallet", "approve_confirming"],
-    doneAfter: ["deposit_wallet", "deposit_confirming", "done"],
+    active: (p, sent) => p === "approve_wallet" || p === "approve_confirming" || (p === "checking" && !sent),
+    done: (p, sent) => sent && p !== "not_funded",
   },
   {
     title: "Deposit into escrow",
     body: "The contract pulls the USDC and locks it for this pull request.",
-    active: ["deposit_wallet", "deposit_confirming"],
-    doneAfter: ["done"],
+    active: (p, sent) => p === "deposit_wallet" || p === "deposit_confirming" || p === "pending" || (p === "checking" && sent),
+    done: (p) => p === "done",
   },
   {
     title: "Confirmed by the contract",
     body: "The bounty shows as Funded once the contract's funding event has been indexed.",
-    active: ["done"],
-    doneAfter: [],
+    active: (p) => p === "done",
+    done: () => false,
   },
 ];
 
+const sameWallet = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+
 function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
   const wallet = useWallet();
-  const fund = useFundBounty();
   const report = useReportFundingTx();
+  // Called the moment the wallet broadcasts the deposit, before any receipt: the deposit is recorded by then.
+  const fund = useFundBounty(bounty.id, wallet.address, (txHash) => {
+    onSent();
+    report.mutate({ bountyId: bounty.id, txHash });
+  });
+  const sent = !!fund.depositHash && fund.phase !== "not_funded";
+  // Prompt 1: a bounty only binds funding from the wallet recorded when it was created.
+  const wrongWallet = !!bounty.funderWallet && !!wallet.address && !sameWallet(bounty.funderWallet, wallet.address);
 
-  const start = async () => {
-    if (!wallet.address) return;
-    const result = await fund.run(
-      { githubRepoId: bounty.repo.githubRepoId, prNumber: bounty.pr.number, amountUnits: bounty.amountUnits, deadline: bounty.deadline },
-      wallet.address,
-    );
-    if (result) {
-      onSent();
-      report.mutate({ bountyId: bounty.id, txHash: result.hash });
-    }
-  };
+  const start = () =>
+    fund.run({ githubRepoId: bounty.repo.githubRepoId, prNumber: bounty.pr.number, amountUnits: bounty.amountUnits, deadline: bounty.deadline });
 
   return (
     <div>
@@ -70,8 +72,8 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
 
       <ol className="mt-4 space-y-2">
         {FUND_STEPS.map((s, i) => {
-          const active = s.active.includes(fund.phase);
-          const done = s.doneAfter.includes(fund.phase);
+          const active = s.active(fund.phase, sent);
+          const done = s.done(fund.phase, sent);
           return (
             <li key={s.title} className={cx("flex gap-3 rounded-card px-4 py-3 transition-colors duration-500", active ? "bg-tint" : "bg-card shadow-inner-card")}>
               <span
@@ -80,7 +82,7 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
                   done ? "bg-ink text-bg" : active ? "bg-accent text-bg" : "bg-tray-2 text-mut",
                 )}
               >
-                {done ? <IconCheck size={12} /> : active ? <Spinner className="size-3" /> : i + 1}
+                {done ? <IconCheck size={12} /> : active && fund.phase !== "done" ? <Spinner className="size-3" /> : i + 1}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-medium">{s.title}</span>
@@ -95,22 +97,53 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
         })}
       </ol>
 
-      {fund.error && (
-        <div className="mt-3">
-          <ChainErrorView error={fund.error} />
-        </div>
-      )}
+      <div className="mt-3 space-y-3">
+        {fund.phase === "pending" && (
+          <Notice tone="progress" title="Deposit sent. Arc has not confirmed it yet">
+            Your wallet broadcast the deposit, but its result is not known yet. Checking again looks at that same
+            deposit; it never sends another one.
+          </Notice>
+        )}
+        {fund.phase === "done" && (
+          <Notice tone="good" title="Deposit confirmed on Arc">
+            Waiting for the funding event to be indexed. The bounty shows as Funded then. There is nothing more to sign.
+          </Notice>
+        )}
+        {fund.phase === "not_funded" && (
+          <Notice tone="warning" title={fund.notFundedReason === "reverted" ? "That deposit reverted" : "That deposit was replaced"}>
+            {fund.notFundedReason === "reverted"
+              ? "Arc reverted the deposit, so no USDC moved. You can fund the bounty again."
+              : "Your wallet used that transaction's slot for a different transaction, and nothing funded this bounty. You can fund it again."}
+          </Notice>
+        )}
+        {fund.phase === "other_wallet" && fund.otherWallet && (
+          <Notice tone="warning" title="A deposit from another wallet is recorded">
+            A deposit from <AddressLink address={fund.otherWallet} /> is waiting for this bounty. Connect that wallet to check it.
+          </Notice>
+        )}
+        {fund.canFund && wrongWallet && bounty.funderWallet && (
+          <Notice tone="warning" title="Switch to your linked wallet">
+            This bounty only accepts funding from <AddressLink address={bounty.funderWallet} />, the wallet linked to your
+            GitHub account. A deposit from this wallet would not count toward it.
+          </Notice>
+        )}
+        {fund.error && <ChainErrorView error={fund.error} />}
+      </div>
 
-      {fund.phase !== "done" && (
-        <div className="mt-4">
-          <WalletGate reason="Connect the wallet that holds your testnet USDC.">
-            <Button variant="accent" onClick={start} loading={fund.busy}>
+      <div className="mt-4">
+        <WalletGate reason="Connect the wallet that holds your testnet USDC.">
+          {fund.canFund ? (
+            <Button variant="accent" onClick={() => void start()} loading={fund.busy} disabled={wrongWallet}>
               <IconLock size={15} />
-              {fund.phase === "error" ? "Try again" : `Fund ${formatUsdc(bounty.amountUnits)}`}
+              {fund.phase === "error" ? "Try again" : fund.phase === "not_funded" ? "Fund again" : `Fund ${formatUsdc(bounty.amountUnits)}`}
             </Button>
-          </WalletGate>
-        </div>
-      )}
+          ) : fund.phase === "pending" || fund.phase === "checking" ? (
+            <Button variant="secondary" onClick={() => void fund.recheck()} loading={fund.busy}>
+              Check the deposit again
+            </Button>
+          ) : null}
+        </WalletGate>
+      </div>
     </div>
   );
 }
@@ -287,6 +320,8 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
       );
 
     case "funding_pending":
+      // The funder's own browser resumes the recorded deposit here instead of offering a second one.
+      if (isFunder) return <FundPanel bounty={bounty} onSent={onSent} />;
       return (
         <Waiting title="Waiting for the deposit to be confirmed" hash={bounty.pendingTxHash}>
           The deposit was sent. This bounty shows as Funded once the escrow contract&apos;s funding event has been indexed.
