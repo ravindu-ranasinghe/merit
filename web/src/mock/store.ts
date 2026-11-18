@@ -5,6 +5,7 @@
 import { buildSeed, fakeHash, PERSONAS, type PersonaKey, type Seed, type SeedOnchain } from "@/fixtures/seed";
 import type { Address, Bounty, ChainEvent, Hex } from "@/lib/api/types";
 import { computePrHash } from "@/lib/chain/driver";
+import type { DepositRecord, DepositStore } from "@/lib/chain/deposit-flow";
 import { ARC, MOCK_ESCROW_ADDRESS } from "@/lib/env";
 
 interface Db extends Seed {
@@ -36,6 +37,40 @@ export function getDb(): Db {
 
 export function resetDb() {
   db = null;
+  mockDeposits.clear();
+  mockTxOutcomes.clear();
+}
+
+/* ---------- recorded deposits and their outcomes (reset with the sample data) ---------- */
+
+const mockDeposits = new Map<string, DepositRecord>();
+
+/** In mock mode a recorded deposit lives in memory, like the rest of the sample chain. */
+export const mockDepositStore: DepositStore = {
+  get: (bountyId) => mockDeposits.get(bountyId) ?? null,
+  set: (record) => { mockDeposits.set(record.bountyId, record); },
+  clear: (bountyId) => { mockDeposits.delete(bountyId); },
+};
+
+/** Broadcast mock transactions that are not mined yet ("pending") or that reverted after broadcast. */
+export const mockTxOutcomes = new Map<Hex, "pending" | "reverted">();
+
+/**
+ * Mock-only fault injection for the deposit recovery path. Set in the browser console, for example
+ *   sessionStorage.setItem("merit.mock.fault", "receipt-timeout")
+ * The next deposit consumes it. "receipt-timeout": the deposit is mined and indexed, but the receipt
+ * lookup throws. "revert-after-broadcast": the deposit is broadcast, then reverts.
+ */
+export type MockFault = "receipt-timeout" | "revert-after-broadcast";
+export function takeMockFault(): MockFault | null {
+  try {
+    const v = window.sessionStorage.getItem("merit.mock.fault");
+    if (v !== "receipt-timeout" && v !== "revert-after-broadcast") return null;
+    window.sessionStorage.removeItem("merit.mock.fault");
+    return v;
+  } catch {
+    return null;
+  }
 }
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

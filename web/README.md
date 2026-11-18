@@ -24,6 +24,7 @@ npm run dev                  # http://localhost:3000
 | `npm run lint` | ESLint (must be clean) |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run sync-abi` | Regenerates `src/lib/chain/escrow-abi.ts` from `docs/escrow-abi.json` |
+| `npm run check:deposit` | Regression check: a broadcast deposit plus a receipt failure never leads to a second deposit |
 
 CI runs lint, typecheck and build with `NEXT_PUBLIC_MOCK=1`.
 
@@ -48,6 +49,29 @@ are hard to reproduce live, and the demo-day contingency.
 
 Suggested walk-through: `/maintainer/new` → create and fund → open `/bounties/b-107` →
 "Review and approve payout" → switch to **Reviewer** → Claim → "Try a second claim".
+
+## Funding recovery
+
+A deposit (`createBounty`) is recorded the moment the wallet broadcasts it, with its wallet, chain, escrow
+and terms (`src/lib/chain/deposit-flow.ts`). If the receipt lookup then fails, or the page is refreshed, the
+panel checks that same deposit against Arc instead of offering another one:
+
+- its receipt succeeded, or a replacement from the same wallet emitted the matching `BountyFunded`: confirmed,
+  wait for indexing, nothing more to sign;
+- its receipt reverted, or its nonce was used by a transaction that did not fund the bounty: "Fund again";
+- otherwise it is still pending: "Check the deposit again", which never sends a transaction.
+
+The USDC approval is never recorded as a deposit. Funding must come from `bounty.funder_wallet`, the wallet
+recorded when the bounty was created; the panel blocks funding from any other wallet.
+
+Limit: the record lives in this browser's `localStorage`. Another browser or device does not see a deposit
+sent from here and, while it is unindexed, would offer "Fund" again. The backend records no funding hash.
+
+`npm run check:deposit` runs the orchestration under Node with a fake chain: one deposit after a receipt
+failure and retry, resume after refresh, revert and replacement, rejection before broadcast, allowance-only
+failure, double clicks and another wallet. In mock mode, set a one-shot fault in the browser console before
+clicking Fund: `sessionStorage.setItem("merit.mock.fault", "receipt-timeout")` (mined, but the receipt
+lookup throws) or `"revert-after-broadcast"`.
 
 ## Environment variables
 

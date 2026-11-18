@@ -23,6 +23,7 @@ import {
   type TxRef,
   type QualificationEvidence,
 } from "@/lib/api/types";
+import { recordedDepositHash } from "@/lib/chain/deposit-store";
 import { BACKEND_URL } from "@/lib/env";
 
 /* ------------------------------------------------------------------ wire shapes (docs/api.md) */
@@ -216,20 +217,12 @@ const toEvent = (e: WEvent, bountyId?: string): ChainEvent => ({
 const CHAIN_KEY = { BountyFunded: "funded", RewardApproved: "approved", RewardPaid: "paid", BountyRefunded: "refunded" } as const;
 
 /**
- * The backend calls a bounty `funding_pending` from the moment it is created and takes no
- * funding hash. The UI only says "deposit sent" for a real transaction, so the hash of the
- * createBounty transaction is remembered here; without one the bounty is a `draft` to fund.
- * shortcut: the hash lives in this browser only, so another browser offers "Fund" again
- * while the deposit is unindexed. Upgrade when the backend records a funding tx hash.
+ * The backend calls a bounty `funding_pending` from the moment it is created and records no funding
+ * hash. The UI only says "deposit sent" for a real transaction: the createBounty deposit is recorded in
+ * this browser the moment it is broadcast (lib/chain/deposit-store.ts); without one the bounty is a
+ * `draft` to fund. That record is per browser; see deposit-store.ts for the limit.
  */
-const depositKey = (id: string | number) => `merit:deposit:${id}`;
-function depositHash(id: string | number): Hex | null {
-  try {
-    return localStorage.getItem(depositKey(id)) as Hex | null;
-  } catch {
-    return null;
-  }
-}
+const depositHash = (id: string | number) => recordedDepositHash(String(id));
 
 function toBounty(b: WBounty): Bounty {
   const approval = pickApproval(b.approvals);
@@ -374,13 +367,9 @@ export const httpApi: Api = {
     return toBounty(bounty);
   },
 
-  // Only the BountyFunded event from Streams marks a bounty funded; the hash just keys the waiting state.
-  async reportFundingTx(id, txHash) {
-    try {
-      localStorage.setItem(depositKey(id), txHash);
-    } catch {
-      /* storage blocked: the bounty stays a draft until the event is indexed */
-    }
+  // Only the BountyFunded event from Streams marks a bounty funded. The deposit itself is already recorded,
+  // with its wallet and terms, by the funding hook at broadcast; this only refreshes the bounty.
+  async reportFundingTx(id) {
     return getBounty(id);
   },
 

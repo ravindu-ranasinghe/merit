@@ -1,5 +1,6 @@
 import { encodeAbiParameters, getAbiItem, keccak256, toEventSelector, type AbiEvent } from "viem";
 import type { Address, ChainEventType, Hex } from "@/lib/api/types";
+import type { DepositCheck, DepositRecord } from "@/lib/chain/deposit-flow";
 import { escrowAbi } from "@/lib/chain/escrow-abi";
 
 /** The four state-changing calls on BountyEscrow, in the frozen SPEC.md argument order. */
@@ -51,6 +52,10 @@ export interface ChainDriver {
   simulate(call: EscrowCall, from: Address): Promise<void>;
   /** Receipt and block for a mined transaction, or null if Arc does not know the hash. */
   txDetails(hash: Hex): Promise<TxDetails | null>;
+  /** Latest block number. */
+  blockNumber(): Promise<bigint>;
+  /** What the chain says about a broadcast deposit. See deposit-flow.ts. */
+  checkDeposit(record: DepositRecord): Promise<DepositCheck>;
   signMessage(message: string): Promise<Hex>;
 }
 
