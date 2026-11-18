@@ -19,6 +19,8 @@ export interface ChangedFile { filename: string; patch?: string }
 export interface PullRequestInfo { number: number; headSha: string; status: "open" | "closed" | "merged"; authorId: number; title?: string; author?: GithubIdentity }
 export interface RepositoryInfo { isPublic: boolean; description: string | null; language: string | null }
 export interface ReviewThread { id: string; resolved: boolean; commentId: number }
+/** A PR conversation comment. `appId` is set when a GitHub App posted it (performed_via_github_app). */
+export interface IssueComment { id: number; body: string; appId: number | null }
 
 // Everything the backend needs from GitHub. Real impl below; in-memory mock for local dev and tests.
 export interface GitHubClient {
@@ -35,6 +37,12 @@ export interface GitHubClient {
   getRepository(installationId: number, repoFullName: string): Promise<RepositoryInfo>;
   listReviewComments(installationId: number, repoFullName: string, prNumber: number): Promise<ReviewComment[]>;
   listReviewThreads(installationId: number, repoFullName: string, prNumber: number): Promise<ReviewThread[]>;
+  /** The App's own numeric id, used to recognise comments this App posted. */
+  readonly appId: number;
+  listIssueComments(installationId: number, repoFullName: string, issueNumber: number): Promise<IssueComment[]>;
+  createIssueComment(installationId: number, repoFullName: string, issueNumber: number, body: string): Promise<IssueComment>;
+  updateIssueComment(installationId: number, repoFullName: string, commentId: number, body: string): Promise<void>;
+  deleteIssueComment(installationId: number, repoFullName: string, commentId: number): Promise<void>;
 }
 
 export function createOctokitClient(env: Env): GitHubClient {
@@ -45,8 +53,11 @@ export function createOctokitClient(env: Env): GitHubClient {
   // Display metadata only; authorization and repository visibility always use live requests.
   const users = new Map<number, { until: number; value: GithubIdentity }>();
   const pulls = new Map<string, { until: number; value: PullRequestInfo }>();
+  const issueComment = (c: { id: number | bigint; body?: string; performed_via_github_app?: { id: number | bigint } | null }): IssueComment =>
+    ({ id: Number(c.id), body: c.body ?? "", appId: c.performed_via_github_app ? Number(c.performed_via_github_app.id) : null });
   return {
     mock: false,
+    appId: Number(appId),
     oauthUrl: (state) => `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${state}`,
     async exchangeCode(code) {
       const t = await fetch("https://github.com/login/oauth/access_token", {
@@ -129,6 +140,30 @@ export function createOctokitClient(env: Env): GitHubClient {
       } while (cursor);
       return threads;
     },
+    // PR conversation comments are issue comments. Needs the App permission "Issues: write" or "Pull requests: write".
+    async listIssueComments(installationId, repoFullName, issueNumber) {
+      const o = await inst(installationId);
+      const out: IssueComment[] = [];
+      for (let page = 1; page <= 20; page++) {
+        const { data } = await o.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, per_page: 100, page });
+        out.push(...data.map(issueComment));
+        if (data.length < 100) break;
+      }
+      return out;
+    },
+    async createIssueComment(installationId, repoFullName, issueNumber, body) {
+      const o = await inst(installationId);
+      const { data } = await o.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, body });
+      return issueComment(data);
+    },
+    async updateIssueComment(installationId, repoFullName, commentId, body) {
+      const o = await inst(installationId);
+      await o.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId, body });
+    },
+    async deleteIssueComment(installationId, repoFullName, commentId) {
+      const o = await inst(installationId);
+      await o.request("DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId });
+    },
     async getReviewComment(installationId, repoFullName, commentId) {
       const o = await inst(installationId);
       const { owner, repo } = split(repoFullName);
@@ -173,6 +208,11 @@ export class MockGitHubClient implements GitHubClient {
   repos = new Map<string, RepositoryInfo>();
   threads = new Map<string, ReviewThread[]>();
   compareCalls = 0;
+  readonly appId = 424242;
+  issueComments = new Map<string, IssueComment[]>(); // `${repo}#${issueNumber}`
+  issueCommentWrites = { create: 0, update: 0, delete: 0 };
+  failIssueComments = false;
+  private nextIssueCommentId = 1;
   oauthUrl = (state: string) => `/auth/github/callback?code=mock:1001:maintainer-demo&state=${state}`;
   async exchangeCode(code: string) {
     const m = /^mock:(\d+):(.+)$/.exec(code);
@@ -207,6 +247,37 @@ export class MockGitHubClient implements GitHubClient {
   }
   async listReviewThreads(_i: number, repo: string, prNumber: number) {
     return this.threads.get(`${repo}#${prNumber}`) ?? [];
+  }
+  private issueList(repo: string, n: number) {
+    if (this.failIssueComments) throw new Error("mock: GitHub unavailable");
+    const k = `${repo}#${n}`;
+    if (!this.issueComments.has(k)) this.issueComments.set(k, []);
+    return this.issueComments.get(k)!;
+  }
+  private findIssueComment(repo: string, id: number) {
+    if (this.failIssueComments) throw new Error("mock: GitHub unavailable");
+    for (const [k, list] of this.issueComments) if (k.startsWith(`${repo}#`) && list.some((c) => c.id === id)) return list;
+    throw new Error("mock: comment not found");
+  }
+  async listIssueComments(_i: number, repo: string, n: number) {
+    return this.issueList(repo, n).map((c) => ({ ...c }));
+  }
+  async createIssueComment(_i: number, repo: string, n: number, body: string) {
+    const c = { id: this.nextIssueCommentId++, body, appId: this.appId };
+    this.issueList(repo, n).push(c);
+    this.issueCommentWrites.create++;
+    return { ...c };
+  }
+  async updateIssueComment(_i: number, repo: string, id: number, body: string) {
+    const c = this.findIssueComment(repo, id).find((x) => x.id === id)!;
+    if (c.appId !== this.appId) throw new Error("mock: 403, not this App's comment");
+    c.body = body;
+    this.issueCommentWrites.update++;
+  }
+  async deleteIssueComment(_i: number, repo: string, id: number) {
+    const list = this.findIssueComment(repo, id);
+    list.splice(list.findIndex((x) => x.id === id), 1);
+    this.issueCommentWrites.delete++;
   }
 }
 

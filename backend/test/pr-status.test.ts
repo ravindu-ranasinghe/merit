@@ -1,0 +1,161 @@
+import { encodeAbiParameters, encodeEventTopics, keccak256, type Hex } from "viem";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { claimId, escrowAbi, prHash } from "../src/chain/escrow.js";
+import { approvals, bounties, chain_events, pull_requests, review_candidates } from "../src/db/schema.js";
+import { marker, renderStatusComment, stageOf, usd } from "../src/github/pr-status.js";
+import { loadEnv } from "../src/env.js";
+import { qnSign } from "../src/streams/webhook.js";
+import { DEMO, ESCROW, QN_TOKEN, setup, type Harness } from "./helpers.js";
+
+let h: Harness;
+beforeEach(async () => { h?.close && (await h.close()); h = await setup(); });
+afterAll(() => h.close());
+
+const FUNDER = "0x00000000000000000000000000000000000000f1";
+const REVIEWER = "0x00000000000000000000000000000000000000a2";
+const BID = 7n, AMOUNT = 10_000_000n;
+const CLAIM = claimId(5550001);
+const PRH = prHash(DEMO.repoId, DEMO.prNumber);
+const hash = (n: number) => keccak256(`0x${n.toString(16).padStart(2, "0")}`);
+
+type Spec = { name: "BountyFunded" | "RewardApproved" | "RewardPaid" | "BountyRefunded"; args: Record<string, unknown>; types: { type: string }[]; data: unknown[] };
+const EV = {
+  funded: { name: "BountyFunded", args: { bountyId: BID, funder: FUNDER, prHash: PRH }, types: [{ type: "uint256" }, { type: "uint64" }], data: [AMOUNT, 4102444800n] },
+  approved: { name: "RewardApproved", args: { bountyId: BID, recipient: REVIEWER }, types: [{ type: "uint256" }, { type: "bytes32" }], data: [AMOUNT, CLAIM] },
+  paid: { name: "RewardPaid", args: { bountyId: BID, recipient: REVIEWER }, types: [{ type: "uint256" }, { type: "bytes32" }], data: [AMOUNT, CLAIM] },
+  refunded: { name: "BountyRefunded", args: { bountyId: BID, funder: FUNDER }, types: [{ type: "uint256" }], data: [AMOUNT] },
+} satisfies Record<string, Spec>;
+
+function log(s: Spec, block: number) {
+  const topics = encodeEventTopics({ abi: escrowAbi, eventName: s.name, args: s.args } as never);
+  return { address: ESCROW, topics, data: encodeAbiParameters(s.types as never, s.data as never) as Hex, blockNumber: `0x${block.toString(16)}`, transactionHash: hash(block), logIndex: "0x0" };
+}
+const deliver = (logs: unknown[]) => {
+  const body = JSON.stringify({ data: [logs] });
+  return h.app.inject({ method: "POST", url: "/webhooks/streams", payload: body,
+    headers: { "content-type": "application/json", "x-qn-nonce": "n", "x-qn-timestamp": "1", "x-qn-signature": qnSign(QN_TOKEN, "n", "1", body) } });
+};
+
+async function seedBounty(withApproval = false) {
+  const [pr] = await h.db.select().from(pull_requests);
+  const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
+  if (withApproval) {
+    const [c] = await h.db.insert(review_candidates).values({ pr_id: pr!.id, github_comment_id: 5550001, github_reviewer_id: DEMO.reviewerId, file_path: "a", diff_hunk: "", commit_sha: "x", status: "confirmed", qualification_evidence: { method: "manual", limitations: "l" } }).returning();
+    await h.db.insert(approvals).values({ bounty_id: b!.id, candidate_id: c!.id, reviewer_id: DEMO.reviewerId, approver_github_id: DEMO.maintainerId, amount_units: "10000000", approved_recipient: REVIEWER, claim_id: CLAIM });
+  }
+  h.gh.users.set(DEMO.reviewerId, { id: DEMO.reviewerId, login: "jun-park" });
+  return b!;
+}
+const comments = () => h.gh.issueComments.get(`${DEMO.name}#${DEMO.prNumber}`) ?? [];
+
+describe("PR status comment from indexed events", () => {
+  it("BountyFunded creates one comment on the PR", async () => {
+    const b = await seedBounty();
+    expect((await deliver([log(EV.funded, 1)])).statusCode).toBe(200);
+    expect(comments()).toHaveLength(1);
+    expect(comments()[0]!.body).toContain(marker(b.id));
+    expect(comments()[0]!.body).toContain("$10.00 test USDC review reward · Funded");
+    expect(comments()[0]!.body).toContain(`http://localhost:3000/bounties/${b.id}`);
+  });
+
+  it("a replayed delivery neither posts nor edits anything", async () => {
+    await seedBounty();
+    for (let i = 0; i < 3; i++) await deliver([log(EV.funded, 1)]);
+    expect(comments()).toHaveLength(1);
+    expect(h.gh.issueCommentWrites).toEqual({ create: 1, update: 0, delete: 0 });
+  });
+
+  it("follows the lifecycle in one comment: mention when claimable, receipt link when paid", async () => {
+    const b = await seedBounty(true);
+    await deliver([log(EV.funded, 1)]);
+    await deliver([log(EV.approved, 2)]);
+    expect(comments()[0]!.body).toContain("@jun-park, your reward is ready to claim");
+    await deliver([log(EV.paid, 3)]);
+    expect(comments()).toHaveLength(1);
+    const body = comments()[0]!.body;
+    expect(body).toContain("review reward · Paid");
+    expect(body).toContain(`/bounties/${b.id}/receipt`);
+    expect(body).not.toContain("@jun-park"); // the paid stage links the profile instead of notifying again
+    expect(h.gh.issueCommentWrites).toEqual({ create: 1, update: 2, delete: 0 });
+  });
+
+  it("a backfill of the whole history after live delivery changes nothing", async () => {
+    await seedBounty(true);
+    await deliver([log(EV.funded, 1)]);
+    await deliver([log(EV.approved, 2)]);
+    await deliver([log(EV.paid, 3)]);
+    const before = { ...h.gh.issueCommentWrites };
+    await deliver([log(EV.funded, 1), log(EV.approved, 2), log(EV.paid, 3)]);
+    expect(h.gh.issueCommentWrites).toEqual(before);
+  });
+
+  it("out-of-order delivery ends on the same body as in-order delivery", async () => {
+    await seedBounty(true);
+    await deliver([log(EV.paid, 3)]); // no bounty linked yet: nothing to comment on
+    expect(comments()).toHaveLength(0);
+    await deliver([log(EV.approved, 2)]);
+    await deliver([log(EV.funded, 1)]);
+    expect(comments()).toHaveLength(1);
+    expect(comments()[0]!.body).toContain("review reward · Paid");
+  });
+
+  it("GitHub failure never fails or blocks indexing", async () => {
+    await seedBounty();
+    h.gh.failIssueComments = true;
+    const r = await deliver([log(EV.funded, 1)]);
+    expect(r.statusCode).toBe(200);
+    expect(await h.db.select().from(chain_events)).toHaveLength(1);
+    expect((await h.db.select().from(bounties))[0]!.status).toBe("funded");
+    h.gh.failIssueComments = false;
+    await deliver([log(EV.funded, 1)]); // the next delivery (a retry or backfill) heals it
+    expect(comments()).toHaveLength(1);
+  });
+
+  it("ignores a user comment that copies the marker, and removes duplicate Merit comments", async () => {
+    const b = await seedBounty();
+    const key = `${DEMO.name}#${DEMO.prNumber}`;
+    h.gh.issueComments.set(key, [
+      { id: 900, body: `${marker(b.id)} I am not Merit`, appId: null },
+      { id: 901, body: `${marker(b.id)} old`, appId: h.gh.appId },
+      { id: 902, body: `${marker(b.id)} racing duplicate`, appId: h.gh.appId },
+    ]);
+    await deliver([log(EV.funded, 1)]);
+    const list = comments();
+    expect(list.map((c) => c.id)).toEqual([900, 901]);
+    expect(list[0]!.body).toContain("I am not Merit");
+    expect(list[1]!.body).toContain("review reward · Funded");
+  });
+
+  it("GITHUB_PR_COMMENTS=0 turns the feature off", async () => {
+    await seedBounty();
+    h.ctx.env.github.prComments = false;
+    await deliver([log(EV.funded, 1)]);
+    expect(comments()).toHaveLength(0);
+  });
+});
+
+describe("rendering", () => {
+  const base = { bountyId: 3, amountUnits: "7500000", deadline: new Date("2026-11-24T00:00:00Z"), reviewerLogin: "jun-park", tx: {}, webOrigin: "https://merit.example/", explorerUrl: "https://explorer.testnet.arc.io" };
+  it("formats units with BigInt and states the deadline", () => {
+    expect(usd("10000000")).toBe("$10.00");
+    expect(usd("1234567")).toBe("$1.234567");
+    expect(usd("1000000000000")).toBe("$1,000,000.00");
+    const body = renderStatusComment({ ...base, stage: "funded", tx: { funded: "0xabc" } });
+    expect(body).toContain("$7.50 test USDC");
+    expect(body).toContain("open until Nov 24, 2026");
+    expect(body).toContain("[Funding transaction](https://explorer.testnet.arc.io/tx/0xabc)");
+    expect(body).toContain("https://merit.example/bounties/3");
+  });
+  it("mentions nobody when the reviewer login is unknown", () => {
+    expect(renderStatusComment({ ...base, stage: "claimable", reviewerLogin: null })).not.toContain("@");
+  });
+  it("stage is chain-confirmed only", () => {
+    expect(stageOf([])).toBeNull();
+    expect(stageOf(["BountyFunded", "BountyRefunded", "RewardApproved"])).toBe("claimable");
+    expect(stageOf(["BountyFunded", "BountyRefunded"])).toBe("refunded");
+  });
+  it("env flag defaults on and parses 0", () => {
+    expect(loadEnv({ DATABASE_URL: "x" }).github.prComments).toBe(true);
+    expect(loadEnv({ DATABASE_URL: "x", GITHUB_PR_COMMENTS: "0" }).github.prComments).toBe(false);
+  });
+});
