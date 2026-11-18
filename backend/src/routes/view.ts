@@ -4,6 +4,7 @@ import { approvals, bounties, chain_events, pull_requests, repositories, review_
 import { refreshBounty } from "../bounty.js";
 import type { Evidence } from "../github/evidence.js";
 import type { Session } from "../session.js";
+import { approvalMatches } from "../streams/match.js";
 
 export async function canReadRepository(ctx: Ctx, repo: typeof repositories.$inferSelect, session?: Session) {
   try {
@@ -73,8 +74,8 @@ export async function approvalsOfBounty(ctx: Ctx, bountyId: number) {
   const payments = r!.onchainId === null ? [] : await ctx.db.select().from(chain_events)
     .where(eq(chain_events.onchain_bounty_id, r!.onchainId));
   const payout = payments.find((e) => e.event_type === "RewardPaid")?.payload as { claimId: string; recipient: string; amount: string } | undefined;
-  const matched = payout ? rows.filter((a) => a.status !== "prepared" && a.claim_id === payout.claimId
-    && a.approved_recipient.toLowerCase() === payout.recipient?.toLowerCase()) : rows;
+  // Same rule as the Streams receiver: this bounty's approval, matching claim id, recipient and amount.
+  const matched = payout ? rows.filter((a) => a.status !== "prepared" && a.claim_id === payout.claimId && approvalMatches(a, payout)) : rows;
   return Promise.all(matched.map(async (a) => ({ ...a,
     amount_units: payout?.amount ?? a.amount_units,
     reviewer: await displayUser(ctx, r!.installationId, a.reviewer_id),

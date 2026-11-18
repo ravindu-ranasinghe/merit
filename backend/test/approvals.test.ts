@@ -17,7 +17,7 @@ const M = DEMO.maintainerId;
 
 async function fundedBounty() {
   const [pr] = await h.db.select().from(pull_requests);
-  const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
+  const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, funder_wallet: FUNDER, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
   const topics = encodeEventTopics({ abi: escrowAbi, eventName: "BountyFunded", args: { bountyId: 7n, funder: FUNDER as Hex, prHash: prHash(DEMO.repoId, DEMO.prNumber) } } as never);
   const data = encodeAbiParameters([{ type: "uint256" }, { type: "uint64" }], [10_000_000n, 4102444800n]);
   await stream([{ address: ESCROW, topics, data, blockNumber: "0x1", transactionHash: keccak256("0x01"), logIndex: "0x0" }]);
@@ -140,6 +140,8 @@ describe("approval gate", () => {
 });
 
 describe("maintainer actions", () => {
+  // A maintainer funds from their verified wallet: POST /bounties records it as the funding intent's funder.
+  beforeEach(async () => { await linkWallet(M, FUNDER); });
   const expiry = () => Math.floor(Date.now() / 1000) + 86400;
   const create = (body: object, uid = M) => h.app.inject({ method: "POST", url: "/bounties", headers: h.cookie(uid), payload: body });
   const req = (over: object = {}) => ({ github_repo_id: DEMO.repoId, pr_number: 1, amount_units: "10000000", expiry: expiry(), ...over });

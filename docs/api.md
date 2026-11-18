@@ -91,8 +91,9 @@ reviewer identities; approvals also carry the approver identity. These are displ
   Rows include `description` and `language` from GitHub. Failed visibility checks exclude the repository.
 - `GET /reviewers/:id` returns `{ user, bounties }`: public contributions by numeric GitHub ID,
   including their candidates, committed approvals, and indexed events. The UI counts earnings only
-  with a `RewardPaid` event, not a prepared approval or unclaimed reward. Paid approvals must match
-  the indexed claim ID and recipient; the display amount is taken from that payment event.
+  with a `RewardPaid` event, not a prepared approval or unclaimed reward. Paid approvals must belong to
+  the bounty the payment event is linked to and match its claim ID, recipient and amount; the display amount
+  is taken from that payment event. The Streams receiver and the PR status comment apply the same rule.
 - `GET /bounties/:id/badge.svg` returns a live SVG reward/status badge for a verified public
   repository, with a 30-second public cache. Amounts are explicitly test USDC. Private badges return 404.
 - `POST /bounties/:id/refresh` requires a signed session. Public repositories can be rechecked
@@ -159,12 +160,25 @@ All need a session and re-check, at call time and against the GitHub API, that t
 
 | Method, path | Request | Response |
 |---|---|---|
-| `POST /bounties` | `{ github_repo_id: number, pr_number: number, amount_units: string, expiry: number }` (`expiry` = unix seconds, must be in the future) | 201 `{ bounty: Bounty, funding: { approve_usdc: PreparedTx, create_bounty: PreparedTx } }`. Creates a `funding_pending` row. The funder wallet sends `approve_usdc` then `create_bounty`; Streams' `BountyFunded` flips it to `funded`. 404 if the PR is unknown to the backend, 409 if a live bounty already exists for that PR. |
+| `POST /bounties` | `{ github_repo_id: number, pr_number: number, amount_units: string, expiry: number }` (`expiry` = unix seconds, must be in the future) | 201 `{ bounty: Bounty, funding: { approve_usdc: PreparedTx, create_bounty: PreparedTx } }`. Creates a `funding_pending` row: the **funding intent**. Its `funder_wallet` is the caller's verified wallet from `POST /wallet/link`, never an address from the request. That wallet sends `approve_usdc` then `create_bounty`; Streams' `BountyFunded` flips it to `funded` (see "Funding intent" below). 404 if the PR is unknown to the backend, 409 if the caller has no linked wallet or a live bounty already exists for that PR. |
 | `POST /bounties/:id/candidates/manual` | `{ evidence_url: string }` (a `https://github.com/<owner>/<repo>/pull/<n>#discussion_r<commentId>` link) | 201 `Candidate` with `method: "manual"`, status `candidate`. The comment is fetched from GitHub and must belong to this PR. 400 bad URL, 404 comment not found, 409 if that comment is already a candidate, confirmed or rejected (a `pending` heuristic candidate is upgraded to manual). |
 | `POST /candidates/:id/confirm` | - | `Candidate` with status `confirmed`. Only from `candidate`. |
 | `POST /candidates/:id/reject` | - | `Candidate` with status `rejected`. |
 | `POST /bounties/:id/approvals` | `{ candidate_id: number, amount_units?: string }` (defaults to the full bounty amount) | 201 `{ approval: Approval, tx: PreparedTx, funder_wallet: string }`. Prepares `approveReward`. See rules below. |
 | `POST /approvals/:id/tx` | `{ tx_hash: string }` | `Approval` with status `signed`. Records the hash the wallet reports. Streams' `RewardApproved` is what confirms it. 409 if another approval for the bounty is already signed or paid. |
+
+#### Funding intent
+
+The PR hash is public, so anyone can fund a bounty for any PR on the contract. A `BountyFunded` event binds to a
+pending Merit bounty only when **all** of these match the intent: PR hash, funder (`funder_wallet`, compared
+case-insensitively), integer `amount`, and `expiry` (unix seconds equal to `deadline`). A non-matching event is kept
+in the event ledger but attached to no bounty, and never changes the intent's terms. A matching event indexed before
+the intent existed is bound when the intent is created. Pending rows created before this rule (no `funder_wallet`)
+are never bound and do not block a new bounty for the PR.
+
+For the web app: fund from the wallet in `bounty.funder_wallet`. Funding from any other wallet, or changing the
+amount or expiry in the prepared calldata, produces an event Merit will not attach to the bounty. The backend does
+not record a client-reported funding hash; only the indexed `BountyFunded` marks a bounty funded.
 
 Approval rules (each failure is 403 or 409 with an explanatory `error`):
 - caller is a repo maintainer per live GitHub check;

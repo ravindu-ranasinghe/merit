@@ -38,7 +38,7 @@ const deliver = (logs: unknown[]) => {
 
 async function seedBounty(withApproval = false) {
   const [pr] = await h.db.select().from(pull_requests);
-  const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
+  const [b] = await h.db.insert(bounties).values({ pr_id: pr!.id, funder_wallet: FUNDER, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending" }).returning();
   if (withApproval) {
     const [c] = await h.db.insert(review_candidates).values({ pr_id: pr!.id, github_comment_id: 5550001, github_reviewer_id: DEMO.reviewerId, file_path: "a", diff_hunk: "", commit_sha: "x", status: "confirmed", qualification_evidence: { method: "manual", limitations: "l" } }).returning();
     await h.db.insert(approvals).values({ bounty_id: b!.id, candidate_id: c!.id, reviewer_id: DEMO.reviewerId, approver_github_id: DEMO.maintainerId, amount_units: "10000000", approved_recipient: REVIEWER, claim_id: CLAIM });
