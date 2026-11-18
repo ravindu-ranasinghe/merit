@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests, repositories } from "../db/schema.js";
+import { approvalMatches } from "../streams/match.js";
 
 /**
  * One Merit status comment per bounty on its pull request, driven only by indexed contract events.
@@ -148,9 +149,12 @@ async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string): Pr
   let reviewerLogin: string | null = null;
   const claimEvent = ev("RewardPaid") ?? ev("RewardApproved");
   if (claimEvent) {
-    const claimId = (claimEvent.payload as { claimId?: string }).claimId;
-    const [a] = claimId ? await ctx.db.select().from(approvals).where(eq(approvals.claim_id, claimId)) : [];
-    if (a) {
+    // Only this bounty's approval, with the event's recipient and amount: claim ids are public.
+    const ev = claimEvent.payload as { claimId?: string; recipient: string; amount: string };
+    const [a] = ev.claimId
+      ? await ctx.db.select().from(approvals).where(and(eq(approvals.claim_id, ev.claimId), eq(approvals.bounty_id, b.id)))
+      : [];
+    if (a && approvalMatches(a, ev)) {
       try { reviewerLogin = (await ctx.gh.getUser(repo.installation_id, a.reviewer_id)).login; }
       catch { reviewerLogin = null; }
     }

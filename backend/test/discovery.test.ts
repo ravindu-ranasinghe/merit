@@ -98,7 +98,7 @@ describe("public discovery", () => {
     await syncReviews(h.ctx, 1);
     const [c] = await h.db.select().from(review_candidates);
     await h.db.insert(approvals).values({ bounty_id: b.id, candidate_id: c!.id, reviewer_id: DEMO.reviewerId,
-      approver_github_id: DEMO.maintainerId, amount_units: "10000000", approved_recipient: "0x123", claim_id: "claim", status: "prepared" });
+      approver_github_id: DEMO.maintainerId, amount_units: "4000000", approved_recipient: "0x123", claim_id: "claim", status: "prepared" });
     await h.db.update(chain_events).set({ payload: { amount: "4000000", recipient: "0x123", claimId: "claim" } }).where(eq(chain_events.event_type, "RewardPaid"));
     const pending = (await h.app.inject({ url: `/reviewers/${DEMO.reviewerId}` })).json();
     expect(pending.bounties[0].approvals).toEqual([]);
@@ -108,7 +108,10 @@ describe("public discovery", () => {
     expect(r.json().user.login).toBe("reviewer");
     expect(r.json().bounties[0].approvals[0].amount_units).toBe("4000000");
     expect(r.json().bounties[0].events.map((e: { event_type: string }) => e.event_type)).toContain("RewardPaid");
+    // A payout to a different recipient, or for a different amount, is not this approval's payment.
     await h.db.update(chain_events).set({ payload: { amount: "4000000", recipient: "0x999", claimId: "claim" } }).where(eq(chain_events.event_type, "RewardPaid"));
+    expect((await h.app.inject({ url: `/reviewers/${DEMO.reviewerId}` })).json().bounties[0].approvals).toEqual([]);
+    await h.db.update(chain_events).set({ payload: { amount: "10000000", recipient: "0x123", claimId: "claim" } }).where(eq(chain_events.event_type, "RewardPaid"));
     expect((await h.app.inject({ url: `/reviewers/${DEMO.reviewerId}` })).json().bounties[0].approvals).toEqual([]);
     h.gh.repos.set(DEMO.name, { isPublic: false, description: null, language: null });
     expect((await h.app.inject({ url: `/reviewers/${DEMO.reviewerId}` })).json().bounties).toEqual([]);

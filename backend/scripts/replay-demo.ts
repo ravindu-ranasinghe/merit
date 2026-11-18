@@ -93,7 +93,8 @@ async function seedPlaceholders(db: ReturnType<typeof createDb>["db"], logs: Raw
       prId = pr!.id;
       prIds.set(ev.args.prHash, prId);
     }
-    await db.insert(bounties).values({ pr_id: prId, amount_units: ev.args.amount, deadline: new Date(Number(ev.args.expiry) * 1000), status: "funding_pending" });
+    // The intent records the funder, amount and expiry the maintainer committed to, exactly as POST /bounties does.
+    await db.insert(bounties).values({ pr_id: prId, funder_wallet: ev.args.funder, amount_units: ev.args.amount, deadline: new Date(Number(ev.args.expiry) * 1000), status: "funding_pending" });
   }
 }
 

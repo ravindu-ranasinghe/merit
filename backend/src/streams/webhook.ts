@@ -1,11 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { decodeLog } from "../chain/escrow.js";
 import { refreshBounty } from "../bounty.js";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests } from "../db/schema.js";
 import { syncPrStatusComment } from "../github/pr-status.js";
+import { approvalMatches, matchesIntent } from "./match.js";
 import { isUniqueViolation } from "../db/index.js";
 
 /**
@@ -99,28 +100,41 @@ const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };
 export async function reconcile(ctx: Ctx, onchainId: string) {
   const events = await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, onchainId));
 
-  // 1. Link the offchain bounty row to its onchain id (matched by pr_hash from BountyFunded), once.
-  // A replay of an already-linked bounty must not link it again: a newer unfunded bounty on the same PR
-  // would otherwise be picked, hitting the unique onchain id (a 500 that QuickNode retries forever).
+  // 1. Link the offchain bounty row (the maintainer's funding intent) to its onchain id, once.
+  // The PR hash is public, so anyone can fund the same PR. A BountyFunded event binds a pending intent only
+  // when funder, amount and expiry ALSO match what the maintainer committed to at creation. A non-matching
+  // event stays in the ledger unattached; the intent's terms are never overwritten. Already-linked bounties
+  // are not relinked, so replays cannot pick a newer bounty on the same PR.
   const funded = events.find((e) => e.event_type === "BountyFunded");
-  const [linked] = await ctx.db.select({ id: bounties.id }).from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
-  if (funded && !linked) {
+  let [own] = await ctx.db.select().from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
+  if (funded && !own) {
     const p = funded.payload as { funder: string; prHash: string; amount: string; expiry: string };
     const [prRow] = await ctx.db.select({ id: pull_requests.id }).from(pull_requests).where(eq(pull_requests.pr_hash, p.prHash));
     if (prRow) {
-      await ctx.db.update(bounties).set({
-        onchain_bounty_id: onchainId, funder_wallet: p.funder, amount_units: p.amount, deadline: new Date(Number(p.expiry) * 1000),
-      }).where(and(eq(bounties.pr_id, prRow.id), isNull(bounties.onchain_bounty_id),
-        sql`${bounties.id} = (select max(id) from bounties where pr_id = ${prRow.id} and onchain_bounty_id is null)`));
+      const pending = await ctx.db.select().from(bounties)
+        .where(and(eq(bounties.pr_id, prRow.id), isNull(bounties.onchain_bounty_id))).orderBy(asc(bounties.id));
+      // Every match has the same funder wallet, so taking the oldest never hands one user's event to another.
+      const intent = pending.find((b) => matchesIntent(b, p));
+      if (intent) {
+        try {
+          await ctx.db.update(bounties).set({ onchain_bounty_id: onchainId })
+            .where(and(eq(bounties.id, intent.id), isNull(bounties.onchain_bounty_id)));
+        } catch (err) {
+          if (!isUniqueViolation(err)) throw err; // a concurrent delivery linked this onchain id first
+        }
+        [own] = await ctx.db.select().from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
+      }
     }
   }
+  if (!own) return; // unattached ledger event: kept, but it changes no app bounty or approval
 
-  // 2. Match RewardApproved / RewardPaid to approvals by claim_id. Status only moves forward.
+  // 2. Match RewardApproved / RewardPaid to THIS bounty's approval: same linked bounty, claim id, recipient and
+  // amount. Claim ids are public, so a foreign bounty's event must never advance or attribute this one.
   for (const e of events) {
     if (e.event_type !== "RewardApproved" && e.event_type !== "RewardPaid") continue;
-    const claim = (e.payload as { claimId: string }).claimId;
-    const [a] = await ctx.db.select().from(approvals).where(eq(approvals.claim_id, claim));
-    if (!a) continue;
+    const ev = e.payload as { claimId: string; recipient: string; amount: string };
+    const [a] = await ctx.db.select().from(approvals).where(and(eq(approvals.claim_id, ev.claimId), eq(approvals.bounty_id, own.id)));
+    if (!a || !approvalMatches(a, ev)) continue;
     const next = e.event_type === "RewardPaid" ? "paid" : "signed";
     const set: Partial<typeof approvals.$inferInsert> = {};
     if (e.event_type === "RewardApproved") set.chain_tx_hash = e.tx_hash;
@@ -135,6 +149,5 @@ export async function reconcile(ctx: Ctx, onchainId: string) {
   }
 
   // 3. Status.
-  const [b] = await ctx.db.select({ id: bounties.id }).from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
-  if (b) await refreshBounty(ctx, b.id);
+  await refreshBounty(ctx, own.id);
 }

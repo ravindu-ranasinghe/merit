@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt, notInArray, or, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { refreshBounty } from "../bounty.js";
@@ -8,6 +8,7 @@ import { isUniqueViolation } from "../db/index.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { MANUAL_LIMITATIONS } from "../github/evidence.js";
 import { syncReviews } from "../github/sync.js";
+import { reconcile } from "../streams/webhook.js";
 import { repoOfPr, requireMaintainer, requireSession, type Session } from "../session.js";
 import { approvalsOfBounty, bountyViews, candidatesOfPr, canReadRepository, eventView } from "./view.js";
 
@@ -124,11 +125,41 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
       [pr] = await ctx.db.select().from(pull_requests).where(and(eq(pull_requests.repo_id, repo.id), eq(pull_requests.github_pr_number, b.pr_number)));
     }
     if (!pr) throw new HttpError(404, "pull request not found");
-    const live = await ctx.db.select({ id: bounties.id }).from(bounties).where(and(eq(bounties.pr_id, pr.id), notInArray(bounties.status, ["expired", "refunded"])));
-    if (live.length) throw new HttpError(409, "a live bounty already exists for this pull request");
-    const [row] = await ctx.db.insert(bounties).values({ pr_id: pr.id, amount_units: b.amount_units, deadline: new Date(b.expiry * 1000), status: "funding_pending" }).returning();
-    const [v] = await bountyViews(ctx, eq(bounties.id, row!.id));
-    return reply.code(201).send({ bounty: v, funding: encodeCreateBounty(chain, { prHash: pr.pr_hash, amount: b.amount_units, expiry: b.expiry }) });
+    const prRow = pr;
+
+    // The funding intent: who will fund, how much, until when. The funder is the maintainer's wallet as proven
+    // by the signed wallet link, never an address from this request. Streams binds the BountyFunded event to
+    // this row only if its funder, amount and expiry all match (streams/webhook.ts matchesIntent).
+    const [w] = await ctx.db.select().from(wallet_links).where(eq(wallet_links.github_user_id, s.id));
+    if (!w) throw new HttpError(409, "link and verify your wallet first: a bounty only accepts funding from your verified wallet");
+
+    // Serialise intent creation per PR with a row lock, so two concurrent requests cannot both pass the
+    // one-live-bounty check. Pending rows from before funding intents existed (no funder recorded) can never
+    // be bound to an event, so they do not block a new bounty.
+    const row = await ctx.db.transaction(async (tx) => {
+      await tx.select({ id: pull_requests.id }).from(pull_requests).where(eq(pull_requests.id, prRow.id)).for("update");
+      const live = await tx.select({ id: bounties.id }).from(bounties).where(and(
+        eq(bounties.pr_id, prRow.id),
+        notInArray(bounties.status, ["expired", "refunded"]),
+        or(isNotNull(bounties.onchain_bounty_id), isNotNull(bounties.funder_wallet)),
+      ));
+      if (live.length) throw new HttpError(409, "a live bounty already exists for this pull request");
+      const [inserted] = await tx.insert(bounties).values({
+        pr_id: prRow.id, funder_wallet: w.wallet_address.toLowerCase(), amount_units: b.amount_units,
+        deadline: new Date(b.expiry * 1000), status: "funding_pending",
+      }).returning();
+      return inserted!;
+    });
+
+    // Heal: a matching BountyFunded that was indexed before this intent existed is bound now.
+    const early = await ctx.db.select({ onchainId: chain_events.onchain_bounty_id }).from(chain_events).where(and(
+      eq(chain_events.event_type, "BountyFunded"), sql`${chain_events.payload}->>'prHash' = ${prRow.pr_hash}`,
+      sql`not exists (select 1 from bounties where bounties.onchain_bounty_id = ${chain_events.onchain_bounty_id})`,
+    ));
+    for (const e of early) if (e.onchainId) await reconcile(ctx, e.onchainId);
+
+    const [v] = await bountyViews(ctx, eq(bounties.id, row.id));
+    return reply.code(201).send({ bounty: v, funding: encodeCreateBounty(chain, { prHash: prRow.pr_hash, amount: b.amount_units, expiry: b.expiry }) });
   });
 
   // ---- candidates ----
