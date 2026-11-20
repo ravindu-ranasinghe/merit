@@ -134,9 +134,10 @@ Streams is how escrow state reaches the database and the UI. The backend never p
 The revised filter is checked in at [scripts/streams-filter.js](scripts/streams-filter.js). It retains
 only escrow logs and preserves `metadata` inside the signed body. Empty ordinary batches return `null`;
 empty **reorg corrections** return `{ data: [], metadata }`, so orphaned payouts/refunds can be removed.
-The [November 19 snapshot](../docs/quicknode-verification.json) describes the prior live filter, not proof
-that the revised filter or restream setting has been applied. Apply it only after the receiver is deployed;
-keep the existing cursor, address, destination and HMAC token. Enable **Restream on reorg** without rewinding.
+The [dated verification record](../docs/quicknode-verification.json) retains the November 19 snapshot and
+November 20 update: after the receiver deployed, this filter and **Restream on reorg** were saved and
+reloaded, then the Stream resumed with **CONTINUE WHERE IT LEFT OFF**. The start block, address,
+destination and HMAC token were preserved. This configuration check is not fresh live-payment proof.
 
 ### Receiver (`src/streams/webhook.ts`)
 
