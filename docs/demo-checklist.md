@@ -66,6 +66,14 @@ Start `NEXT_PUBLIC_MOCK=1 npm --prefix web run dev` in a separate terminal and k
 
 ## Live acceptance — Ravi and wallet owners
 
+November 19 follow-up: [QuickNode dashboard observations](quicknode-verification.json) now confirm the active
+configuration and filter preview, with no settings changed. The empty-preview dashboard test is not fresh live
+escrow-delivery evidence. The receiver's comment phase now shares one eight-second batch budget with request
+cancellation and late-write guards. **144 backend tests across 12 files passed** locally, including four stalled
+comment syncs, persisted ledger state and duplicate-delivery healing; backend typechecking passed. These follow-up
+results supplement the earlier 143-test release record. Provider replay/outage testing and the same-bounty live
+acceptance below remain pending.
+
 1. **Ravi: inspect the filtered Stream.** Record sanitized Arc network, Logs dataset, escrow-address filter, start block, uncompressed webhook destination, and the rationale from [Streams setup](../backend/README.md#quicknode-streams). Record a fresh successful delivery with the filter enabled, provider delivery/batch reference, and its matching decoded log. Do not expose the HMAC token. Old pre-filter deliveries and the filter test runner do not satisfy this check.
 2. **Maintainer/reviewer: walk the same bounty.** Create the authenticated intent, fund from its linked wallet, observe indexed `BountyFunded`, show the actual review/change/thread, record explicit maintainer judgment and approval, then claim as the approved recipient. Match chain id, escrow, bounty id, claim id, recipient, integer amount, hashes and log indices across explorer, event API, GitHub status comment, and app receipt. A client hash or receipt success alone must not advance app money state.
 3. **Wallet owners: verify refusals and the remainder.** A second claim must be rejected; record whether the refusal was a simulation or an actual reverted transaction. For `$10/$4/$6`, check both claim/refund orderings using two test bounties, approval before expiry, and refund after expiry. Anyone may submit `refundExpired`; funds must return to the original funder. Check no repeated remainder refund is offered.
