@@ -91,7 +91,6 @@
     "Wallet-owner signatures and final same-bounty recording; no useful new review/payout was invented"
   ],
   "november20Hardening": {
-    "observedAtUtc": "2026-11-20T07:27:00Z",
     "kind": "Native dashboard configuration and historical filter preview; not a fresh wallet payment or live reorg test",
     "codePr": "https://github.com/ravindu-ranasinghe/merit/pull/33",
     "codeCommit": "9a8ee25bbea342a8b33b035e700304142434c81c",
@@ -122,6 +121,7 @@
       "Fresh wallet-owned funding, approval, claim and partial-refund lifecycle through this filtered Stream",
       "Actual provider reorg/correction evidence; controlled signed fixtures passed locally",
       "Owner-signed revised-contract deployment in a separate data environment"
-    ]
+    ],
+    "recordedAtUtc": "2026-11-20T07:24:45Z"
   }
 }
