@@ -175,7 +175,7 @@ export function AppFooter() {
   const pathname = usePathname();
   if (pathname === "/") return (
     <footer className={homeStyles.landingFooter}>
-      <div className={homeStyles.footerTop}><Logo /><p>A little credit for a good catch.</p><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
+      <div className={homeStyles.footerTop}><Logo /><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
       <div className={homeStyles.footerBottom}><p>Testnet prototype · Test USDC on Arc has no monetary value</p><p>Made for UBC Hackathon 2026</p></div>
     </footer>
   );
