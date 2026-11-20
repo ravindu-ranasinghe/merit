@@ -5,7 +5,7 @@ import { decodeLog } from "../chain/escrow.js";
 import { refreshBounty } from "../bounty.js";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests } from "../db/schema.js";
-import { syncPrStatusComment } from "../github/pr-status.js";
+import { PR_COMMENT_BUDGET_MS, syncPrStatusComment, withCommentTimeout } from "../github/pr-status.js";
 import { approvalMatches, eventContext, matchesIntent } from "./match.js";
 import { isUniqueViolation } from "../db/index.js";
 
@@ -73,10 +73,16 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
     // Reconcile every touched bounty even when the log was a duplicate: it is idempotent and heals partial runs.
     for (const id of touched) await reconcile(ctx, id);
     // Then mirror the confirmed state onto the PR. GitHub trouble must never fail or delay indexing much:
-    // errors are logged, and each sync is capped so QuickNode's delivery does not time out.
+    // Errors are logged; the entire comment phase shares one budget, regardless of batch size.
+    const commentDeadline = Date.now() + PR_COMMENT_BUDGET_MS;
     for (const id of touched) {
+      const remaining = commentDeadline - Date.now();
+      if (remaining <= 0) {
+        req.log.warn({ onchainBountyId: id }, "PR status comment deferred: batch time budget exhausted; indexing complete");
+        continue;
+      }
       try {
-        const result = await withTimeout(syncPrStatusComment(ctx, id), PR_COMMENT_TIMEOUT_MS);
+        const result = await withCommentTimeout((signal) => syncPrStatusComment(ctx, id, signal), remaining);
         if (result === "created" || result === "updated") req.log.info({ onchainBountyId: id, result }, "PR status comment synced");
       } catch (err) {
         req.log.warn({ err, onchainBountyId: id }, "PR status comment not updated");
@@ -84,14 +90,6 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
     }
     return { ok: true, inserted };
   });
-}
-
-const PR_COMMENT_TIMEOUT_MS = 8000;
-
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms); });
-  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
 const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };

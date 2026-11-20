@@ -1,9 +1,11 @@
 import { encodeAbiParameters, encodeEventTopics, keccak256, type Hex } from "viem";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import Fastify from "fastify";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { claimId, escrowAbi, prHash } from "../src/chain/escrow.js";
 import { approvals, bounties, chain_events, pull_requests, review_candidates } from "../src/db/schema.js";
-import { marker, renderStatusComment, stageOf, usd } from "../src/github/pr-status.js";
+import { marker, renderStatusComment, stageOf, syncPrStatusComment, usd } from "../src/github/pr-status.js";
 import { loadEnv } from "../src/env.js";
+import { buildApp } from "../src/fastify-app.js";
 import { qnSign } from "../src/streams/webhook.js";
 import { DEMO, ESCROW, QN_TOKEN, setup, type Harness } from "./helpers.js";
 
@@ -110,6 +112,67 @@ describe("PR status comment from indexed events", () => {
     await deliver([log(EV.funded, 1)]); // the next delivery (a retry or backfill) heals it
     expect(comments()).toHaveLength(1);
   });
+
+  it("caps a four-bounty batch, prevents late comment writes and heals on replay", async () => {
+    const [seedPr] = await h.db.select().from(pull_requests);
+    const logs = [];
+    for (let i = 0; i < 4; i++) {
+      const number = DEMO.prNumber + i;
+      const prh = prHash(DEMO.repoId, number);
+      const pr = i === 0 ? seedPr! : (await h.db.insert(pull_requests).values({
+        repo_id: seedPr!.repo_id, github_pr_number: number, head_sha: "synthetic-head", status: "open",
+        author_github_id: seedPr!.author_github_id, pr_hash: prh,
+      }).returning())[0]!;
+      await h.db.insert(bounties).values({
+        pr_id: pr.id, funder_wallet: FUNDER, amount_units: "10000000", deadline: new Date("2100-01-01"), status: "funding_pending",
+      });
+      logs.push(log({ ...EV.funded, args: { bountyId: BID + BigInt(i), funder: FUNDER, prHash: prh } }, 10 + i));
+    }
+
+    const original = h.gh.listIssueComments.bind(h.gh);
+    let release!: () => void;
+    let signal: AbortSignal | undefined;
+    // Deliberately ignore cancellation like a late response from an installation-token lookup.
+    const stalled = new Promise<void>((resolve) => { release = resolve; });
+    const reads = vi.fn(async (_i: number, _repo: string, _n: number, abort?: AbortSignal) => {
+      signal = abort;
+      await stalled;
+      return [];
+    });
+    h.gh.listIssueComments = reads;
+    const warnings: unknown[] = [];
+    await h.app.close();
+    h.app = await buildApp(h.ctx, { app: Fastify({ logger: { stream: { write(line: string) {
+      const record = JSON.parse(line);
+      if (record.level === 40) warnings.push(record);
+    } } } }) });
+    await h.app.ready();
+
+    const start = performance.now();
+    try {
+      const response = await deliver(logs);
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ok: true, inserted: 4 });
+      expect(performance.now() - start).toBeLessThan(11000);
+      expect(signal?.aborted).toBe(true);
+      expect(reads).toHaveBeenCalledTimes(1);
+      expect(warnings).toHaveLength(4);
+      expect(await h.db.select().from(chain_events)).toHaveLength(4);
+      expect((await h.db.select().from(bounties)).map((b) => b.status)).toEqual(["funded", "funded", "funded", "funded"]);
+    } finally {
+      release();
+      // An aborted call must not enqueue another sync; let the late response settle before replay.
+      await expect(syncPrStatusComment(h.ctx, "7", signal)).rejects.toThrow();
+      await new Promise((resolve) => setImmediate(resolve));
+      h.gh.listIssueComments = original;
+    }
+    expect(h.gh.issueCommentWrites.create).toBe(0);
+    expect((await deliver(logs)).json()).toEqual({ ok: true, inserted: 0 });
+    expect(h.gh.issueCommentWrites).toEqual({ create: 4, update: 0, delete: 0 });
+    expect(await h.db.select().from(chain_events)).toHaveLength(4);
+    await deliver(logs);
+    expect(h.gh.issueCommentWrites).toEqual({ create: 4, update: 0, delete: 0 });
+  }, 15000);
 
   it("ignores a user comment that copies the marker, and removes duplicate Merit comments", async () => {
     const b = await seedBounty();

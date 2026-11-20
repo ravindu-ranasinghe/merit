@@ -123,15 +123,16 @@ Streams is how escrow state reaches the database and the UI. The backend never p
 |---|---|---|
 | Network | Arc testnet (chain `5042002`) | The `BountyEscrow` contract (`0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727`) is deployed there, and it is the only chain the app uses. |
 | Dataset | Logs | All escrow state changes are four events: `BountyFunded`, `RewardApproved`, `RewardPaid`, `BountyRefunded`. A log carries exactly what the receiver decodes (`address`, `topics`, `data`, `transactionHash`, `logIndex`, `blockNumber`). Blocks or receipts would ship far more data for no gain. |
-| Start block | `72270484` | The escrow's deploy block. Backfill from there covers the contract's whole history, and no earlier block can hold an escrow log. |
-| Batch size | 5 blocks | Small batches keep delivery latency low. |
+| Start block | `72366828` on the active Stream, inspected November 19 | The contract was deployed at `72270484`. The active Stream does not cover that earlier history; use an isolated bounded backfill when verifying it rather than rewinding production. |
+| Batch size | 5 blocks; Elastic Batch on | Matches the inspected active Stream. |
 | Filter | below | Drops every log not emitted by the escrow, and skips the delivery entirely when a batch has none. |
-| Destination | Webhook, `POST /webhooks/streams`, compression **none** | Push delivery with retries. The receiver verifies QuickNode's HMAC over the uncompressed body and does not decompress gzip, so a gzipped body would fail verification. |
-| Retries | terminate after 10 failures (QuickNode's max) | Survives a tunnel or api restart without the stream stopping. |
+| Destination | `https://merit-backend-seven.vercel.app/webhooks/streams`, compression **none** | Matches the deployed backend. The receiver verifies QuickNode's HMAC over the uncompressed body and does not decompress gzip. |
+| Timeout / retries | 30 seconds / retry after 1 second / pause after 3 failures | Actual dashboard settings inspected November 19. Retries are bounded; an exhausted retry policy pauses the Stream. |
 
 ### Filter
 
-Pasted into the stream's Filtering section. The dashboard holds the live copy: keep this one in sync.
+Equivalent to the active Stream's address filter, inspected November 19. The dashboard holds the live copy;
+the exact inspected source and preview results are recorded in [QuickNode verification](../docs/quicknode-verification.json).
 
 ```js
 function main(stream) {
@@ -149,15 +150,15 @@ function main(stream) {
     }
   }
   walk(stream && stream.data);
-  return logs.length ? { logs: logs } : null;
+  return logs.length ? logs : null;
 }
 ```
 
 - **Address match:** lowercased on both sides, so the checksummed and lowercase forms are treated the same.
 - **Any nesting:** `stream.data` holds one entry per block in the batch, and the logs are nested inside each entry.
   The walk doesn't assume a depth, so a layout change on QuickNode's side can't silently drop events.
-- **Logs passed through unchanged:** the receiver's `extractLogs` finds log objects anywhere in the body, so
-  `{ logs: [...] }` decodes exactly as a raw payload would.
+- **Logs passed through unchanged:** the active filter returns a bare array. The receiver's `extractLogs` also
+  accepts nested objects such as `{ logs: [...] }`.
 - **`null` on an empty batch:** QuickNode then makes no delivery. QuickNode still charges API credits for every
   block it processes, so this saves requests to the api, not QuickNode credits.
 - **Tested in QuickNode's runner:** block `72358114` returns exactly one log, the escrow's `RewardPaid`. The runner
@@ -173,6 +174,15 @@ function main(stream) {
    `(chain_id, contract, tx_hash, log_index)`. Retries, replays and overlapping backfills are no-ops.
 4. **Reconcile:** rebuilds each affected bounty's status from all of its stored events, so delivery order doesn't
    matter.
+
+All indexing finishes before GitHub comment work. The entire comment phase shares an eight-second budget,
+independent of batch size. A timeout aborts its GitHub requests and prevents later sync steps from starting writes;
+it cannot undo a write GitHub already accepted. Failed or deferred comment syncs log the bounty id separately from
+successful indexing. Another delivery/replay heals them; maintainers can also use **Recheck GitHub** on the bounty
+to repair a missing/stale comment from already indexed events, without waiting for a new transaction. Public
+non-maintainers can still refresh review evidence but cannot publish the bot comment. A comment-only failure is
+reported separately in the existing error UI, and `GITHUB_PR_COMMENTS=0` is respected. The existing expiry sweep
+can also repair eligible expired bounties when configured. Comments remain best effort; there is no new queue or scheduler.
 
 All event reads additionally match the configured chain id and lowercased escrow address. Logs retained from another
 context cannot bind an intent, advance an approval, supply displayed amounts or credit a reviewer. One application
@@ -260,8 +270,14 @@ jobs:
     out `comment.in_reply_to_id` on top-level comments and `pull_request.merged` entirely; the schema accepts both.
     `upsertPr` reads a closed PR without the flag as `closed`, but keeps a PR already recorded as `merged`
     (a merge is final on GitHub), so a later review-comment or thread event no longer downgrades it.
-- **QuickNode Streams with the filter on:** the filter output is verified in QuickNode's test runner. A real escrow
-  event delivered through the filtered stream is still pending; all the deliveries above came before the filter.
+- **QuickNode dashboard inspected November 19:** the existing Stream was active and advancing, with Arc Testnet
+  Logs, the expected escrow filter and current backend destination. The known historical payout block still returns
+  one correct escrow log in the preview. An empty preview's Send Payload action displayed `Stream test successful`,
+  but no matching backend response was captured; this is not proof of a fresh authenticated escrow delivery. The
+  last-day metrics showed blocks processed and zero webhook requests/errors. No Stream settings or credentials
+  were changed. See the sanitized [verification record](../docs/quicknode-verification.json).
+- **QuickNode Streams with the filter on:** a fresh real escrow lifecycle through the filtered Stream is still
+  pending. The historical pre-filter deliveries above and the dashboard preview/test do not satisfy that gate.
 - **Escrow**: deployed and source-verified on Arc testnet at `0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727` (deploy
   block `72270484`). Set it as `ESCROW_ADDRESS`. `src/chain/escrow.ts` reads A's published `docs/escrow-abi.json`.
   Both hashes match the on-chain values for bounty 2:

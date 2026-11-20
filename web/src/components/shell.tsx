@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import homeStyles from "@/app/home.module.css";
 import { PERSONAS, type PersonaKey } from "@/fixtures/seed";
 import { useWallet } from "@/lib/chain/hooks";
@@ -11,7 +11,7 @@ import { MOCK } from "@/lib/env";
 import { shortHash } from "@/lib/format";
 import { useViewer } from "@/lib/viewer";
 import { resetDb, setPersonaKey } from "@/mock/store";
-import { IconArrowRight, IconGithub, IconRefresh, IconWallet } from "./icons";
+import { IconGithub, IconRefresh, IconWallet } from "./icons";
 import { Avatar, Button, cx } from "./ui";
 
 const NAV = [
@@ -34,30 +34,12 @@ export function Logo() {
   );
 }
 
+/**
+ * One header on every page, the home page included. A separate landing header used to swap in on
+ * "/", so clicking the logo or moving between home and the app changed the whole navbar mid-transition.
+ */
 export function AppHeader() {
-  const pathname = usePathname();
-  return pathname === "/" ? <LandingHeader /> : <DashboardHeader />;
-}
-
-function LandingHeader() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const links = [
-    { href: "/open-source", label: "Open rewards" },
-    { href: "/#how-it-works", label: "How it works" },
-    { href: "/#trust", label: "Trust model" },
-    { href: "/events", label: "Event feed" },
-  ];
-  return (
-    <header className={homeStyles.landingHeader}>
-      <div className={homeStyles.headerInner}>
-        <Logo />
-        <nav className={homeStyles.desktopNav} aria-label="Main">{links.map(({ href, label }) => <Link key={href} href={href}>{label}</Link>)}</nav>
-        <Link className={homeStyles.headerCta} href="/maintainer">Open app <IconArrowRight size={14} /></Link>
-        <button type="button" className={homeStyles.menuButton} aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} aria-controls="home-mobile-nav" onClick={() => setMenuOpen(!menuOpen)}><span /><span /></button>
-      </div>
-      {menuOpen && <nav id="home-mobile-nav" className={homeStyles.mobileNav} aria-label="Mobile">{links.map(({ href, label }) => <Link key={href} href={href} onClick={() => setMenuOpen(false)}>{label}</Link>)}</nav>}
-    </header>
-  );
+  return <DashboardHeader />;
 }
 
 export function AppMain({ children }: { children: ReactNode }) {
@@ -193,7 +175,7 @@ export function AppFooter() {
   const pathname = usePathname();
   if (pathname === "/") return (
     <footer className={homeStyles.landingFooter}>
-      <div className={homeStyles.footerTop}><Logo /><p>A little credit for a good catch.</p><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
+      <div className={homeStyles.footerTop}><Logo /><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
       <div className={homeStyles.footerBottom}><p>Testnet prototype · Test USDC on Arc has no monetary value</p><p>Made for UBC Hackathon 2026</p></div>
     </footer>
   );
