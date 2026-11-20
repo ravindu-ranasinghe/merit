@@ -73,12 +73,13 @@ npm run build
 
 Tests exercise signatures, wallet binding, payout approval constraints, event reconciliation, public/private discovery, review recovery, comparison failures, and SVG badge output. Browser checks should cover value sorting, search, recheck, copying, profiles, paid/unpaid receipts, and mobile layouts before a release.
 
-November 18 local verification: the full backend suite passed 129 assertions against disposable `merit_test`, including
-wrong-chain/escrow isolation. Web deposit-recovery and partial-payout checks, both typechecks and web lint passed.
+November 19 local verification: the full backend suite passed 143 assertions against disposable `merit_test`, including
+wrong-chain/escrow isolation and the expiry sweep. Web deposit-recovery and partial-payout checks, both typechecks and web lint passed.
 Anonymous requests reached the public repository, landing page and non-mock backend health endpoint. November 19's
 two fresh-session mock browser rehearsals also passed, including both refund orderings, funding recovery and mobile
 controls; deposit recovery now has 16 passing checks and runs in CI. A fresh filtered Stream lifecycle, two live cold
-rehearsals and the final 2–3 minute live video remain pending; the existing 87-second walkthrough is simulated.
+rehearsals and the final live video remain pending. A new 2:52 narrated mock rehearsal is available locally under
+`output/video/merit-non-quicknode-rehearsal-2026-11-19-v1.mp4`; its simulation label remains visible throughout.
 [Exact checks, evidence inventory and owners](docs/demo-checklist.md).
 
 ## Current limits

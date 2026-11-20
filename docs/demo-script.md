@@ -27,6 +27,6 @@ The target is 165 seconds including screen changes and short pauses. Rehearse al
 
 ## Recording status and missing inputs
 
-No new video has been rendered. The existing `output/video/merit-new-features.mp4` is 87.004 seconds and identifies its GitHub/chain activity as simulated in the file metadata. On November 18 the browser access host was unavailable, so no fresh interactive captures or playback check could be made here.
+November 19 rehearsal export: `output/video/merit-non-quicknode-rehearsal-2026-11-19-v1.mp4`, **172.333 seconds (2:52)**, H.264 video, AAC narration and embedded English captions. It records the actual local mock UI, includes explicit sample approval and both recovery/refund explanations, and keeps a permanent simulation label. The source capture, narration/caption assets, poster and full-decode result are beside the export or under `output/verification/`. This is preparation for the live cut, not a completed live payment demonstration. The original 87.004-second `merit-new-features.mp4` was preserved.
 
 Missing shots: real review and fixing diff (PR author/reviewer), funding and maintainer approval (funder), claim/refusal and payout explorer (reviewer), filtered provider delivery and matching indexed log (Ravi), final receipt/dashboard and optional expired remainder refund (recorder/wallet owners). Capture them after live acceptance; a simulated replacement would not establish the missing proof.

@@ -1,6 +1,6 @@
 # Merit acceptance and recording checklist
 
-Status: November 19, 2026. The latest local checks cover `origin/main` at `c524f67` plus payment hardening. They do not verify a new live payment. Entry: **Consumer Applications + Best use of Arc + QuickNode Streams**, subject to the final provider evidence and organizer rules.
+Status: November 19, 2026. The combined backend checks cover `origin/main` at `fcd1438` plus payment hardening; the browser runs used the same web code based on `c524f67`. They do not verify a new live payment. Entry: **Consumer Applications + Best use of Arc + QuickNode Streams**, subject to the final provider evidence and organizer rules.
 
 ## Before a rehearsal
 
@@ -25,16 +25,17 @@ npm --prefix web run lint
 NEXT_PUBLIC_MOCK=1 npm --prefix web run build
 ```
 
-| Check | Fixture / expected result | November 18 result |
+| Check | Fixture / expected result | Latest result |
 | --- | --- | --- |
 | Funding identity | `backend/test/intent.test.ts`: wrong wallet arrives first; wrong amount/expiry; mixed address case; early funding; concurrent creation; legacy null-funder intent. Only the matching intent binds. | Passed in full backend suite |
 | Event context and attribution | Same file: other chain/escrow with the same bounty id stays in the ledger but cannot bind, advance an approval, name a reviewer, or enter detail/list/feed/profile/payment facts. Foreign claim ids and recipient/amount mismatches cannot credit the local reviewer. | Passed |
+| Expiry sweep context | `backend/test/sweep.test.ts`: a foreign refund cannot hide due work, and a foreign approval cannot change the reserved/refundable amount. | Both chain and contract isolation cases passed |
 | Order, overlap, replay, signatures | `backend/test/streams.test.ts`, `intent.test.ts`, `approvals.test.ts`, `pr-status.test.ts`: reordered events converge; duplicates leave one event identity; bad signatures and unauthorized actions fail. | Passed |
 | Sparse merged PR | `backend/test/github-webhook.test.ts`: merge, then sparse comment/thread; status stays merged, head SHA still updates, closed/reopened unmerged cases work. | Passed |
 | Deposit recovery | `web/scripts/deposit-recovery.test.mjs`: broadcast then receipt failure, retry, actual browser-store module reload, delayed indexing, reverted/cancelled/funded replacements, receipt identity, allowance failure, double clicks, wrong wallet, storage failure, and account/network change during allowance. | 16/16 passed November 19; simulated driver |
 | Partial payout | `web/scripts/accounting.test.mjs`: `$10 = 10000000` units; approve/pay `$4 = 4000000`; refund `$6 = 6000000`. Claim-first and refund-first both end with zero held, four paid, six refunded. | 8/8 passed; arithmetic/state |
 
-Backend: **129 assertions across 11 files passed** against local `merit_test`. Backend and web typechecks, web lint, and the mock production build passed. Synthetic addresses/hashes and the test `qnSign` token are fixture inputs, never provider-delivery evidence. Node emitted module-type warnings for the executable web checks and a server-side `localStorage` warning during prerendering; the commands still exited 0. These are not live-wallet results.
+Backend: **143 assertions across 12 files passed** against local `merit_test` after integrating the teammate's expiry sweep and isolating its event reads. Backend and web typechecks, web lint, and the mock production build passed. The first November 19 backend attempt reached no assertions because Docker was stopped; the result above came after starting only the local db service. Synthetic addresses/hashes and the test `qnSign` token are fixture inputs, never provider-delivery evidence. Node emitted module-type warnings for the executable web checks and a server-side `localStorage` warning during prerendering; the passing commands exited 0. These are not live-wallet results.
 
 Optional recovery demonstration: [replay demo](../backend/README.md#replay-demo) rebuilds a separate `*_replay` database from public Arc logs and exercises the receiver with a local token. This is an RPC replay through the receiver, **not** proof of QuickNode delivery. Do not run it against a live database or modify the active Stream.
 
@@ -71,6 +72,10 @@ Start `NEXT_PUBLIC_MOCK=1 npm --prefix web run dev` in a separate terminal and k
 
 ## Proof inventory for the fresh run
 
+Public reference inspected November 19: the [repository](https://github.com/ravindu-ranasinghe/merit) is public and GitHub reports creation at `2026-11-14T04:12:29Z`. The real [inline review](https://github.com/ravindu-ranasinghe/merit-demo-api/pull/1#discussion_r4575848692), by GitHub user `62352785` (`ravindu1123`), flags missing authentication and ownership checks in `server.js` at revision `6ce8f8afcb53618c085f17f3dfe63e3ffe5cfc20`. PR #1 is closed, not merged; its current head is `862c61961d77a270d9327b8a9885276db0eb8f4d`. These are reference facts, not a new end-to-end acceptance run or a claim that a specific new payout earned this review.
+
+The public application's `/config` reports the documented Arc chain/escrow/USDC settings. Its current public app bounties are `1` → onchain `3` and `2` → onchain `4`, both funded at inspection. Do not present these as a fresh paid receipt or silently substitute historical bounty ids from the November 14 notes.
+
 No fresh live values were supplied during this preparation. Fill these from the **same bounty**; record partial-refund ordering on separate acceptance bounties when needed.
 
 | Required fact | Recorded value / evidence | Owner |
@@ -103,9 +108,10 @@ Each cold run starts with fresh application sessions and empty test-specific fun
 - [x] November 18: anonymous HTTP GET of the public [source repository](https://github.com/ravindu-ranasinghe/merit) and [landing page](https://merit-theta-beige.vercel.app) returned 200 at their expected URLs.
 - [x] November 18: public `/api/merit/health` returned `{"ok":true,"github_mock":false}`. This establishes reachability, not a verified payment or deployed hardening revision.
 - [ ] Open the deployed product, relevant public PR, receipt, and final video from a signed-out browser; verify no deployment protection or sharing restriction interrupts judges. No final video URL has been supplied.
-- [ ] Record/verify a **2–3 minute** video using [demo-script.md](demo-script.md). Preserve the existing 87.004-second simulated walkthrough at `output/video/merit-new-features.mp4`; it is not the live acceptance video. Browser access and fresh live shots are missing, so no new export/playback verification is claimed.
+- [x] Record a **mock rehearsal export**: `output/video/merit-non-quicknode-rehearsal-2026-11-19-v1.mp4`, 172.333 seconds, with narration, captions and a persistent simulation label. It includes sample approval, deposit recovery, refund-first claim, duplicate refusal and receipt screens. Full audio/video decode passed; playback checks are recorded separately. The original 87.004-second walkthrough remains untouched.
+- [ ] Replace the mock rehearsal with the final live capture using [demo-script.md](demo-script.md), then upload and check the judge-accessible URL. The rehearsal is not fresh wallet or provider evidence, and no final public video URL is claimed.
 - [ ] Confirm team members, repo creation/originality eligibility, category choices, current organizer notices, and a named attendee for the November 21 closing ceremony. The supplied guide says submission is **November 20, 2026 at noon CST** and attendance is required for a prize. Team confirmation is still pending.
 
 ## Remaining shots and account actions
 
-Ravi supplies sanitized filtered-Stream configuration and fresh delivery/replay evidence. Wallet owners supply actual funding, approval, claim, refusal and partial-refund results. The recorder captures the real GitHub change and judgment, matching transaction/explorer/event/receipt screens, completes both cold runs, exports a new versioned file under `output/video/`, measures duration, plays it through, and checks anonymous video access. Publishing, deployment and Devpost submission require separate authorization.
+Ravi supplies sanitized filtered-Stream configuration and fresh delivery/replay evidence. Wallet owners supply actual funding, approval, claim, refusal and partial-refund results. The recorder replaces the labelled rehearsal with the real GitHub judgment and matching transaction/explorer/event/receipt shots, completes both live cold runs and checks public video access. Team membership and the closing-ceremony attendee still need the team's confirmation. No Devpost submission has been made.
