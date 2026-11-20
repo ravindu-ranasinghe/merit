@@ -177,6 +177,16 @@ describe("rechecking GitHub", () => {
     expect(h.gh.issueCommentWrites.create).toBe(0);
   });
 
+  it("repairs an orphaned funding comment by local id after the onchain link is gone", async () => {
+    const b = await bounty([]);
+    h.gh.issueComments.set(`${DEMO.name}#1`, [{ id: 700, appId: h.gh.appId, body: `${marker(b.id)} old paid claim` }]);
+    const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().comment_sync).toBe("updated");
+    expect(h.gh.issueComments.get(`${DEMO.name}#1`)![0]!.body).toContain("Awaiting chain confirmation");
+    expect(h.gh.issueCommentWrites).toEqual({ create: 0, update: 1, delete: 0 });
+  });
+
   it("reports a bot-comment failure separately after review evidence was successfully refreshed", async () => {
     const b = await bounty();
     review();

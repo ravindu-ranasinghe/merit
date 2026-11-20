@@ -1,12 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { decodeLog } from "../chain/escrow.js";
 import { refreshBounty } from "../bounty.js";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests } from "../db/schema.js";
-import { PR_COMMENT_BUDGET_MS, syncPrStatusComment, withCommentTimeout } from "../github/pr-status.js";
+import { PR_COMMENT_BUDGET_MS, syncPrStatusCommentById, withCommentTimeout } from "../github/pr-status.js";
 import { approvalMatches, eventContext, matchesIntent } from "./match.js";
+import { ingestCanonical } from "./canonical.js";
 import { isUniqueViolation } from "../db/index.js";
 
 /**
@@ -26,7 +26,7 @@ function validSig(token: string, h: Record<string, unknown>, body: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export interface RawLog { address: string; topics: string[]; data: string; blockNumber: string | number; transactionHash: string; logIndex: string | number }
+export interface RawLog { address: string; topics: string[]; data: string; blockNumber: string | number; transactionHash: string; logIndex: string | number; blockHash?: string; removed?: boolean }
 
 /** The Logs dataset payload shape is not confirmed, so find log-shaped objects anywhere in the JSON. */
 export function extractLogs(j: unknown, out: RawLog[] = []): RawLog[] {
@@ -56,36 +56,21 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
     let json: unknown;
     try { json = JSON.parse(body); } catch { return reply.code(400).send({ error: "invalid json" }); }
 
-    let inserted = 0;
-    const touched = new Set<string>();
-    for (const log of extractLogs(json)) {
-      if (log.address.toLowerCase() !== ctx.env.escrowAddress.toLowerCase()) continue;
-      const ev = decodeLog({ topics: log.topics, data: log.data });
-      if (!ev) continue;
-      const r = await ctx.db.insert(chain_events).values({
-        chain_id: ctx.env.chainId, contract: log.address.toLowerCase(), tx_hash: log.transactionHash.toLowerCase(),
-        log_index: Number(BigInt(log.logIndex)), event_type: ev.eventName, payload: { ...ev.args, bountyId: ev.bountyId },
-        block_number: Number(BigInt(log.blockNumber)), onchain_bounty_id: ev.bountyId,
-      }).onConflictDoNothing().returning({ id: chain_events.id });
-      inserted += r.length;
-      touched.add(ev.bountyId);
-    }
-    // Reconcile every touched bounty even when the log was a duplicate: it is idempotent and heals partial runs.
-    for (const id of touched) await reconcile(ctx, id);
+    const { inserted, localIds } = await ingestCanonical(ctx, json);
     // Then mirror the confirmed state onto the PR. GitHub trouble must never fail or delay indexing much:
     // Errors are logged; the entire comment phase shares one budget, regardless of batch size.
     const commentDeadline = Date.now() + PR_COMMENT_BUDGET_MS;
-    for (const id of touched) {
+    for (const id of localIds) {
       const remaining = commentDeadline - Date.now();
       if (remaining <= 0) {
-        req.log.warn({ onchainBountyId: id }, "PR status comment deferred: batch time budget exhausted; indexing complete");
+        req.log.warn({ bountyId: id }, "PR status comment deferred: batch time budget exhausted; indexing complete");
         continue;
       }
       try {
-        const result = await withCommentTimeout((signal) => syncPrStatusComment(ctx, id, signal), remaining);
-        if (result === "created" || result === "updated") req.log.info({ onchainBountyId: id, result }, "PR status comment synced");
+        const result = await withCommentTimeout((signal) => syncPrStatusCommentById(ctx, id, signal), remaining);
+        if (result === "created" || result === "updated") req.log.info({ bountyId: id, result }, "PR status comment synced");
       } catch (err) {
-        req.log.warn({ err, onchainBountyId: id }, "PR status comment not updated");
+        req.log.warn({ err, bountyId: id }, "PR status comment not updated");
       }
     }
     return { ok: true, inserted };
@@ -95,7 +80,8 @@ export async function streamsWebhook(app: FastifyInstance, ctx: Ctx) {
 const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };
 
 /** Rebuild one bounty's state from its stored events. Same events in any order, any number of times, same result. */
-export async function reconcile(ctx: Ctx, onchainId: string) {
+export async function reconcile(ctx: Ctx, onchainId: string, correction = false) {
+  const localIds: number[] = [];
   const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, onchainId)));
 
   // 1. Link the offchain bounty row (the maintainer's funding intent) to its onchain id, once.
@@ -105,6 +91,17 @@ export async function reconcile(ctx: Ctx, onchainId: string) {
   // are not relinked, so replays cannot pick a newer bounty on the same PR.
   const funded = events.find((e) => e.event_type === "BountyFunded");
   let [own] = await ctx.db.select().from(bounties).where(eq(bounties.onchain_bounty_id, onchainId));
+  if (correction && own) {
+    await ctx.db.update(approvals).set({ status: "prepared", chain_tx_hash: null }).where(eq(approvals.bounty_id, own.id));
+    const p = funded?.payload as { funder: string; amount: string; expiry: string } | undefined;
+    const [pr] = await ctx.db.select().from(pull_requests).where(eq(pull_requests.id, own.pr_id));
+    if (!p || !matchesIntent(own, p) || (funded!.payload as { prHash: string }).prHash !== pr?.pr_hash) {
+      await ctx.db.update(bounties).set({ onchain_bounty_id: null }).where(eq(bounties.id, own.id));
+      await refreshBounty(ctx, own.id);
+      localIds.push(own.id);
+      own = undefined;
+    }
+  }
   if (funded && !own) {
     const p = funded.payload as { funder: string; prHash: string; amount: string; expiry: string };
     const [prRow] = await ctx.db.select({ id: pull_requests.id }).from(pull_requests).where(eq(pull_requests.pr_hash, p.prHash));
@@ -124,7 +121,7 @@ export async function reconcile(ctx: Ctx, onchainId: string) {
       }
     }
   }
-  if (!own) return; // unattached ledger event: kept, but it changes no app bounty or approval
+  if (!own) return localIds; // unattached ledger event: kept, but it changes no app bounty or approval
 
   // 2. Match RewardApproved / RewardPaid to THIS bounty's approval: same linked bounty, claim id, recipient and
   // amount. Claim ids are public, so a foreign bounty's event must never advance or attribute this one.
@@ -148,4 +145,6 @@ export async function reconcile(ctx: Ctx, onchainId: string) {
 
   // 3. Status.
   await refreshBounty(ctx, own.id);
+  localIds.push(own.id);
+  return localIds;
 }

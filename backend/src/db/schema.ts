@@ -95,6 +95,10 @@ export const chain_events = pgTable(
     event_type: text("event_type").notNull(),
     payload: jsonb("payload").notNull(),
     block_number: bigint("block_number", { mode: "number" }).notNull(),
+    block_hash: text("block_hash"), // null only for records created before canonical validation
+    removed: boolean("removed").notNull().default(false),
+    app_bounty_id: integer("app_bounty_id"), // retained on orphan rows so duplicate corrections can repair comments
+    reorg_history: jsonb("reorg_history").$type<unknown[]>().notNull().default([]),
     onchain_bounty_id: uint("onchain_bounty_id"),
     ingestion_timestamp: timestamp("ingestion_timestamp", { withTimezone: true }).notNull().defaultNow(),
   },

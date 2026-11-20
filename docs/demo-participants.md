@@ -139,3 +139,10 @@ Save sanitized captures under `output/verification/demo-participants-<date>/` (n
 | PR author | After each review, push the fix as a later commit and resolve the thread. Record SHAs and times. |
 | Maintainer | Recheck evidence in Merit, record an explicit usefulness decision, approve $4 before expiry. |
 | Prompt 2 owner | Confirm indexed funding before reviews. Run `check-claim-ids.mjs` on both new comment ids. Run the claim/refund orderings. |
+
+## November 20 update: practical testnet deadline
+
+The revised new-bounty form offers an optional **45 min** window with `NEXT_PUBLIC_DEMO_DEADLINES=1`;
+mock mode always includes it. The default remains seven days. The short deadline is calculated at creation,
+so time spent choosing the PR does not consume the 45-minute window. Deployment of the new bundle/flag must
+be recorded before treating the option as available on the public site. Existing funded deadlines cannot change.

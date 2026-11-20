@@ -102,7 +102,7 @@ Playwright Core module; its two November 19 mock sessions passed with no uncaugh
 | Variable | Where | Purpose |
 |---|---|---|
 | `NEXT_PUBLIC_MOCK` | browser | `1` turns on mock mode |
-| `NEXT_PUBLIC_DEMO_DEADLINES` | browser | `1` adds a 5-minute deadline to the new-bounty form, to demo expiry and refund on testnet. Always on in mock mode; leave unset otherwise |
+| `NEXT_PUBLIC_DEMO_DEADLINES` | browser | `1` adds a 45-minute deadline to the new-bounty form, to demo expiry and refund on testnet. Always on in mock mode; leave unset otherwise |
 | `NEXT_PUBLIC_ESCROW_ADDRESS` | browser | Deployed `BountyEscrow` address |
 | `NEXT_PUBLIC_GITHUB_APP_SLUG` | browser | GitHub App slug for the install link |
 | `NEXT_PUBLIC_ARC_RPC_URL` | browser | Optional override of the SPEC RPC URL |

@@ -244,3 +244,15 @@ const message = r?.data?.errorName ?? r?.reason ?? err.shortMessage; // custom e
 (id 900001), PR #1, maintainer user 1001, PR author 2002, reviewer 3003. With no GitHub credentials the
 backend runs in mock mode (`/health` shows `github_mock: true`); log in as the maintainer by opening
 `/auth/github/login`.
+
+### Canonical Streams corrections (revised receiver)
+
+`POST /webhooks/streams` still requires the existing raw-body HMAC and returns `{ ok: true, inserted }`.
+The filter must preserve signed body `metadata.reorgs` / `metadata.blocks_reorged`, including empty corrected
+batches. RPC validates the configured chain and delivered log/receipt; RPC alone cannot advance payment state.
+Unavailable validation or a busy reconciliation transaction returns 503 for provider retry. HTTP metadata
+headers alone cannot remove events. Canonical corrections may roll back a paid approval or detach orphaned
+funding; intended terms and orphan audit rows are preserved. Public views and comments use canonical events. Maintainer Recheck repairs a stale comment by local bounty ID
+even after orphaned funding has detached its onchain link.
+No funding-intent or submitted-hash request/response fields change. Legacy ledger rows retain their history;
+nullable block hashes are checked against receipts when their blocks are corrected or replayed.

@@ -53,7 +53,9 @@ make verify-arc        # retry verification only (needs ESCROW_ADDRESS)
 - Money leaves the contract only as (a) a claim by the one approved reviewer, up to the
   funded amount, once, or (b) an expired refund of the unapproved remainder to the original funder.
 - The funder cannot approve themselves as recipient. A bounty pays at most one reviewer, once.
-  A `claimId` can be used once across all bounties.
+  In the revised contract, a `claimId` can be used once per immutable funder across their bounties.
+  Another funder cannot consume it first. The active legacy deployment still uses a global guard;
+  see [the deployment handoff](../docs/escrow-upgrade.md) before deploying or changing configuration.
 - **Limitation:** the contract does not judge review quality. A maintainer can approve a
   low-quality review, and collusion between PR author, reviewer and maintainer is possible.
   Blockchain does not solve subjective review assessment. Checks like "no payout to the PR

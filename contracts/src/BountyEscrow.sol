@@ -44,8 +44,10 @@ contract BountyEscrow is ReentrancyGuard {
 
     mapping(uint256 bountyId => Bounty) public bounties;
 
-    /// @notice claimIds ever used in an approval, across all bounties (replay guard).
+    /// @notice Aggregate history for legacy readers; approval eligibility uses claimIdUsedBy.
     mapping(bytes32 claimId => bool) public claimIdUsed;
+    /// @notice A funder cannot pay the same review twice; another funder cannot consume their claim id.
+    mapping(address funder => mapping(bytes32 claimId => bool)) public claimIdUsedBy;
 
     event BountyFunded(
         uint256 indexed bountyId, address indexed funder, bytes32 indexed prHash, uint256 amount, uint64 expiry
@@ -99,7 +101,7 @@ contract BountyEscrow is ReentrancyGuard {
     /// @dev The backend proposes these arguments from GitHub evidence; the funder signs. The funding
     ///      wallet cannot name itself. A second wallet the maintainer controls is not detectable
     ///      onchain; that is part of the disclosed collusion limitation.
-    /// @param claimId backend id of the approved review (e.g. hash of the review comment); single use.
+    /// @param claimId backend id of the approved review (e.g. hash of the review comment); single use per funder.
     function approveReward(uint256 bountyId, address recipient, uint256 amount, bytes32 claimId) external {
         Bounty storage b = _get(bountyId);
         if (msg.sender != b.funder) revert NotFunder(bountyId, msg.sender);
@@ -109,8 +111,9 @@ contract BountyEscrow is ReentrancyGuard {
         if (amount == 0) revert ZeroAmount();
         if (amount > b.amount) revert AmountExceedsBalance(bountyId, amount, b.amount);
         if (claimId == bytes32(0)) revert ZeroClaimId();
-        if (claimIdUsed[claimId]) revert ClaimIdAlreadyUsed(claimId);
+        if (claimIdUsedBy[b.funder][claimId]) revert ClaimIdAlreadyUsed(claimId);
 
+        claimIdUsedBy[b.funder][claimId] = true;
         claimIdUsed[claimId] = true;
         b.recipient = recipient;
         b.approvedAmount = amount;

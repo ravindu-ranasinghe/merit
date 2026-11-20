@@ -131,38 +131,12 @@ Streams is how escrow state reaches the database and the UI. The backend never p
 
 ### Filter
 
-Equivalent to the active Stream's address filter, inspected November 19. The dashboard holds the live copy;
-the exact inspected source and preview results are recorded in [QuickNode verification](../docs/quicknode-verification.json).
-
-```js
-function main(stream) {
-  var ESCROW = "0x924525bf3f3a39f9c7f298e71aff43f4c27a4727";
-  var logs = [];
-  // Walk any nesting depth (block -> receipt -> log, or block -> log): keep log objects from the escrow only.
-  function walk(x) {
-    if (Array.isArray(x)) { for (var i = 0; i < x.length; i++) walk(x[i]); return; }
-    if (x && typeof x === "object") {
-      if (typeof x.address === "string" && Array.isArray(x.topics)) {
-        if (x.address.toLowerCase() === ESCROW) logs.push(x);
-        return;
-      }
-      for (var k in x) walk(x[k]);
-    }
-  }
-  walk(stream && stream.data);
-  return logs.length ? logs : null;
-}
-```
-
-- **Address match:** lowercased on both sides, so the checksummed and lowercase forms are treated the same.
-- **Any nesting:** `stream.data` holds one entry per block in the batch, and the logs are nested inside each entry.
-  The walk doesn't assume a depth, so a layout change on QuickNode's side can't silently drop events.
-- **Logs passed through unchanged:** the active filter returns a bare array. The receiver's `extractLogs` also
-  accepts nested objects such as `{ logs: [...] }`.
-- **`null` on an empty batch:** QuickNode then makes no delivery. QuickNode still charges API credits for every
-  block it processes, so this saves requests to the api, not QuickNode credits.
-- **Tested in QuickNode's runner:** block `72358114` returns exactly one log, the escrow's `RewardPaid`. The runner
-  only evaluates the first block of a range, so test the event's block on its own.
+The revised filter is checked in at [scripts/streams-filter.js](scripts/streams-filter.js). It retains
+only escrow logs and preserves `metadata` inside the signed body. Empty ordinary batches return `null`;
+empty **reorg corrections** return `{ data: [], metadata }`, so orphaned payouts/refunds can be removed.
+The [November 19 snapshot](../docs/quicknode-verification.json) describes the prior live filter, not proof
+that the revised filter or restream setting has been applied. Apply it only after the receiver is deployed;
+keep the existing cursor, address, destination and HMAC token. Enable **Restream on reorg** without rewinding.
 
 ### Receiver (`src/streams/webhook.ts`)
 
@@ -170,11 +144,20 @@ function main(stream) {
    `QN_SECURITY_TOKEN`, with a constant-time compare. On failure it returns 401 before parsing anything.
 2. **Address check:** drops any log whose address isn't `ESCROW_ADDRESS`. The filter lives outside this repo, so
    the receiver doesn't rely on it.
-3. **Idempotent insert:** each decoded event is inserted into `chain_events` under the unique key
+3. **Canonical validation:** `CANONICAL_RPC_URL` defaults to the public Arc testnet RPC. Signed Streams logs
+   must match the canonical block and transaction receipt. RPC supplies validation only, never new payment events.
+   An unavailable/wrong-chain RPC returns 503 before a transaction commits; Streams must retry.
+4. **Idempotent insert:** each decoded event is inserted into `chain_events` under the unique key
    `(chain_id, contract, tx_hash, log_index)`. Retries, replays and overlapping backfills are no-ops.
-4. **Reconcile:** rebuilds each affected bounty's status from all of its stored events, so delivery order doesn't
-   matter.
+5. **Reconcile:** rebuilds each affected bounty from canonical stored events. Signed body `metadata.reorgs` /
+   `metadata.blocks_reorged` trigger RPC-validated corrections. Orphan rows stay in the ledger (`removed=true`);
+   re-included event versions preserve displaced facts in `reorg_history`. Approvals can regress only on a
+   validated correction. Funding removal detaches the onchain id while preserving authenticated intent terms.
+   Orphan rows retain the former app bounty id so a repeated empty correction can repair a failed comment update.
+   All receipt, dashboard, event and comment queries exclude orphaned events. Unsigned reorg headers do nothing.
 
+A PostgreSQL transaction advisory lock serializes comment writes per local bounty across server instances;
+a competing sync defers to the active writer. No process-local map is used.
 All indexing finishes before GitHub comment work. The entire comment phase shares an eight-second budget,
 independent of batch size. A timeout aborts its GitHub requests and prevents later sync steps from starting writes;
 it cannot undo a write GitHub already accepted. Failed or deferred comment syncs log the bounty id separately from

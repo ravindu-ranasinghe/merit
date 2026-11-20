@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests, repositories } from "../db/schema.js";
 import { approvalMatches, eventContext } from "../streams/match.js";
@@ -14,7 +14,7 @@ import { approvalMatches, eventContext } from "../streams/match.js";
 
 export const marker = (bountyId: number) => `<!-- merit:bounty-status:${bountyId} -->`;
 
-export type Stage = "funded" | "claimable" | "paid" | "refunded";
+export type Stage = "unconfirmed" | "funded" | "claimable" | "paid" | "refunded";
 
 /** Chain-confirmed stage only: paid > claimable > refunded > funded. No offchain overlay can change the comment. */
 export function stageOf(eventTypes: string[]): Stage | null {
@@ -64,6 +64,11 @@ export function renderStatusComment(i: StatusInput): string {
   let body: string;
   let footer: string;
   switch (i.stage) {
+    case "unconfirmed":
+      title = `${amount} review reward · Awaiting chain confirmation`;
+      body = "A chain reorganization removed the previously indexed funding. Payment and review attribution are awaiting canonical Streams confirmation.";
+      footer = `[View the bounty](${bountyUrl})`;
+      break;
     case "funded":
       title = `${amount} review reward · Funded`;
       body = `A reward of ${amount} is locked in escrow on Arc testnet for a review of this pull request, open until ${date(i.deadline)}.\n\n`
@@ -108,10 +113,6 @@ export function renderStatusComment(i: StatusInput): string {
 
 const norm = (s: string) => s.replace(/\r\n/g, "\n").trim();
 
-// Serialise syncs per bounty within this instance, so two deliveries in flight cannot both create a comment.
-// Across instances the duplicate sweep below converges on the oldest comment.
-const inFlight = new Map<number, Promise<unknown>>();
-
 export type SyncResult = "disabled" | "skipped" | "created" | "updated" | "unchanged";
 
 export const PR_COMMENT_BUDGET_MS = 8000;
@@ -138,17 +139,34 @@ export async function syncPrStatusComment(ctx: Ctx, onchainBountyId: string, sig
     .where(eq(bounties.onchain_bounty_id, onchainBountyId));
   if (!row) return "skipped"; // BountyFunded not linked to a Merit bounty yet
 
-  const previous = inFlight.get(row.b.id) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(() => {
+  return syncPrStatusCommentById(ctx, row.b.id, signal);
+}
+
+/** The database lock also serialises independent serverless instances, before any GitHub write. */
+export async function syncPrStatusCommentById(ctx: Ctx, bountyId: number, signal?: AbortSignal): Promise<SyncResult> {
+  signal?.throwIfAborted();
+  if (!ctx.env.github.prComments) return "disabled";
+  if (!signal) return withCommentTimeout((abort) => syncPrStatusCommentById(ctx, bountyId, abort));
+  const abort = signal;
+  return ctx.db.transaction(async (tx) => {
+    const lock = await tx.execute<{ locked: boolean }>(sql`select pg_try_advisory_xact_lock(761496106, ${bountyId}) as locked`);
+    if (!lock.rows[0]?.locked) return "skipped";
     signal?.throwIfAborted();
-    return sync(ctx, row, onchainBountyId, signal);
+    const [row] = await tx.select({ b: bounties, pr: pull_requests, repo: repositories }).from(bounties)
+      .innerJoin(pull_requests, eq(pull_requests.id, bounties.pr_id))
+      .innerJoin(repositories, eq(repositories.id, pull_requests.repo_id))
+      .where(eq(bounties.id, bountyId)).for("share", { of: bounties });
+    if (!row) return "skipped";
+    let onAbort!: () => void;
+    const cancelled = new Promise<never>((_, reject) => {
+      onAbort = () => reject(abort.reason);
+      abort.addEventListener("abort", onAbort, { once: true });
+      if (abort.aborted) onAbort();
+    });
+    // Release database locks on cancellation even if a late GitHub/token response ignores its signal.
+    try { return await Promise.race([sync({ ...ctx, db: tx }, row, abort), cancelled]); }
+    finally { abort.removeEventListener("abort", onAbort); }
   });
-  inFlight.set(row.b.id, run);
-  try {
-    return await run;
-  } finally {
-    if (inFlight.get(row.b.id) === run) inFlight.delete(row.b.id);
-  }
 }
 
 type Row = {
@@ -157,10 +175,9 @@ type Row = {
   repo: typeof repositories.$inferSelect;
 };
 
-async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string, signal?: AbortSignal): Promise<SyncResult> {
-  const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, onchainBountyId)));
-  const stage = stageOf(events.map((e) => e.event_type));
-  if (!stage) return "skipped";
+async function sync(ctx: Ctx, { b, pr, repo }: Row, signal?: AbortSignal): Promise<SyncResult> {
+  const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, b.onchain_bounty_id ?? "0")));
+  const stage = stageOf(events.map((e) => e.event_type)) ?? "unconfirmed";
   const ev = (t: string) => events.find((e) => e.event_type === t);
   const amountOf = (t: string) => (ev(t)?.payload as { amount?: string } | undefined)?.amount;
 
@@ -209,10 +226,11 @@ async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string, sig
 
   let mine = await ours();
   let result: SyncResult = "unchanged";
+  if (mine.length === 0 && stage === "unconfirmed") return "skipped";
   if (mine.length === 0) {
     await gh.createIssueComment(repo.installation_id, repo.name, pr.github_pr_number, body, signal);
     result = "created";
-    mine = await ours(); // another instance may have created one at the same moment
+    mine = await ours();
   }
   const [keep, ...extra] = mine;
   for (const c of extra) {

@@ -1,3 +1,6 @@
+import Fastify from "fastify";
+import { MockCanonicalChain } from "./canonical-chain.js";
+import { extractLogs } from "../src/streams/webhook.js";
 import { sql } from "drizzle-orm";
 import { buildApp } from "../src/fastify-app.js";
 import { createDb } from "../src/db/index.js";
@@ -23,8 +26,15 @@ export async function setup(extraEnv: Record<string, string> = {}) {
     DATABASE_URL: TEST_DB_URL, ESCROW_ADDRESS: ESCROW, SESSION_SECRET: "test-session-secret-0123456789",
     QN_SECURITY_TOKEN: QN_TOKEN, GITHUB_WEBHOOK_SECRET: WEBHOOK_SECRET, ...extraEnv,
   });
-  const ctx = { db, env, gh };
-  const app = await buildApp(ctx);
+  const canonical = new MockCanonicalChain(() => env.chainId);
+  const ctx = { db, env, gh, canonical };
+  const server = Fastify();
+  server.addHook("preValidation", async (req) => {
+    if (req.url === "/webhooks/streams") {
+      try { canonical.observe(extractLogs(JSON.parse(req.body as string))); } catch { /* malformed requests remain receiver tests */ }
+    }
+  });
+  const app = await buildApp(ctx, { app: server });
   await app.ready();
   const cookie = (id: number, login = `user${id}`) => ({ cookie: `merit_session=${encodeURIComponent(app.signCookie(JSON.stringify({ id, login })))}` });
   return { app, ctx, db, gh, cookie, close: async () => { await app.close(); await pool.end(); } };
