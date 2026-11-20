@@ -4,39 +4,10 @@
 
 A maintainer locks a USDC reward on a pull request *before* anyone reviews it. A reviewer leaves feedback on GitHub. If the maintainer decides that feedback led to a real fix, they approve the payout and the reviewer claims it, all on Arc. Every money state the app shows comes from escrow events delivered by QuickNode Streams.
 
-[**Live app**](https://merit-theta-beige.vercel.app) · [Escrow on Arc explorer](https://explorer.testnet.arc.io/address/0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727) · [API reference](docs/api.md) · [Contract interface](docs/escrow-interface.md) · [Stream configuration](#quicknode-streams-bounty) · [Demo script](docs/demo-script.md)
+[**Live app**](https://merit-theta-beige.vercel.app) · [Escrow on Arc explorer](https://explorer.testnet.arc.io/address/0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727) · [API reference](docs/api.md) · [Contract interface](docs/escrow-interface.md) · [Stream configuration](#quicknode-streams-bounty) · 
 
-> Testnet prototype. Rewards are **testnet USDC on Arc** and have no monetary value.
 
----
 
-## Hackathon entry: UBC 2026
-
-| | |
-| --- | --- |
-| **Main track** | **Track 3: Consumer Applications** |
-| **Chain award** | **Best use of Arc** |
-| **Bounty** | **Best Use of QuickNode Streams** |
-| Build window | November 12, 6:00 PM CST → November 20, 12:00 PM CST. This public repository was created on 2026-11-14, inside the window. |
-
-### Requirement checklist
-
-| Guide requirement | Where it is met |
-| --- | --- |
-| **Consumer Applications:** interacts with the blockchain | USDC escrow on Arc: fund, approve, claim, refund ([details](#best-use-of-arc)) |
-| **Consumer Applications:** working, user-facing frontend | [merit-theta-beige.vercel.app](https://merit-theta-beige.vercel.app), a Next.js web app ([screens](#the-product)) |
-| **Arc:** core onchain functionality on Arc | `BountyEscrow` holds every reward and enforces every payout on Arc testnet |
-| **Arc:** contract address(es) in the README | [Escrow `0x9245…4727` and USDC `0x3600…0000`](#contracts-and-addresses) |
-| **Arc:** explain how the project uses Arc | [Best use of Arc](#best-use-of-arc) |
-| **QuickNode:** Streams as a core data source | Funded, claimable, paid and refunded states come **only** from Stream-delivered logs; there is no RPC polling ([how](#what-streams-drives)) |
-| **QuickNode:** at least one Stream with a filter and a destination | `merit-escrow-arc-testnet`: Logs dataset → escrow-address filter → signed webhook ([config](#stream-configuration)) |
-| **QuickNode:** README explains network, dataset, filter logic, destination, and why | [Stream configuration](#stream-configuration) and [filter code](#filter) |
-| Public repo with source and setup instructions | This repository; [run it](#run-it) |
-| Technical documentation and architecture overview | [How it works](#how-it-works), [backend](backend/README.md), [web](web/README.md), [contracts](contracts/README.md) |
-| Written answers | [Submission answers](#submission-answers) |
-| 2–3 minute demo video | Linked on Devpost; [script](docs/demo-script.md) |
-
----
 
 ## The problem
 
