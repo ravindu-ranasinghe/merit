@@ -310,29 +310,6 @@ docs/        Frozen interfaces (ABI, API), Stream and release verification, demo
 - **Webhooks.** GitHub (`X-Hub-Signature-256`) and QuickNode (HMAC) signatures are verified on the raw body with constant-time compares before parsing.
 - **Secrets** stay server-side; the web app holds none.
 
-## Limitations (stated plainly)
-
-- **Testnet only**, not audited, no real money. Not production tax, identity or labor compliance.
-- **Review quality is subjective.** A maintainer can approve a weak review, and author/reviewer/maintainer collusion is possible. The evidence heuristic can miss fixes after rebases or line moves; the UI labels it, and a manual evidence link is supported.
-- **Claim ids on the deployed escrow are global**, so another funder could consume a public claim id first (denial of approval, not theft). A per-funder fix is in source and tests but not yet deployed ([escrow-upgrade.md](docs/escrow-upgrade.md)).
-- **Wallet onboarding** still uses a browser wallet. Walletless or gas-sponsored claiming is future work.
-- **Verification status:** the escrow lifecycle, the duplicate-claim revert and Stream delivery were exercised on Arc testnet on November 14. The current filter and reorg settings are configured and recorded. A fresh end-to-end run through the current filtered Stream is tracked in the [acceptance checklist](docs/demo-checklist.md).
-
----
-
-## Submission answers
-
-**What did you build?** A GitHub-connected code-review reward app. Maintainers escrow USDC on Arc for a pull request; reviewers earn it when the maintainer approves review feedback that led to a fix. QuickNode Streams indexes every escrow event into the app, the receipts and the PR's status comment.
-
-**What problem does it solve?** Careful code review is unpaid and invisible, even though it prevents real bugs. Bounties pay for writing code, not for catching problems, and a reward promised after the work is a reward reviewers can't count on.
-
-**How does it work?** The maintainer funds an escrow contract on Arc before review. The GitHub App collects the inline review, the later fix and the resolved thread as evidence. The maintainer signs an approval from the funding wallet, and the reviewer claims it. Streams delivers each contract event to a signed webhook that drives every money state in the UI.
-
-**What makes it unique?** It pays *reviewers*, not authors. The price is posted and locked before review starts. The payout depends on an explicit maintainer judgment backed by GitHub evidence rather than on a merge. The contract enforces one payout per bounty and per review, with no backend custody. And every payout has a public receipt.
-
-**What would you build next?** Walletless claiming with Circle Wallets and gas sponsorship. Splitting one bounty across several reviewers. Deploying the per-funder claim-id contract. Funder budgets and policies (for example "$5 for PRs over 100 lines"). A public reviewer reputation built from on-chain payouts.
-
-**Technologies and sponsor tools:** Circle **Arc** (testnet, USDC as gas), **USDC**, **QuickNode Streams** (Logs dataset, filter, webhook destination, restream on reorg), Solidity, Foundry, OpenZeppelin, Next.js, React, Tailwind, wagmi, viem, TanStack Query, Fastify, PostgreSQL, Drizzle, GitHub Apps and OAuth, Vercel.
 
 ## Team
 
