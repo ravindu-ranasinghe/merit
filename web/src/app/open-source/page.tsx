@@ -5,7 +5,7 @@ import { useState } from "react";
 import { IconArrowRight, IconGithub, IconLock } from "@/components/icons";
 import { Empty, LinkButton, Money, Notice, PageHeader, Pill, Skeleton, Tray } from "@/components/ui";
 import { useOpenSource } from "@/lib/api/queries";
-import { formatDate } from "@/lib/format";
+import { formatDeadline } from "@/lib/format";
 import { useNow } from "@/lib/now";
 
 export default function OpenSourcePage() {
@@ -62,7 +62,7 @@ export default function OpenSourcePage() {
               <p className="flex items-center gap-2 break-all text-[12px] text-mut"><IconGithub size={14} className="shrink-0" />{b.repo.fullName} #{b.pr.number}</p>
               <Link href={`/bounties/${b.id}`} className="mt-1 block text-[18px] font-medium leading-snug hover:underline">{b.pr.title}</Link>
               {b.repositoryDescription && <p className="mt-2 line-clamp-2 max-w-[70ch] text-[13px] text-mut">{b.repositoryDescription}</p>}
-              <div className="mt-3 flex flex-wrap items-center gap-2"><Pill tone="good"><IconLock size={11} />Funded</Pill>{b.language && <Pill>{b.language}</Pill>}<span className="text-[12px] text-mut">Closes {formatDate(b.deadline)}</span></div>
+              <div className="mt-3 flex flex-wrap items-center gap-2"><Pill tone="good"><IconLock size={11} />Funded</Pill>{b.language && <Pill>{b.language}</Pill>}<span className="text-[12px] text-mut">Closes {formatDeadline(b.deadline)}</span></div>
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-5 sm:block sm:text-right"><Money units={b.amountUnits} className="text-[28px]" /><div className="sm:mt-3"><LinkButton href={`/bounties/${b.id}`} variant="secondary">Explore bounty <IconArrowRight size={13} /></LinkButton></div></div>
           </article>)}</div>}

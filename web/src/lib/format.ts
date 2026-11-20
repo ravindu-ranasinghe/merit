@@ -56,6 +56,16 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/**
+ * A deadline for people. Far-off deadlines read as a date ("Nov 23, 2026"); a deadline within a day of now also
+ * shows the time ("Nov 16, 4:35 PM"), so a short demo window is not shown as just "today's date".
+ */
+export function formatDeadline(iso: string, now: number = Date.now()): string {
+  const t = new Date(iso).getTime();
+  if (Math.abs(t - now) >= 86_400_000) return formatDate(iso);
+  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 export function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
     month: "short",
