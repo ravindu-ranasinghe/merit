@@ -7,7 +7,7 @@ import { formatUsdc } from "@/lib/format";
  */
 export class ChainError extends Error {
   constructor(
-    public kind: "revert" | "user_rejected" | "wallet" | "network",
+    public kind: "revert" | "user_rejected" | "wallet" | "network" | "storage",
     message: string,
     public errorName?: string,
     public args: readonly unknown[] = [],
@@ -20,6 +20,7 @@ export class ChainError extends Error {
 /** Normalizes anything thrown by viem/wagmi (or the mock chain) into a ChainError. */
 export function toChainError(err: unknown): ChainError {
   if (err instanceof ChainError) return err;
+  if (err instanceof Error && err.name === "DepositStorageError") return new ChainError("storage", err.message);
   if (err instanceof BaseError) {
     if (err.walk((e) => e instanceof UserRejectedRequestError)) {
       return new ChainError("user_rejected", "Request cancelled in the wallet.");
@@ -53,6 +54,7 @@ const units = (v: unknown) => (typeof v === "bigint" ? formatUsdc(v) : String(v)
 
 /** Plain-language copy for every way the escrow contract or the wallet can say no. */
 export function describeChainError(err: ChainError): ErrorCopy {
+  if (err.kind === "storage") return { title: "Deposit recovery needs browser storage", body: err.message, guardrail: false };
   if (err.kind === "user_rejected") {
     return { title: "Cancelled in your wallet", body: "Nothing was sent. You can try again.", guardrail: false };
   }

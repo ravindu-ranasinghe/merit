@@ -1,9 +1,10 @@
-import { eq, getTableColumns } from "drizzle-orm";
+import { and, eq, getTableColumns } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { Ctx } from "../ctx.js";
 import { bounties, chain_events, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { repoOfPr, requireSession } from "../session.js";
 import { approvalsOfBounty, bountyViews, canReadRepository } from "./view.js";
+import { eventContext } from "../streams/match.js";
 
 export function meRoutes(app: FastifyInstance, ctx: Ctx) {
   app.get("/me", async (req) => {
@@ -21,7 +22,7 @@ export function meRoutes(app: FastifyInstance, ctx: Ctx) {
       for (const bounty of await bountyViews(ctx, eq(bounties.pr_id, candidate.pr_id))) {
         const approval = (await approvalsOfBounty(ctx, bounty.id)).find((a) => a.candidate_id === candidate.id);
         const events = bounty.onchain_bounty_id === null ? [] : await ctx.db.select().from(chain_events)
-          .where(eq(chain_events.onchain_bounty_id, bounty.onchain_bounty_id));
+          .where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, bounty.onchain_bounty_id)));
         as_reviewer.push({ candidate, bounty: { ...bounty, events }, approval: approval ?? null });
       }
     }

@@ -1,0 +1,63 @@
+{
+  "startedAt": "2026-11-20T02:43:49.858Z",
+  "mode": "simulated",
+  "base": "http://127.0.0.1:3000",
+  "runs": [
+    {
+      "run": 1,
+      "checks": [
+        "receipt timeout retains hash; one deposit; no Fund action while indexing resolves",
+        "known reverted deposit permits one successful retry",
+        "new bounty receives an id above all seeded fixtures",
+        "refund-first: four paid, six refunded, zero held; duplicate claim refused; totals correct",
+        "claim-first: four paid, six refunded, zero held; duplicate claim refused; totals correct",
+        "paid remainder refund remains reachable at 390px without horizontal overflow"
+      ],
+      "screenshots": [
+        "output/verification/non-qn-9H30zD/run-1-deposit-timeout.png",
+        "output/verification/non-qn-9H30zD/run-1-known-revert.png",
+        "output/verification/non-qn-9H30zD/run-1-new-bounty.png",
+        "output/verification/non-qn-9H30zD/run-1-refunded-reward-reserved.png",
+        "output/verification/non-qn-9H30zD/run-1-refund-first-duplicate-refused.png",
+        "output/verification/non-qn-9H30zD/run-1-refund-first-receipt.png",
+        "output/verification/non-qn-9H30zD/run-1-claim-first-duplicate-refused.png",
+        "output/verification/non-qn-9H30zD/run-1-claim-first-receipt.png",
+        "output/verification/non-qn-9H30zD/run-1-mobile-partial-paid.png"
+      ],
+      "pageErrors": [],
+      "passed": true
+    },
+    {
+      "run": 2,
+      "checks": [
+        "receipt timeout retains hash; one deposit; no Fund action while indexing resolves",
+        "known reverted deposit permits one successful retry",
+        "new bounty receives an id above all seeded fixtures",
+        "refund-first: four paid, six refunded, zero held; duplicate claim refused; totals correct",
+        "claim-first: four paid, six refunded, zero held; duplicate claim refused; totals correct",
+        "paid remainder refund remains reachable at 390px without horizontal overflow"
+      ],
+      "screenshots": [
+        "output/verification/non-qn-9H30zD/run-2-deposit-timeout.png",
+        "output/verification/non-qn-9H30zD/run-2-known-revert.png",
+        "output/verification/non-qn-9H30zD/run-2-new-bounty.png",
+        "output/verification/non-qn-9H30zD/run-2-refunded-reward-reserved.png",
+        "output/verification/non-qn-9H30zD/run-2-refund-first-duplicate-refused.png",
+        "output/verification/non-qn-9H30zD/run-2-refund-first-receipt.png",
+        "output/verification/non-qn-9H30zD/run-2-claim-first-duplicate-refused.png",
+        "output/verification/non-qn-9H30zD/run-2-claim-first-receipt.png",
+        "output/verification/non-qn-9H30zD/run-2-mobile-partial-paid.png"
+      ],
+      "pageErrors": [],
+      "passed": true
+    }
+  ],
+  "finishedAt": "2026-11-20T02:45:24.952Z",
+  "baseline": "c524f67",
+  "local_payment_hardening": true,
+  "limits": [
+    "Simulated browser data; no live wallet transaction.",
+    "No QuickNode dashboard or provider delivery verification.",
+    "Fresh live cold rehearsals remain separate from these two mock sessions."
+  ]
+}

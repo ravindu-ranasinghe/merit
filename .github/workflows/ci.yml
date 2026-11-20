@@ -101,6 +101,11 @@ jobs:
       - name: lint
         working-directory: web
         run: npm run lint
+      - name: deposit recovery and accounting regressions
+        working-directory: web
+        run: |
+          npm run check:deposit
+          npm run check:accounting
       - name: typecheck
         working-directory: web
         run: npx tsc --noEmit

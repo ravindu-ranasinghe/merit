@@ -30,6 +30,10 @@ The guide lists Consumer Applications at $2,000, Arc at $1,000 within the chosen
 
 ## A 2–3 minute video
 
+Use [the timed recording script](demo-script.md) and [the acceptance checklist/evidence inventory](demo-checklist.md)
+for the final capture. Neither a fresh filtered-Stream lifecycle nor a final live video is claimed complete. The
+existing local walkthrough is an 87.004-second simulated recording; preserve it as an illustration, not live proof.
+
 - **0:00–0:20 — Problem.** Open the public rewards board: “Maintainers need careful reviews. Reviewers need a credible reward. Merit locks the reward before the work starts.” Show reward amounts and funded status.
 - **0:20–0:45 — Discover.** Search for the demo repository, open a bounty, and copy its PR badge. Show the actual GitHub review text and the specific line awaiting a fix.
 - **0:45–1:15 — Evidence.** Show the inline review, an actual subsequent fixing commit, and the resolved thread on GitHub. Recheck in Merit and point to the timeline. Say: “These are signals for the maintainer; we do not automatically judge review quality.”
@@ -53,3 +57,7 @@ Use separate GitHub accounts and wallets for the maintainer, PR author, and revi
 The guide requires team members, a public source repository with setup instructions, a working deployment, a judge-accessible 2–3 minute video, written product answers, sponsor tools used, and technical documentation. The root README supplies the architecture, Arc contract address, and Streams configuration reference; fill in the actual team, public repository URL, and video URL in Devpost.
 
 The supplied guide sets the submission deadline at **Friday, November 20, 2026, at noon CST**. It requires teams to be present in person at the November 21 closing ceremony for any prize. Finalist presentations are five minutes plus two minutes of questions. Check organizer updates before submission.
+
+November 19 organizer check: the [official Devpost page](https://ubc-hackathon-2026.devpost.com/) still lists November 20 at noon CST and requires a public repository, working demo and accessible 2–3 minute video. The [rules](https://ubc-hackathon-2026.devpost.com/rules) require in-person finals and allow teams of 1–4. Eligibility still needs team confirmation: the participation banner restricts entry to students, while the rules text also describes independent builders. Repository creation during the window is verified from GitHub metadata; that alone does not establish every eligibility/originality requirement.
+
+The local 2:52 narrated mock rehearsal is prepared, with a permanent simulation label. It is a review/editing asset; the fresh live proof, final hosted video URL, registered team roster, attendee and final Devpost submission remain unconfirmed.

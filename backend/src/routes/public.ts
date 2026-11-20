@@ -1,9 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { HttpError, type Ctx } from "../ctx.js";
 import { bounties, chain_events, pull_requests, repositories } from "../db/schema.js";
 import { approvalsOfBounty, bountyViews, candidatesOfPr, displayUser } from "./view.js";
+import { eventContext } from "../streams/match.js";
 
 /** Fail closed: a repository is public only after a successful, live GitHub visibility check. */
 async function publicBounties(ctx: Ctx) {
@@ -47,7 +48,7 @@ export function publicRoutes(app: FastifyInstance, ctx: Ctx) {
       if (!candidates.length) continue;
       const approvals = (await approvalsOfBounty(ctx, bounty.id)).filter((a) => a.reviewer_id === userId && a.status !== "prepared");
       const events = bounty.onchain_bounty_id === null ? [] : await ctx.db.select().from(chain_events)
-        .where(eq(chain_events.onchain_bounty_id, bounty.onchain_bounty_id));
+        .where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, bounty.onchain_bounty_id)));
       contributions.push({ ...bounty, candidates, approvals, events });
     }
     const first = rows[0];

@@ -12,6 +12,10 @@ This is the contract for the web app. Breaking changes are announced to C the sa
   metadata; PR titles and other identities are fetched from GitHub with short display caches.
 - Timestamps are ISO-8601 UTC strings. `deadline` is the onchain expiry.
 - Addresses and hashes are lowercase `0x` hex.
+- Event reads and reconciliation are scoped to the configured chain id and escrow address, including list/detail
+  amounts, reviewer profiles, GitHub status comments and the event feed. Other deployment logs remain in the ledger
+  but cannot supply this deployment's facts. Each app database belongs to one chain/escrow deployment; do not point
+  an existing bounty database at a different deployment and reuse its contract-local bounty ids.
 - **Errors**: `{ "error": "message" }` with 400 (bad input; also carries `issues`), 401 (no/invalid session),
   403 (not allowed), 404, 409 (conflict, e.g. duplicate), 5xx.
 - **Auth**: an httpOnly signed cookie `merit_session`, set by the OAuth callback. Call with
@@ -179,6 +183,12 @@ are never bound and do not block a new bounty for the PR.
 For the web app: fund from the wallet in `bounty.funder_wallet`. Funding from any other wallet, or changing the
 amount or expiry in the prepared calldata, produces an event Merit will not attach to the bounty. The backend does
 not record a client-reported funding hash; only the indexed `BountyFunded` marks a bounty funded.
+
+The web app saves a deposit hash at broadcast in browser storage, together with its wallet, chain, escrow and terms.
+Retry/refresh checks that submission. New funding is blocked if recovery storage is unavailable. If storage disappears
+after broadcast, the page retains the hash in memory and warns the user to keep the tab open until indexing. This is
+browser-local protection; another browser/device or clearing browser data loses the record. No funding-hash endpoint
+or schema migration is introduced by this hardening.
 
 Approval rules (each failure is 403 or 409 with an explanatory `error`):
 - caller is a repo maintainer per live GitHub check;

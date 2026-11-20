@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests, repositories } from "../db/schema.js";
-import { approvalMatches } from "../streams/match.js";
+import { approvalMatches, eventContext } from "../streams/match.js";
 
 /**
  * One Merit status comment per bounty on its pull request, driven only by indexed contract events.
@@ -139,7 +139,7 @@ type Row = {
 };
 
 async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string): Promise<SyncResult> {
-  const events = await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, onchainBountyId));
+  const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, onchainBountyId)));
   const stage = stageOf(events.map((e) => e.event_type));
   if (!stage) return "skipped";
   const ev = (t: string) => events.find((e) => e.event_type === t);

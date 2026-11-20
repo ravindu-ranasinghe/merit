@@ -6,7 +6,7 @@ import { refreshBounty } from "../bounty.js";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests } from "../db/schema.js";
 import { syncPrStatusComment } from "../github/pr-status.js";
-import { approvalMatches, matchesIntent } from "./match.js";
+import { approvalMatches, eventContext, matchesIntent } from "./match.js";
 import { isUniqueViolation } from "../db/index.js";
 
 /**
@@ -98,7 +98,7 @@ const RANK: Record<string, number> = { prepared: 0, signed: 1, paid: 2 };
 
 /** Rebuild one bounty's state from its stored events. Same events in any order, any number of times, same result. */
 export async function reconcile(ctx: Ctx, onchainId: string) {
-  const events = await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, onchainId));
+  const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, onchainId)));
 
   // 1. Link the offchain bounty row (the maintainer's funding intent) to its onchain id, once.
   // The PR hash is public, so anyone can fund the same PR. A BountyFunded event binds a pending intent only

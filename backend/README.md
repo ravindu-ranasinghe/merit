@@ -173,6 +173,13 @@ function main(stream) {
 4. **Reconcile:** rebuilds each affected bounty's status from all of its stored events, so delivery order doesn't
    matter.
 
+All event reads additionally match the configured chain id and lowercased escrow address. Logs retained from another
+context cannot bind an intent, advance an approval, supply displayed amounts or credit a reviewer. One application
+database belongs to one deployment; use a separate database for another chain/escrow. No migration rewrites existing
+intent ownership or historical events. Older pending rows without a verified funder remain unbound and do not block
+creating a complete intent. See [the acceptance checklist](../docs/demo-checklist.md) for current local results and
+the pending fresh filtered-Stream proof.
+
 ### Verified on Arc testnet (Nov 14)
 
 - **Real deliveries:** the signature check accepted every one (996 during the backfill). The only 401s were

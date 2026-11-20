@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { encodeAbiParameters, encodeEventTopics, keccak256, type Hex } from "viem";
 import { afterAll, describe, expect, it } from "vitest";
 import { claimId, escrowAbi, prHash } from "../src/chain/escrow.js";
-import { bounties, pull_requests, repositories } from "../src/db/schema.js";
+import { bounties, chain_events, pull_requests, repositories } from "../src/db/schema.js";
 import { loadEnv } from "../src/env.js";
 import { bearerMatches } from "../src/routes/internal.js";
 import { qnSign } from "../src/streams/webhook.js";
@@ -49,6 +49,25 @@ async function bounty(id: number, o: { expiry?: bigint; approve?: bigint; paid?:
 const status = async (id: number) => (await h.db.select().from(bounties).where(sql`${bounties.id} = ${id}`))[0]!.status;
 
 describe("sweepExpired()", () => {
+  it.each(["chain", "contract"])("another %s cannot hide a refund or supply the reserved amount", async (context) => {
+    await start();
+    const first = await bounty(1);
+    const second = await bounty(2, { approve: 4_000_000n });
+    for (const [i, event_type] of ["BountyRefunded", "RewardApproved"].entries()) {
+      await h.db.insert(chain_events).values({
+        chain_id: context === "chain" ? h.ctx.env.chainId + 1 : h.ctx.env.chainId,
+        contract: context === "contract" ? "0x00000000000000000000000000000000000000bd" : ESCROW,
+        tx_hash: `0x${(30 + i).toString(16).repeat(32)}`, log_index: 0, block_number: 100, event_type,
+        onchain_bounty_id: String(i + 1), payload: { amount: "10000000" },
+      });
+    }
+    const result = await sweepExpired(h.ctx, AFTER);
+    expect(result.checked).toBe(2);
+    expect(result.refundable).toEqual([
+      { bounty_id: first.id, onchain_bounty_id: "1", refundable_units: "10000000" },
+      { bounty_id: second.id, onchain_bounty_id: "2", refundable_units: "6000000" },
+    ]);
+  });
   it("expires a funded bounty once its deadline passes and lists it as fully refundable", async () => {
     await start();
     const b = await bounty(1);

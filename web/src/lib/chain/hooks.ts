@@ -24,7 +24,7 @@ import {
 } from "wagmi/actions";
 import type { Address, ChainEventType, Hex, PreparedApproval, TxRef } from "@/lib/api/types";
 import { computePrHash, eventTopic, type ChainDriver, type EscrowCall, type TxDetails, type TxResult } from "@/lib/chain/driver";
-import { fund, resolveDeposit, type DepositCheck, type DepositRecord, type DepositStore, type FundEvent, type FundingChain, type FundResult } from "@/lib/chain/deposit-flow";
+import { fund, matchesDeposit, resolveDeposit, type DepositCheck, type DepositOutcome, type DepositRecord, type DepositStore, type FundEvent, type FundingChain, type FundResult } from "@/lib/chain/deposit-flow";
 import { browserDepositStore } from "@/lib/chain/deposit-store";
 import { ChainError, toChainError } from "@/lib/chain/errors";
 import { escrowAbi } from "@/lib/chain/escrow-abi";
@@ -78,7 +78,9 @@ const realDriver: ChainDriver = {
     readContract(wagmiConfig, { address: ARC.usdc, abi: erc20Abi, functionName: "balanceOf", args: [owner], chainId: ARC.chainId }),
 
   async approveUsdc(amount, onSubmitted) {
+    const account = connectedAccount();
     const hash = await writeContract(wagmiConfig, {
+      account,
       address: ARC.usdc,
       abi: erc20Abi,
       functionName: "approve",
@@ -86,22 +88,31 @@ const realDriver: ChainDriver = {
       chainId: ARC.chainId,
     });
     onSubmitted?.(hash);
-    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS });
+    const receipt = await waitForTransactionReceipt(wagmiConfig, {
+      hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS,
+      onReplaced: ({ transaction }) => onSubmitted?.(transaction.hash),
+    });
     if (receipt.status !== "success") throw new ChainError("revert", "The USDC approval reverted.");
-    return { hash };
+    return { hash: receipt.transactionHash };
   },
 
   async send(call, onSubmitted) {
+    const account = connectedAccount();
     // Dry-run first, so a refusal arrives as a decoded contract error before the wallet opens.
-    await simulateContract(wagmiConfig, { ...typed(call), account: connectedAccount() });
-    const hash = await writeContract(wagmiConfig, typed(call));
+    await simulateContract(wagmiConfig, { ...typed(call), account });
+    const hash = await writeContract(wagmiConfig, { ...typed(call), account });
     onSubmitted?.(hash);
-    const receipt = await waitForTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS });
+    const receipt = await waitForTransactionReceipt(wagmiConfig, {
+      hash, chainId: ARC.chainId, pollingInterval: RECEIPT_POLL_MS,
+      onReplaced: ({ transaction }) => onSubmitted?.(transaction.hash),
+    });
     if (receipt.status !== "success") throw new ChainError("revert", "The transaction reverted onchain.");
-    const result: TxResult = { hash };
+    const result: TxResult = { hash: receipt.transactionHash };
     if (call.fn === "createBounty") {
-      const [funded] = parseEventLogs({ abi: escrowAbi, eventName: "BountyFunded", logs: receipt.logs });
-      result.bountyId = funded?.args.bountyId;
+      const expected = { wallet: account, escrow: escrowAddress(), expect: { prHash: call.args[0], amount: call.args[1].toString(), expiry: call.args[2].toString() } };
+      const funded = parseEventLogs({ abi: escrowAbi, eventName: "BountyFunded", logs: receipt.logs }).find((e) => matchesDeposit(expected, e));
+      if (!funded) throw new ChainError("wallet", "The confirmed replacement did not fund this bounty. Check the recorded deposit before trying again.");
+      result.bountyId = funded.args.bountyId;
     }
     return result;
   },
@@ -151,18 +162,23 @@ async function findFunding(record: DepositRecord): Promise<Hex | null> {
       address: record.escrow, event, fromBlock: from, toBlock: to,
       args: { funder: record.wallet, prHash: record.expect.prHash },
     } as Parameters<typeof client.getLogs>[0]);
-    for (const l of logs as unknown as { transactionHash: Hex; args: { amount: bigint; expiry: bigint } }[]) {
-      if (l.args.amount === BigInt(record.expect.amount) && l.args.expiry === BigInt(record.expect.expiry)) return l.transactionHash;
+    for (const l of logs as unknown as { address: string; transactionHash: Hex; args: { funder: string; prHash: string; amount: bigint; expiry: bigint } }[]) {
+      if (matchesDeposit(record, l)) return l.transactionHash;
     }
   }
   return null;
 }
 
 /** The deposit's own receipt: confirmed or reverted, or null while it is not mined. */
-async function ownReceipt(hash: Hex): Promise<"confirmed" | "reverted" | null> {
+async function ownReceipt(record: DepositRecord): Promise<DepositOutcome | null> {
   try {
-    const r = await getTransactionReceipt(wagmiConfig, { hash, chainId: ARC.chainId });
-    return r.status === "success" ? "confirmed" : "reverted";
+    const r = await getTransactionReceipt(wagmiConfig, { hash: record.hash, chainId: ARC.chainId });
+    if (r.status !== "success") return "reverted";
+    const events = parseEventLogs({ abi: escrowAbi, eventName: "BountyFunded", logs: r.logs });
+    const funded = record.chainId === 0
+      ? events.some((e) => e.address.toLowerCase() === escrowAddress().toLowerCase())
+      : events.some((e) => matchesDeposit(record, e));
+    return funded ? "confirmed" : "replaced";
   } catch (err) {
     if (err instanceof TransactionReceiptNotFoundError) return null;
     throw err;
@@ -170,7 +186,7 @@ async function ownReceipt(hash: Hex): Promise<"confirmed" | "reverted" | null> {
 }
 
 async function checkDepositOnArc(record: DepositRecord): Promise<DepositCheck> {
-  const own = await ownReceipt(record.hash);
+  const own = await ownReceipt(record);
   if (own) return { outcome: own };
   if (record.chainId === 0) return { outcome: "pending" }; // an older hash-only record: receipt is all we can check
   const fundedBy = await findFunding(record);
@@ -187,7 +203,7 @@ async function checkDepositOnArc(record: DepositRecord): Promise<DepositCheck> {
   const used = await client.getTransactionCount({ address: record.wallet, blockTag: "latest" });
   if (used <= nonce) return { outcome: "pending", nonce };
   // The nonce is used. Check once more, in case this very deposit was mined between the reads above.
-  const again = await ownReceipt(record.hash);
+  const again = await ownReceipt(record);
   if (again) return { outcome: again, nonce };
   const late = await findFunding(record);
   if (late) return { outcome: "confirmed", fundedBy: late, nonce };
@@ -365,6 +381,11 @@ export interface FundState {
 const FUND_IDLE: FundState = { phase: "idle", approveHash: null, depositHash: null, error: null, notFundedReason: null, otherWallet: null };
 
 const fundingChain: FundingChain = {
+  assertWallet: (owner) => {
+    const current = MOCK ? { address: PERSONAS[getPersonaKey()].wallet, chainId: ARC.chainId } : getConnection(wagmiConfig);
+    if (current.address?.toLowerCase() !== owner.toLowerCase()) throw new ChainError("wallet", "The funding wallet changed. Reconnect the wallet linked to this bounty before funding.");
+    if (current.chainId !== ARC.chainId) throw new ChainError("wallet", "Switch back to Arc testnet before funding.");
+  },
   allowance: (owner) => driver.allowance(owner),
   approveUsdc: (amount, onSubmitted) => driver.approveUsdc(amount, onSubmitted),
   blockNumber: () => driver.blockNumber(),
@@ -377,8 +398,8 @@ const depositStore = (): DepositStore =>
 
 function applyResult(r: FundResult, prev: FundState): FundState {
   switch (r.kind) {
-    case "confirmed": return { ...prev, phase: "done", depositHash: r.hash, error: null };
-    case "pending": return { ...prev, phase: "pending", depositHash: r.hash, error: null };
+    case "confirmed": return { ...prev, phase: "done", depositHash: r.hash };
+    case "pending": return { ...prev, phase: "pending", depositHash: r.hash };
     case "not_funded": return { ...prev, phase: "not_funded", depositHash: r.hash, notFundedReason: r.reason, error: null };
     case "other_wallet": return { ...prev, phase: "other_wallet", depositHash: r.hash, otherWallet: r.wallet };
     case "busy": return prev;
@@ -416,6 +437,7 @@ export function useFundBounty(bountyId: string, owner: Address | null, onDeposit
         case "approve_submitted": return { ...s, phase: "approve_confirming", approveHash: e.hash };
         case "deposit_wallet": return { ...s, phase: "deposit_wallet" };
         case "deposit_submitted": return { ...s, phase: "deposit_confirming", depositHash: e.hash };
+        case "storage_failed": return { ...s, error: new ChainError("storage", "Your deposit was sent, but browser storage stopped working. Keep this tab open until the funding event is indexed; refreshing could lose its recovery record.") };
         case "checking": return { ...s, phase: "checking", depositHash: e.hash };
       }
     });
