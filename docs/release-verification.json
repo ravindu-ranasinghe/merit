@@ -1,0 +1,114 @@
+{
+  "checkedAt": "2026-11-20T03:13:36.358841+00:00",
+  "scope": "Release and anonymous access checks; no fresh wallet transaction or QuickNode delivery verification",
+  "sourceCommit": "98bf0ac76ce887e946460eafa77ddd5eedc4e50f",
+  "pullRequest": "https://github.com/ravindu-ranasinghe/merit/pull/26",
+  "frontend": {
+    "url": "https://merit-theta-beige.vercel.app",
+    "deployment": "merit-rj2ii6yqu-ravindu-ranasinghes-projects.vercel.app",
+    "state": "READY"
+  },
+  "backend": {
+    "url": "https://merit-backend-seven.vercel.app",
+    "deployment": "merit-backend-pyclvpffi-ravindu-ranasinghes-projects.vercel.app",
+    "deploymentId": "dpl_2kURnAoFDgEXVjLf413VwMWtF9Do",
+    "state": "READY",
+    "promotion": "promoted after health/config/public-list/signed-out-auth checks",
+    "publicAliasTargetsDeployment": true
+  },
+  "checks": [
+    {
+      "url": "https://merit-backend-seven.vercel.app/health",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "github_mock": false
+      }
+    },
+    {
+      "url": "https://merit-backend-seven.vercel.app/config",
+      "status": 200,
+      "body": {
+        "chain_id": 5042002,
+        "escrow_address": "0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727",
+        "usdc_address": "0x3600000000000000000000000000000000000000",
+        "usdc_decimals": 6,
+        "explorer_url": "https://explorer.testnet.arc.io"
+      }
+    },
+    {
+      "url": "https://merit-backend-seven.vercel.app/bounties",
+      "status": 200,
+      "bountyIds": [
+        2,
+        1
+      ],
+      "confirmedEventFactsPresent": true
+    },
+    {
+      "url": "https://merit-theta-beige.vercel.app/api/merit/health",
+      "status": 200,
+      "body": {
+        "ok": true,
+        "github_mock": false
+      }
+    },
+    {
+      "url": "https://merit-theta-beige.vercel.app/api/merit/config",
+      "status": 200,
+      "body": {
+        "chain_id": 5042002,
+        "escrow_address": "0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727",
+        "usdc_address": "0x3600000000000000000000000000000000000000",
+        "usdc_decimals": 6,
+        "explorer_url": "https://explorer.testnet.arc.io"
+      }
+    },
+    {
+      "url": "https://merit-theta-beige.vercel.app/api/merit/bounties",
+      "status": 200,
+      "bountyIds": [
+        2,
+        1
+      ],
+      "confirmedEventFactsPresent": true
+    }
+  ],
+  "anonymousBrowser": {
+    "time": "2026-11-20T03:11:40.735Z",
+    "revision": "98bf0ac76ce887e946460eafa77ddd5eedc4e50f",
+    "checks": [
+      {
+        "path": "/",
+        "status": 200,
+        "finalUrl": "https://merit-theta-beige.vercel.app/",
+        "mockPersonaBar": false,
+        "deploymentGate": false,
+        "title": "Merit: paid code review on GitHub"
+      },
+      {
+        "path": "/bounties/1",
+        "status": 200,
+        "finalUrl": "https://merit-theta-beige.vercel.app/bounties/1",
+        "mockPersonaBar": false,
+        "deploymentGate": false,
+        "title": "Merit: paid code review on GitHub"
+      }
+    ],
+    "pageErrors": []
+  },
+  "rehearsalVideo": {
+    "path": "output/video/merit-non-quicknode-rehearsal-2026-11-19-v1.mp4",
+    "durationSeconds": 172.333333,
+    "simulated": true,
+    "fullDecode": "passed",
+    "browserPlaybackAndSeeking": "passed",
+    "publicVideoUrl": null
+  },
+  "pending": [
+    "Fresh real-wallet same-bounty acceptance and partial-refund orderings",
+    "Ravi filtered QuickNode configuration/delivery/replay evidence",
+    "Two live cold rehearsals and final live video capture/upload/access",
+    "Registered team members and closing-ceremony attendee confirmation"
+  ]
+}

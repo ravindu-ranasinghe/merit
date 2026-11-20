@@ -36,8 +36,9 @@ curl localhost:4000/bounties
 
 ## Vercel live deployment
 
-The backend is a separate Vercel project with **Root Directory `backend`** and
-**Framework Preset Fastify**. `src/index.ts` is its entrypoint. Keep the `web` project
+The backend is a separate Vercel project with **Framework Preset Fastify**. For a
+Git import, set **Root Directory `backend`**; for a CLI upload from `backend/`, leave
+the project's Root Directory unset. `src/index.ts` is its entrypoint. Keep the `web` project
 separate; the web app proxies `/api/merit/*` to this API so OAuth and session cookies
 stay on the web origin.
 

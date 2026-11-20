@@ -2,6 +2,8 @@
 
 Status: November 19, 2026. The combined backend checks cover `origin/main` at `fcd1438` plus payment hardening; the browser runs used the same web code based on `c524f67`. They do not verify a new live payment. Entry: **Consumer Applications + Best use of Arc + QuickNode Streams**, subject to the final provider evidence and organizer rules.
 
+Release: [PR #26](https://github.com/ravindu-ranasinghe/merit/pull/26) merged as `98bf0ac76ce887e946460eafa77ddd5eedc4e50f`, with all CI checks passing. The frontend deployed that commit automatically; the backend was staged, checked and promoted from the same commit. [Release evidence](release-verification.json) records the deployment IDs, public API checks and signed-out browser results. No environment variables, Stream configuration or contract deployment were changed.
+
 ## Before a rehearsal
 
 1. Follow [backend setup](../backend/README.md#run) and [web setup](../web/README.md#setup). Use a Node release with TypeScript stripping for the executable regression checks (this run used `v26.7.0`), PostgreSQL 16, and the installed package locks. Docker is needed only for the local database. Keep the public backend in production mode with real GitHub authentication.
@@ -80,7 +82,7 @@ No fresh live values were supplied during this preparation. Fill these from the 
 
 | Required fact | Recorded value / evidence | Owner |
 | --- | --- | --- |
-| Submitted commit, frontend URL and API URL | Pending final deployment/revision; current public landing page is [Merit](https://merit-theta-beige.vercel.app) | Release owner |
+| Released commit, frontend URL and API URL | `98bf0ac76ce887e946460eafa77ddd5eedc4e50f`; [Merit](https://merit-theta-beige.vercel.app), [API health](https://merit-backend-seven.vercel.app/health). Deployment evidence above; record any later submission revision separately. | Release owner |
 | PR URL, inline review URL/comment id, reviewer GitHub id | Pending fresh run | Reviewer |
 | Relevant fixing commit/diff and resolved-thread evidence | Pending fresh run | PR author |
 | Maintainer GitHub id, funder wallet, recipient wallet, wallet-link confirmation | Pending fresh run; include public identities only | Wallet owners |
@@ -107,6 +109,7 @@ Each cold run starts with fresh application sessions and empty test-specific fun
 
 - [x] November 18: anonymous HTTP GET of the public [source repository](https://github.com/ravindu-ranasinghe/merit) and [landing page](https://merit-theta-beige.vercel.app) returned 200 at their expected URLs.
 - [x] November 18: public `/api/merit/health` returned `{"ok":true,"github_mock":false}`. This establishes reachability, not a verified payment or deployed hardening revision.
+- [x] November 19: the released frontend landing page and public bounty opened in a fresh signed-out headless Chrome context, with no deployment gate, mock persona bar or uncaught page errors. The public backend alias targets the new deployment; direct and proxied health/config/bounty reads passed. Screenshots and results are under `output/verification/release-iEfBhw/`; the sanitized record is linked above. The repository was also checked signed out during the rehearsal preparation.
 - [ ] Open the deployed product, relevant public PR, receipt, and final video from a signed-out browser; verify no deployment protection or sharing restriction interrupts judges. No final video URL has been supplied.
 - [x] Record a **mock rehearsal export**: `output/video/merit-non-quicknode-rehearsal-2026-11-19-v1.mp4`, 172.333 seconds, with narration, captions and a persistent simulation label. It includes sample approval, deposit recovery, refund-first claim, duplicate refusal and receipt screens. Full audio/video decode passed; playback checks are recorded separately. The original 87.004-second walkthrough remains untouched.
 - [ ] Replace the mock rehearsal with the final live capture using [demo-script.md](demo-script.md), then upload and check the judge-accessible URL. The rehearsal is not fresh wallet or provider evidence, and no final public video URL is claimed.
