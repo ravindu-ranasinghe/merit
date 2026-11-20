@@ -197,6 +197,57 @@ the pending fresh filtered-Stream proof.
 - **No timestamp freshness check.** A replayed delivery is harmless because the insert is idempotent.
 - **Reorgs:** QuickNode's reorg headers (`Batch-Reorgs`) are not processed.
 
+## Expiry sweep (`src/sweep.ts`, `POST /internal/sweep`)
+
+The contract cannot act on a clock, and before this nothing in the backend did either: a bounty became `expired`
+only when someone read it. A scheduler now calls the sweep every few minutes. For every bounty that is funded
+onchain, past its deadline and has no indexed `BountyRefunded`, it:
+
+1. recomputes status (`funded` / `review_candidate` → `expired`; chain states such as `claimable` and `paid` win);
+2. re-syncs the PR status comment (`src/github/pr-status.ts`) when `GITHUB_PR_COMMENTS` is on. The comment has no
+   deadline stage, so this only repairs a comment a failed delivery left stale (for example a 403 before the App
+   permission was granted);
+3. reports `refundable`: bounties whose escrow the contract would return, `amount - approvedAmount > 0`. A paid
+   bounty with a partial approval is included, because its unapproved remainder is still refundable.
+
+```json
+{ "ran": true, "checked": 2,
+  "changed": [{ "bounty_id": 4, "from": "funded", "to": "expired" }],
+  "refundable": [{ "bounty_id": 4, "onchain_bounty_id": "3", "refundable_units": "10000000" }],
+  "comments": { "created": 0, "updated": 1, "unchanged": 1, "skipped": 0, "failed": 0 } }
+```
+
+- **No key, no transaction.** The refund itself is still sent by a person from the bounty page (anyone may send it;
+  the contract only pays the funder). `refundable` is the work list an automatic refund keeper would act on; that
+  needs a gas-only keeper wallet and a trust-model change in SPEC.md, so it is not built.
+- **Derived, not queued.** Everything comes from stored events and the clock, so after downtime the next sweep finds
+  exactly what is outstanding. Running it twice changes nothing the second time.
+- **One at a time.** `pg_try_advisory_xact_lock(761496107)`: an overlapping call returns `{ "ran": false }`.
+- **Locked down.** The route returns 404 unless `SWEEP_SECRET` (16+ characters) is set, and 401 without
+  `Authorization: Bearer <SWEEP_SECRET>` (constant-time compare). A session cookie does not work.
+
+**Scheduler (not committed; `.github/` is CODEOWNED).** A GitHub Actions cron is the simplest caller on Vercel's
+free plan. Add the API origin and the same secret as repository secrets `MERIT_API_ORIGIN` and `SWEEP_SECRET`:
+
+```yaml
+# .github/workflows/sweep.yml
+name: Expiry sweep
+on:
+  schedule: [{ cron: "*/5 * * * *" }] # GitHub may start scheduled runs several minutes late
+  workflow_dispatch: {}
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: |
+          curl --fail-with-body -sS -X POST "$MERIT_API_ORIGIN/internal/sweep" \
+            -H "Authorization: Bearer $SWEEP_SECRET"
+        env:
+          MERIT_API_ORIGIN: ${{ secrets.MERIT_API_ORIGIN }}
+          SWEEP_SECRET: ${{ secrets.SWEEP_SECRET }}
+```
+
 ## Unverified (be honest about these)
 
 - **GitHub App**: run against github.com on Nov 14 (App `meritly`, repo `ravindu-ranasinghe/merit-demo-api`).
@@ -216,6 +267,8 @@ the pending fresh filtered-Stream proof.
   - `prHash = keccak256(abi.encode(uint256 repoId, uint256 prNumber))`;
   - `claimId = keccak256(abi.encode(uint256 githubCommentId))`.
 - No transaction has been sent from this code on any chain.
+- **Expiry sweep:** tested against Postgres with simulated Streams events; no scheduler is deployed, so it has not
+  run against the live API.
 
 ## Known shortcuts
 
