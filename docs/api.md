@@ -104,8 +104,14 @@ reviewer identities; approvals also carry the approver identity. These are displ
   by any signed-in user; private repositories require live maintainer permission. It fetches the
   current head, all review comments, and paginated review threads, then reevaluates the heuristics.
   It backfills missing events while preserving rejected/manual decisions. Response:
-  `{ ok: true, checked_at }`. Concurrent or repeated checks within ten seconds return 429;
-  unavailable GitHub returns 502. A failed file comparison is recorded as unverified pending evidence.
+  `{ ok: true, checked_at, comment_sync }`. A maintainer recheck also repairs the PR's Merit status comment
+  from existing indexed events; no new chain event is needed. Public non-maintainers still refresh reviews
+  but do not publish comments. `comment_sync` is `created`, `updated`, `unchanged`, `disabled`, or `skipped`
+  (no linked/confirmed bounty or no maintainer permission). Comment work shares the existing eight-second
+  timeout/cancellation protection. A comment failure returns 502 with an explicit message that review evidence
+  was refreshed; no payment state is manufactured. Concurrent or repeated checks within ten seconds return 429,
+  including after a comment-only failure. Other unavailable GitHub requests return 502. A failed file comparison
+  is recorded as unverified pending evidence.
 
 The bounty listing and detail/candidate reads verify visibility. Private repositories require
 a signed session and current repository read access. Unauthorized detail reads return 404.

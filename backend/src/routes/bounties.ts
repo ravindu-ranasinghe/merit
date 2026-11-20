@@ -8,6 +8,7 @@ import { isUniqueViolation } from "../db/index.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { MANUAL_LIMITATIONS } from "../github/evidence.js";
 import { syncReviews } from "../github/sync.js";
+import { syncPrStatusComment, withCommentTimeout, type SyncResult } from "../github/pr-status.js";
 import { reconcile } from "../streams/webhook.js";
 import { eventContext } from "../streams/match.js";
 import { repoOfPr, requireMaintainer, requireSession, type Session } from "../session.js";
@@ -56,7 +57,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
   const refreshedAt = new Map<number, number>();
   app.post("/bounties/:id/refresh", async (req) => {
     const session = requireSession(req);
-    const { prId } = await loadBounty(id.parse((req.params as { id: string }).id));
+    const { v, prId } = await loadBounty(id.parse((req.params as { id: string }).id));
     const { repo } = await repoOfPr(ctx, prId);
     const info = await ctx.gh.getRepository(repo.installation_id, repo.name).catch(() => {
       throw new HttpError(502, "GitHub repository access could not be verified. Try again shortly.");
@@ -69,7 +70,25 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
       await syncReviews(ctx, prId);
       if (refreshedAt.size >= 1000) refreshedAt.delete(refreshedAt.keys().next().value!);
       refreshedAt.set(prId, Date.now());
-      return { ok: true, checked_at: new Date().toISOString() };
+      let comment_sync: SyncResult = ctx.env.github.prComments ? "skipped" : "disabled";
+      if (ctx.env.github.prComments && v.onchain_bounty_id !== null) {
+        try {
+          comment_sync = await withCommentTimeout(async (signal) => {
+            if (info.isPublic) {
+              try { await requireMaintainer(ctx, session, repo); }
+              catch (error) {
+                if ((error instanceof HttpError && error.status === 403) || (error as { status?: number }).status === 404) return "skipped";
+                throw error;
+              }
+            }
+            return syncPrStatusComment(ctx, v.onchain_bounty_id!, signal);
+          });
+        } catch (error) {
+          req.log.warn({ err: error, onchainBountyId: v.onchain_bounty_id }, "Review evidence refreshed but PR status comment not synced");
+          throw new HttpError(502, "Review evidence was refreshed, but the Merit status comment could not be synced. Check the GitHub App's comment-write permission and try again shortly.");
+        }
+      }
+      return { ok: true, checked_at: new Date().toISOString(), comment_sync };
     } catch (error) {
       if (error instanceof HttpError) throw error;
       throw new HttpError(502, "GitHub could not be checked. Your review is still pending; try again.");

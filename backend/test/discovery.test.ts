@@ -3,6 +3,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { approvals, bounties, chain_events, pull_requests, review_candidates } from "../src/db/schema.js";
 import { syncReviews } from "../src/github/sync.js";
 import { evaluateCandidate, touchesNear } from "../src/github/evidence.js";
+import { marker } from "../src/github/pr-status.js";
 import { DEMO, ESCROW, setup, type Harness } from "./helpers.js";
 
 let h: Harness;
@@ -129,11 +130,71 @@ describe("rechecking GitHub", () => {
     review();
     const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.reviewerId) });
     expect(r.statusCode).toBe(200);
+    expect(r.json().comment_sync).toBe("skipped");
+    expect(h.gh.issueCommentWrites.create).toBe(0);
     const detail = (await h.app.inject({ url: `/bounties/${b.id}` })).json();
     expect(detail.status).toBe("review_candidate");
     expect(detail.candidates[0]).toMatchObject({ status: "candidate", thread_resolved: true, reviewer: { login: "reviewer" },
       qualification_evidence: { comment_body: "Clear the timer before returning.", compared_head: "fix-sha", check_reason: "ready", later_commit_touched: true } });
     expect((await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.reviewerId) })).statusCode).toBe(429);
+  });
+
+  it("repairs a funded bounty's missing comment without a new chain event, then leaves it unchanged", async () => {
+    const b = await bounty();
+    const before = await h.db.select().from(chain_events);
+    const started = Date.now();
+    const now = vi.spyOn(Date, "now").mockReturnValue(started);
+    try {
+      const first = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+      expect(first.statusCode).toBe(200);
+      expect(first.json().comment_sync).toBe("created");
+      const comments = h.gh.issueComments.get(`${DEMO.name}#1`)!;
+      expect(comments).toHaveLength(1);
+      expect(comments[0]!.body).toContain(marker(b.id));
+      expect(comments[0]!.body).toContain("$12.50 test USDC review reward · Funded");
+      now.mockReturnValue(started + 10_001);
+      const second = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+      expect(second.json().comment_sync).toBe("unchanged");
+      expect(h.gh.issueCommentWrites).toEqual({ create: 1, update: 0, delete: 0 });
+      expect(await h.db.select().from(chain_events)).toEqual(before);
+    } finally { now.mockRestore(); }
+  });
+
+  it("does not publish a comment without indexed funding", async () => {
+    const b = await bounty([]);
+    const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().comment_sync).toBe("skipped");
+    expect(h.gh.issueCommentWrites.create).toBe(0);
+  });
+
+  it("checks current maintainer permission before repairing a comment", async () => {
+    const b = await bounty();
+    h.gh.permissions.set(`${DEMO.name}:${DEMO.maintainerId}`, "read");
+    const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().comment_sync).toBe("skipped");
+    expect(h.gh.issueCommentWrites.create).toBe(0);
+  });
+
+  it("reports a bot-comment failure separately after review evidence was successfully refreshed", async () => {
+    const b = await bounty();
+    review();
+    h.gh.failIssueComments = true;
+    const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+    expect(r.statusCode).toBe(502);
+    expect(r.json().error).toContain("Review evidence was refreshed, but the Merit status comment could not be synced");
+    expect((await h.db.select().from(review_candidates))[0]!.status).toBe("candidate");
+    expect(await h.db.select().from(chain_events)).toHaveLength(1);
+  });
+
+  it("respects the comment-disable flag during a maintainer recheck", async () => {
+    const b = await bounty();
+    h.ctx.env.github.prComments = false;
+    const r = await h.app.inject({ method: "POST", url: `/bounties/${b.id}/refresh`, headers: h.cookie(DEMO.maintainerId) });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().comment_sync).toBe("disabled");
+    expect(h.gh.issueCommentWrites.create).toBe(0);
   });
 
   it("reports a failed comparison as unverified instead of claiming no fix exists", async () => {
