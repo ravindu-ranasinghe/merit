@@ -14,6 +14,7 @@ import { refreshBounty } from "./bounty.js";
 import type { Ctx } from "./ctx.js";
 import { bounties, chain_events } from "./db/schema.js";
 import { syncPrStatusComment } from "./github/pr-status.js";
+import { eventContext } from "./streams/match.js";
 
 export interface SweepReport {
   /** false when another sweep held the lock; nothing was done. */
@@ -40,6 +41,7 @@ export async function sweepExpired(ctx: Ctx, nowMs = Date.now(), log?: { warn: (
       isNotNull(bounties.onchain_bounty_id),
       lte(bounties.deadline, new Date(nowMs)),
       notExists(ctx.db.select({ one: sql`1` }).from(chain_events).where(and(
+        eventContext(ctx),
         eq(chain_events.onchain_bounty_id, bounties.onchain_bounty_id),
         eq(chain_events.event_type, "BountyRefunded"),
       ))),
@@ -51,7 +53,7 @@ export async function sweepExpired(ctx: Ctx, nowMs = Date.now(), log?: { warn: (
     };
 
     for (const b of due) {
-      const events = await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, b.onchain_bounty_id!));
+      const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, b.onchain_bounty_id!)));
       const funded = events.find((e) => e.event_type === "BountyFunded");
       if (!funded) continue; // linked by id but its funding event is not indexed: nothing confirmed to act on
       const approved = events.find((e) => e.event_type === "RewardApproved");
