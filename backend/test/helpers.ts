@@ -12,7 +12,7 @@ export const WEBHOOK_SECRET = "test-webhook-secret";
 export const QN_TOKEN = "test-qn-token";
 export { DEMO };
 
-export async function setup() {
+export async function setup(extraEnv: Record<string, string> = {}) {
   const { db, pool } = createDb(TEST_DB_URL);
   await db.execute(sql`truncate approvals, chain_events, review_candidates, wallet_links, bounties, pull_requests, repositories restart identity cascade`);
   await seed(db);
@@ -21,7 +21,7 @@ export async function setup() {
   gh.permissions.set(`${DEMO.name}:${DEMO.maintainerId}`, "admin");
   const env = loadEnv({
     DATABASE_URL: TEST_DB_URL, ESCROW_ADDRESS: ESCROW, SESSION_SECRET: "test-session-secret-0123456789",
-    QN_SECURITY_TOKEN: QN_TOKEN, GITHUB_WEBHOOK_SECRET: WEBHOOK_SECRET,
+    QN_SECURITY_TOKEN: QN_TOKEN, GITHUB_WEBHOOK_SECRET: WEBHOOK_SECRET, ...extraEnv,
   });
   const ctx = { db, env, gh };
   const app = await buildApp(ctx);

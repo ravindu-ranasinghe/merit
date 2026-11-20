@@ -6,6 +6,7 @@ import { authRoutes } from "./auth.js";
 import { HttpError, type Ctx } from "./ctx.js";
 import { githubWebhook } from "./github/webhook.js";
 import { bountyRoutes } from "./routes/bounties.js";
+import { internalRoutes } from "./routes/internal.js";
 import { meRoutes } from "./routes/me.js";
 import { publicRoutes } from "./routes/public.js";
 import { walletRoutes } from "./routes/wallet.js";
@@ -39,6 +40,7 @@ export async function buildApp(ctx: Ctx, opts: { logger?: boolean; app?: Fastify
   walletRoutes(app, ctx);
   bountyRoutes(app, ctx);
   publicRoutes(app, ctx);
+  internalRoutes(app, ctx);
   // Webhooks keep the raw body (signature is over bytes), so each lives in its own encapsulated scope.
   await app.register(async (s) => githubWebhook(s, ctx));
   await app.register(async (s) => streamsWebhook(s, ctx));

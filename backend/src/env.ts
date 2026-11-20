@@ -21,6 +21,8 @@ const schema = z.object({
   GITHUB_CLIENT_SECRET: z.string().optional(),
   // "0" turns off the PR status comment (src/github/pr-status.ts) without a redeploy of code.
   GITHUB_PR_COMMENTS: z.enum(["0", "1"]).default("1"),
+  // Bearer token for POST /internal/sweep (called by a scheduler). Unset = the route does not exist.
+  SWEEP_SECRET: z.string().min(16).optional().or(z.literal("").transform(() => undefined)),
 });
 
 export interface Env {
@@ -34,6 +36,8 @@ export interface Env {
   escrowAddress: `0x${string}`;
   sessionSecret: string;
   qnSecurityToken: string;
+  /** null = POST /internal/sweep is disabled (404). */
+  sweepSecret: string | null;
   github: {
     mock: boolean;
     appId: string;
@@ -85,6 +89,7 @@ export function loadEnv(src: Record<string, string | undefined> = process.env): 
     escrowAddress: (e.ESCROW_ADDRESS ?? ZERO) as `0x${string}`,
     sessionSecret,
     qnSecurityToken,
+    sweepSecret: e.SWEEP_SECRET ?? null,
     github: {
       mock,
       appId: e.GITHUB_APP_ID ?? "",
