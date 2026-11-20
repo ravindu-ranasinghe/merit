@@ -1,0 +1,27 @@
+diff --git a/README.md b/README.md
+index 2e46d23..46e46fe 100644
+--- a/README.md
++++ b/README.md
+@@ -28,7 +28,7 @@ curl -H 'authorization: Bearer alice-token' localhost:3000/projects
+ | GET    | `/health`                 | public                             |
+ | GET    | `/projects`               | projects you own                   |
+ | POST   | `/projects`               | create a project                   |
+-| GET    | `/projects/:id`           | owner only                         |
++| GET    | `/projects/:id`           | owner only; includes `taskCount` and `openTaskCount` |
+ | PATCH  | `/projects/:id`           | owner only; rename or archive      |
+ | DELETE | `/projects/:id`           | removes the project and its tasks  |
+ | GET    | `/projects/:id/tasks`     | owner only                         |
+diff --git a/server.js b/server.js
+index e288ea1..4476273 100644
+--- a/server.js
++++ b/server.js
+@@ -56,7 +56,8 @@ app.post("/projects", { preHandler: authenticate }, async (req, reply) => {
+ app.get("/projects/:id", { preHandler: authenticate }, async (req, reply) => {
+   const project = loadOwnedProject(req, reply);
+   if (!project) return reply;
+-  return project;
++  const projectTasks = [...tasks.values()].filter((t) => t.projectId === project.id);
++  return { ...project, taskCount: tasks.size, openTaskCount: projectTasks.filter((t) => !t.done).length };
+ });
+ 
+ app.patch("/projects/:id", { preHandler: authenticate }, async (req, reply) => {
