@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/client";
 import { useBounty, usePrepareApproval, useReportApprovalTx } from "@/lib/api/queries";
 import { ChainError } from "@/lib/chain/errors";
 import { useApproveReward, useWallet } from "@/lib/chain/hooks";
-import { formatDate, formatUsd, formatUsdc, parseUsdToUnits } from "@/lib/format";
+import { formatUsd, formatUsdc, parseUsdToUnits, formatDeadline } from "@/lib/format";
 import { useNow } from "@/lib/now";
 import { useViewer } from "@/lib/viewer";
 
@@ -122,7 +122,7 @@ export default function ApprovePage() {
       )}
       {expired && decidable && (
         <Notice tone="warning" className="mb-3" title="This bounty has expired">
-          The deadline passed on {formatDate(bounty.deadline)}. The contract refuses approvals after the deadline; the funds
+          The deadline passed on {formatDeadline(bounty.deadline)}. The contract refuses approvals after the deadline; the funds
           can be refunded to you instead.
         </Notice>
       )}

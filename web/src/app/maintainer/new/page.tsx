@@ -7,10 +7,21 @@ import { IconCheck, IconGithub, IconPullRequest } from "@/components/icons";
 import { RequireSignIn } from "@/components/sign-in";
 import { Button, cx, Empty, Money, Notice, PageHeader, Skeleton, Tray, UserChip } from "@/components/ui";
 import { useCreateBounty, usePullRequests, useRepositories } from "@/lib/api/queries";
-import { formatDate, formatUsd } from "@/lib/format";
+import { DEMO_DEADLINES } from "@/lib/env";
+import { formatDeadline, formatUsd } from "@/lib/format";
 
 const AMOUNTS = ["5000000", "7500000", "10000000"];
-const WINDOWS = [3, 7, 14];
+const DAY = 86_400_000;
+/** Deadline windows. The 5-minute one exists only to demo expiry and refund on testnet (see DEMO_DEADLINES). */
+const DEMO_WINDOW = "5m";
+const WINDOWS: { key: string; ms: number; label: string }[] = [
+  ...(DEMO_DEADLINES ? [{ key: DEMO_WINDOW, ms: 5 * 60_000, label: "5 min" }] : []),
+  { key: "3d", ms: 3 * DAY, label: "3 days" },
+  { key: "7d", ms: 7 * DAY, label: "7 days" },
+  { key: "14d", ms: 14 * DAY, label: "14 days" },
+];
+/** Read the clock when the bounty is created (module scope keeps render pure). */
+const deadlineAfterNow = (ms: number) => new Date(Date.now() + ms).toISOString();
 
 const RULES = [
   ["The money is locked first.", "Your testnet USDC moves into an escrow contract before any review counts. You cannot take it back before the deadline."],
@@ -66,17 +77,21 @@ function NewBounty() {
   const pulls = usePullRequests(activeRepoId);
   const [prNumber, setPrNumber] = useState<number | null>(null);
   const [amount, setAmount] = useState(AMOUNTS[2]);
-  const [days, setDays] = useState(7);
+  const [windowKey, setWindowKey] = useState("7d");
   // Fixed when the page opens, so the deadline shown is the deadline created.
   const [openedAt] = useState(() => Date.now());
   const create = useCreateBounty();
 
-  const deadline = new Date(openedAt + days * 86_400_000).toISOString();
+  const win = WINDOWS.find((w) => w.key === windowKey)!;
+  const isDemo = win.key === DEMO_WINDOW;
+  const deadline = new Date(openedAt + win.ms).toISOString();
   const pr = pulls.data?.find((p) => p.number === prNumber && !p.bountyId);
 
   const submit = async () => {
     if (!activeRepoId || !pr) return;
-    const bounty = await create.mutateAsync({ repoId: activeRepoId, prNumber: pr.number, amountUnits: amount, deadline }).catch(() => null);
+    // The demo window starts when the bounty is created, not when the page opened, or a slow form would eat it.
+    const bountyDeadline = isDemo ? deadlineAfterNow(win.ms) : deadline;
+    const bounty = await create.mutateAsync({ repoId: activeRepoId, prNumber: pr.number, amountUnits: amount, deadline: bountyDeadline }).catch(() => null);
     if (bounty) router.push(`/bounties/${bounty.id}`);
   };
 
@@ -170,9 +185,16 @@ function NewBounty() {
               </div>
               <div>
                 <p className="mb-2 text-[13px] text-mut">Open for</p>
-                <Segmented label="Deadline" options={WINDOWS} value={days} onChange={setDays} render={(d) => `${d} days`} />
+                <Segmented label="Deadline" options={WINDOWS.map((w) => w.key)} value={windowKey} onChange={setWindowKey} render={(k) => WINDOWS.find((w) => w.key === k)!.label} />
               </div>
             </div>
+            {isDemo && (
+              <Notice tone="warning" className="mt-4" title="Testnet demo window">
+                The bounty expires 5 minutes after you create it, so you can show what happens when no review is approved:
+                the deadline passes and the reward is refunded to your wallet. Fund it straight away; the contract refuses a
+                deadline that has already passed. Use a day-long window for real reviews.
+              </Notice>
+            )}
           </Tray>
         </div>
 
@@ -186,7 +208,7 @@ function NewBounty() {
               ) : (
                 "for a review of the pull request you choose, "
               )}
-              open until {formatDate(deadline)}.
+              {isDemo ? "open for 5 minutes after you create it (testnet demo)." : <>open until {formatDeadline(deadline)}.</>}
             </p>
 
             <h2 className="mt-5 text-[14px] font-medium">What you are agreeing to</h2>
