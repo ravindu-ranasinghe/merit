@@ -38,9 +38,10 @@ still claim their `4000000`.
 - `prHash = keccak256(abi.encode(uint256 github_repo_id, uint256 github_pr_number))`
   — viem: `keccak256(encodeAbiParameters([{type:'uint256'},{type:'uint256'}], [repoId, prNumber]))`.
   Uses the immutable numeric GitHub repo id, not the `owner/name` string. Must be non-zero.
-- `claimId` — chosen by the backend (Engineer B), must be non-zero and is **single-use across
-  all bounties**. Suggested: `keccak256(abi.encode(uint256 github_comment_id))`, which also
-  means one review comment can be paid at most once ever.
+- `claimId` — chosen by the backend (Engineer B), must be non-zero and is **single-use per immutable
+  funder** in the revised source. Suggested: `keccak256(abi.encode(uint256 github_comment_id))`, which also
+  prevents the same funder paying that review twice. The active legacy address above still enforces
+  global uniqueness; the revised source needs a separate deployment ([handoff](escrow-upgrade.md)).
 
 ## Functions
 
@@ -79,6 +80,8 @@ still claim their `4000000`.
   `(address funder, uint64 expiry, bool paid, bool refunded, address recipient, bytes32 prHash, bytes32 claimId, uint256 amount, uint256 approvedAmount)`.
   Unknown id → all zero (`funder == 0x0`).
 - `nextBountyId() → uint256`, `claimIdUsed(bytes32) → bool`, `usdc() → address`.
+- Revised source adds `claimIdUsedBy(address,bytes32) → bool`: this is the approval guard.
+  `claimIdUsed(bytes32)` remains aggregate historical information for legacy readers.
 
 ## Events (topic layout)
 

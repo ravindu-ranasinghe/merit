@@ -26,7 +26,7 @@ const EV = {
 } satisfies Record<string, Spec>;
 
 function log(s: Spec, block: number, logIndex: number, tx = hash(block * 10 + logIndex)) {
-  const topics = encodeEventTopics({ abi: escrowAbi, eventName: s.name, args: s.args } as never);
+  const topics = encodeEventTopics({ abi: escrowAbi, eventName: s.name, args: s.args } as never) as string[];
   return { address: ESCROW, topics, data: encodeAbiParameters(s.types as never, s.data as never) as Hex, blockNumber: `0x${block.toString(16)}`, transactionHash: tx, logIndex: `0x${logIndex.toString(16)}` };
 }
 const deliver = (logs: unknown[], shape: "data" | "array" = "data", token = QN_TOKEN) => {
@@ -187,5 +187,174 @@ describe("project()", () => {
     expect(project({ ...base, events: e, nowMs: 3000 })).toBe("expired");
     expect(project({ ...base, events: ["BountyFunded", "RewardPaid"], hasCandidate: true, nowMs: 3000 })).toBe("paid");
     expect(project({ ...base, events: [] })).toBe("funding_pending");
+  });
+});
+
+describe("canonical Streams corrections (synthetic RPC and signed fixtures)", () => {
+  const signed = (payload: unknown, extra: Record<string, string> = {}) => {
+    const body = JSON.stringify(payload);
+    return h.app.inject({ method: "POST", url: "/webhooks/streams", payload: body, headers: {
+      "content-type": "application/json", "x-qn-nonce": "reorg-fixture", "x-qn-timestamp": "1",
+      "x-qn-signature": qnSign(QN_TOKEN, "reorg-fixture", "1", body), ...extra,
+    } });
+  };
+  const orphan = (n: number) => h.ctx.canonical.blocks.set(n, hash(900 + n));
+  const correction = (blocks: number[]) => signed({ data: [], metadata: { blocks_reorged: blocks } });
+  const lifecycle = () => [log(EV.funded, 1, 0), log(EV.approved, 2, 0), log(EV.paid, 3, 0)];
+
+  it("an empty corrected block removes a paid receipt, rolls back approval and repairs the existing bot comment", async () => {
+    const b = await seedBounty(true);
+    const logs = lifecycle();
+    await deliver(logs);
+    expect((await state()).status).toBe("paid");
+    orphan(3);
+    expect((await correction([3])).statusCode).toBe(200);
+    expect((await state()).status).toBe("claimable");
+    expect((await h.db.select().from(approvals))[0]).toMatchObject({ status: "signed", chain_tx_hash: logs[1]!.transactionHash });
+    const view = (await h.app.inject(`/bounties/${b.id}`)).json();
+    expect(view.events.map((e: { event_type: string }) => e.event_type)).not.toContain("RewardPaid");
+    const comments = h.gh.issueComments.get(`${DEMO.name}#${DEMO.prNumber}`)!;
+    expect(comments).toHaveLength(1);
+    expect(comments[0]!.body).toContain("Ready to claim");
+    expect((await h.db.select().from(chain_events)).filter((e) => e.removed).map((e) => e.event_type)).toEqual(["RewardPaid"]);
+    await deliver(logs); // old, correctly signed bytes cannot resurrect the payout
+    expect((await state()).status).toBe("claimable");
+  });
+
+  it("repeated empty corrections repair a failed bot update after funding has detached", async () => {
+    await seedBounty();
+    await deliver([log(EV.funded, 1, 0)]);
+    orphan(1);
+    h.gh.failIssueComments = true;
+    await correction([1]);
+    expect((await state()).onchain).toBeNull();
+    const comments = h.gh.issueComments.get(`${DEMO.name}#${DEMO.prNumber}`)!;
+    expect(comments[0]!.body).toContain("Funded");
+    h.gh.failIssueComments = false;
+    await correction([1]);
+    expect(comments[0]!.body).toContain("Awaiting chain confirmation");
+    expect(comments).toHaveLength(1);
+  });
+
+  it("removing an approval clears its stale hash and returns it to prepared", async () => {
+    await seedBounty(true);
+    await deliver(lifecycle().slice(0, 2));
+    orphan(2);
+    await signed({ data: [], metadata: { reorgs: [{ block_number: 2, block_hash: hash(2) }] } });
+    expect((await state()).status).toBe("approved");
+    expect((await h.db.select().from(approvals))[0]).toMatchObject({ status: "prepared", chain_tx_hash: null });
+  });
+
+  it("removing a refund restores the escrow remainder in API facts", async () => {
+    const b = await seedBounty();
+    await deliver([log(EV.funded, 1, 0), log(EV.refunded, 4, 0)]);
+    expect((await state()).status).toBe("refunded");
+    orphan(4);
+    await correction([4]);
+    expect((await state()).status).toBe("funded");
+    expect((await h.app.inject(`/bounties/${b.id}`)).json().events).toHaveLength(1);
+  });
+
+  it("orphaned funding detaches without changing intent; a foreign replacement cannot bind and the right event heals", async () => {
+    await seedBounty(true);
+    const funding = log(EV.funded, 1, 0);
+    await deliver([funding]);
+    orphan(1);
+    await correction([1]);
+    expect(await state()).toEqual({ status: "funding_pending", onchain: null, funder: FUNDER });
+    const comments = h.gh.issueComments.get(`${DEMO.name}#${DEMO.prNumber}`)!;
+    expect(comments[0]!.body).toContain("Awaiting chain confirmation");
+    const foreign = log({ ...EV.funded, args: { ...EV.funded.args, funder: REVIEWER } }, 5, 0);
+    await deliver([foreign]);
+    expect((await state()).onchain).toBeNull();
+    orphan(5);
+    await correction([5]);
+    await deliver([log(EV.funded, 6, 0)]);
+    expect((await state()).onchain).toBe("7");
+    expect(comments[0]!.body).toContain("Funded");
+  });
+
+  it("a transaction re-included on a new block keeps one event and preserves the displaced version", async () => {
+    await seedBounty(true);
+    const logs = lifecycle();
+    await deliver(logs);
+    orphan(3);
+    await correction([3]);
+    const moved = { ...logs[2]!, blockNumber: "0x8", blockHash: hash(808) };
+    h.ctx.canonical.blocks.set(8, moved.blockHash);
+    h.ctx.canonical.receipts.set(moved.transactionHash, { blockNumber: 8n, blockHash: moved.blockHash, logs: [moved] });
+    expect((await deliver([moved])).statusCode).toBe(200);
+    expect((await state()).status).toBe("paid");
+    const events = await h.db.select().from(chain_events);
+    expect(events).toHaveLength(3);
+    expect(events.find((e) => e.event_type === "RewardPaid")).toMatchObject({ removed: false, block_number: 8, reorg_history: [{ block_number: 3 }] });
+    await deliver(logs);
+    expect((await h.db.select().from(chain_events)).find((e) => e.event_type === "RewardPaid")!.block_number).toBe(8);
+  });
+
+  it("a stale removed:true replay cannot remove a still-canonical event", async () => {
+    await seedBounty();
+    const funding = log(EV.funded, 1, 0);
+    await deliver([funding]);
+    await deliver([{ ...funding, removed: true }]);
+    expect((await state()).status).toBe("funded");
+    expect((await h.db.select().from(chain_events))[0]!.removed).toBe(false);
+  });
+
+  it("unsigned headers cannot authorize deletion; unavailable RPC rolls back without accepting a delivery", async () => {
+    await seedBounty();
+    await deliver([log(EV.funded, 1, 0)]);
+    orphan(1);
+    await signed({ data: [] }, { "batch-blocks-reorged": "[1]" });
+    expect((await state()).status).toBe("funded");
+    h.ctx.canonical.fail = true;
+    expect((await correction([1])).statusCode).toBe(503);
+    expect((await state()).status).toBe("funded");
+    expect((await h.db.select().from(chain_events))[0]!.removed).toBe(false);
+  });
+
+  it("legacy hashless ledger rows are validated without rewriting valid history", async () => {
+    await seedBounty();
+    await deliver([log(EV.funded, 1, 0)]);
+    await h.db.update(chain_events).set({ block_hash: null });
+    await correction([1]);
+    expect((await state()).status).toBe("funded");
+    orphan(1);
+    await correction([1]);
+    expect((await state()).onchain).toBeNull();
+  });
+
+  it("overlapping deliveries retry a busy transaction and leave one ledger entry", async () => {
+    await seedBounty();
+    const original = h.ctx.canonical.getReceipt.bind(h.ctx.canonical);
+    let entered!: () => void;
+    let release!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hold = new Promise<void>((resolve) => { release = resolve; });
+    h.ctx.canonical.getReceipt = async (tx) => { entered(); await hold; return original(tx); };
+    const logs = [log(EV.funded, 1, 0)];
+    const first = deliver(logs);
+    try {
+      // Fastify inject is thenable; start its request before waiting for the fake RPC.
+      const pending = Promise.resolve(first);
+      await started;
+      expect((await deliver(logs)).statusCode).toBe(503);
+      release();
+      expect((await pending).statusCode).toBe(200);
+      expect((await deliver(logs)).statusCode).toBe(200);
+      expect(await h.db.select().from(chain_events)).toHaveLength(1);
+      expect((await state()).status).toBe("funded");
+    } finally { release(); h.ctx.canonical.getReceipt = original; }
+  });
+
+  it("wrong RPC network and false log contents cannot confirm funding", async () => {
+    await seedBounty();
+    h.ctx.canonical.getChainId = async () => 1;
+    expect((await deliver([log(EV.funded, 1, 0)])).statusCode).toBe(503);
+    expect(await h.db.select().from(chain_events)).toHaveLength(0);
+    h.ctx.canonical.getChainId = async () => h.ctx.env.chainId;
+    h.ctx.canonical.receipts.set(hash(10), null);
+    await deliver([log(EV.funded, 1, 0)]);
+    expect((await state()).onchain).toBeNull();
   });
 });

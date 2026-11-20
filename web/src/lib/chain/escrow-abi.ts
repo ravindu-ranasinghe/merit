@@ -132,6 +132,30 @@ export const escrowAbi = [
   },
   {
     "type": "function",
+    "name": "claimIdUsedBy",
+    "inputs": [
+      {
+        "name": "funder",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "claimId",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "createBounty",
     "inputs": [
       {

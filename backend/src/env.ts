@@ -8,6 +8,7 @@ const schema = z.object({
   PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
+  CANONICAL_RPC_URL: z.string().url().default("https://rpc.testnet.arc.io"),
   CHAIN_ID: z.coerce.number().default(5042002),
   EXPLORER_URL: z.string().default("https://explorer.testnet.arc.io"),
   USDC_ADDRESS: addr.default("0x3600000000000000000000000000000000000000"),
@@ -31,6 +32,7 @@ export interface Env {
   databaseUrl: string;
   webOrigin: string;
   chainId: number;
+  canonicalRpcUrl: string;
   explorerUrl: string;
   usdcAddress: `0x${string}`;
   escrowAddress: `0x${string}`;
@@ -84,6 +86,7 @@ export function loadEnv(src: Record<string, string | undefined> = process.env): 
     databaseUrl: e.DATABASE_URL,
     webOrigin: e.WEB_ORIGIN,
     chainId: e.CHAIN_ID,
+    canonicalRpcUrl: e.CANONICAL_RPC_URL,
     explorerUrl: e.EXPLORER_URL,
     usdcAddress: e.USDC_ADDRESS as `0x${string}`,
     escrowAddress: (e.ESCROW_ADDRESS ?? ZERO) as `0x${string}`,

@@ -8,7 +8,7 @@ import { isUniqueViolation } from "../db/index.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { MANUAL_LIMITATIONS } from "../github/evidence.js";
 import { syncReviews } from "../github/sync.js";
-import { syncPrStatusComment, withCommentTimeout, type SyncResult } from "../github/pr-status.js";
+import { syncPrStatusCommentById, withCommentTimeout, type SyncResult } from "../github/pr-status.js";
 import { reconcile } from "../streams/webhook.js";
 import { eventContext } from "../streams/match.js";
 import { repoOfPr, requireMaintainer, requireSession, type Session } from "../session.js";
@@ -71,7 +71,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
       if (refreshedAt.size >= 1000) refreshedAt.delete(refreshedAt.keys().next().value!);
       refreshedAt.set(prId, Date.now());
       let comment_sync: SyncResult = ctx.env.github.prComments ? "skipped" : "disabled";
-      if (ctx.env.github.prComments && v.onchain_bounty_id !== null) {
+      if (ctx.env.github.prComments) {
         try {
           comment_sync = await withCommentTimeout(async (signal) => {
             if (info.isPublic) {
@@ -81,7 +81,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
                 throw error;
               }
             }
-            return syncPrStatusComment(ctx, v.onchain_bounty_id!, signal);
+            return syncPrStatusCommentById(ctx, v.id, signal);
           });
         } catch (error) {
           req.log.warn({ err: error, onchainBountyId: v.onchain_bounty_id }, "Review evidence refreshed but PR status comment not synced");

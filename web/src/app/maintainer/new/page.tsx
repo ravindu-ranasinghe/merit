@@ -12,10 +12,10 @@ import { formatDeadline, formatUsd } from "@/lib/format";
 
 const AMOUNTS = ["5000000", "7500000", "10000000"];
 const DAY = 86_400_000;
-/** Deadline windows. The 5-minute one exists only to demo expiry and refund on testnet (see DEMO_DEADLINES). */
-const DEMO_WINDOW = "5m";
+/** Deadline windows. The 45-minute one exists only to demo expiry and refund on testnet (see DEMO_DEADLINES). */
+const DEMO_WINDOW = "45m";
 const WINDOWS: { key: string; ms: number; label: string }[] = [
-  ...(DEMO_DEADLINES ? [{ key: DEMO_WINDOW, ms: 5 * 60_000, label: "5 min" }] : []),
+  ...(DEMO_DEADLINES ? [{ key: DEMO_WINDOW, ms: 45 * 60_000, label: "45 min" }] : []),
   { key: "3d", ms: 3 * DAY, label: "3 days" },
   { key: "7d", ms: 7 * DAY, label: "7 days" },
   { key: "14d", ms: 14 * DAY, label: "14 days" },
@@ -190,7 +190,7 @@ function NewBounty() {
             </div>
             {isDemo && (
               <Notice tone="warning" className="mt-4" title="Testnet demo window">
-                The bounty expires 5 minutes after you create it, so you can show what happens when no review is approved:
+                The bounty expires 45 minutes after you create it, so you can show what happens when no review is approved:
                 the deadline passes and the reward is refunded to your wallet. Fund it straight away; the contract refuses a
                 deadline that has already passed. Use a day-long window for real reviews.
               </Notice>
@@ -208,7 +208,7 @@ function NewBounty() {
               ) : (
                 "for a review of the pull request you choose, "
               )}
-              {isDemo ? "open for 5 minutes after you create it (testnet demo)." : <>open until {formatDeadline(deadline)}.</>}
+              {isDemo ? "open for 45 minutes after you create it (testnet demo)." : <>open until {formatDeadline(deadline)}.</>}
             </p>
 
             <h2 className="mt-5 text-[14px] font-medium">What you are agreeing to</h2>

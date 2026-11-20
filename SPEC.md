@@ -258,3 +258,7 @@ solve subjective review assessment. Say so; do not oversell.
 - [ ] Written answers: what you built, problem solved, how it works, what's unique, what's next
 - [ ] Technologies and sponsor tools listed; team members listed
 - [ ] **Someone physically present at the Nov 21 closing ceremony**
+
+The revised escrow source scopes claim-ID reuse to the immutable funder (`claimIdUsedBy`).
+The legacy deployed escrow retains its global guard; see [deployment handoff](docs/escrow-upgrade.md).
+Transaction selectors and payment events are unchanged.

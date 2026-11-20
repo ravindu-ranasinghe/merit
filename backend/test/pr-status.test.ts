@@ -1,6 +1,7 @@
 import { encodeAbiParameters, encodeEventTopics, keccak256, type Hex } from "viem";
 import Fastify from "fastify";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createDb } from "../src/db/index.js";
 import { claimId, escrowAbi, prHash } from "../src/chain/escrow.js";
 import { approvals, bounties, chain_events, pull_requests, review_candidates } from "../src/db/schema.js";
 import { marker, renderStatusComment, stageOf, syncPrStatusComment, usd } from "../src/github/pr-status.js";
@@ -29,7 +30,7 @@ const EV = {
 } satisfies Record<string, Spec>;
 
 function log(s: Spec, block: number) {
-  const topics = encodeEventTopics({ abi: escrowAbi, eventName: s.name, args: s.args } as never);
+  const topics = encodeEventTopics({ abi: escrowAbi, eventName: s.name, args: s.args } as never) as string[];
   return { address: ESCROW, topics, data: encodeAbiParameters(s.types as never, s.data as never) as Hex, blockNumber: `0x${block.toString(16)}`, transactionHash: hash(block), logIndex: "0x0" };
 }
 const deliver = (logs: unknown[]) => {
@@ -58,6 +59,54 @@ describe("PR status comment from indexed events", () => {
     expect(comments()[0]!.body).toContain(marker(b.id));
     expect(comments()[0]!.body).toContain("$10.00 test USDC review reward · Funded");
     expect(comments()[0]!.body).toContain(`http://localhost:3000/bounties/${b.id}`);
+  });
+
+  it("independent database pools cannot both create the initial comment", async () => {
+    await seedBounty();
+    h.ctx.env.github.prComments = false;
+    await deliver([log(EV.funded, 1)]);
+    h.ctx.env.github.prComments = true;
+    const other = createDb(h.ctx.env.databaseUrl);
+    const original = h.gh.listIssueComments.bind(h.gh);
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hold = new Promise<void>((resolve) => { release = resolve; });
+    h.gh.listIssueComments = async (...args) => { entered(); await hold; return original(...args); };
+    const first = syncPrStatusComment(h.ctx, "7");
+    try {
+      await started;
+      expect(await syncPrStatusComment({ ...h.ctx, db: other.db }, "7")).toBe("skipped");
+      release();
+      expect(await first).toBe("created");
+      expect(await syncPrStatusComment({ ...h.ctx, db: other.db }, "7")).toBe("unchanged");
+      expect(h.gh.issueCommentWrites).toEqual({ create: 1, update: 0, delete: 0 });
+    } finally { release(); await first; await other.pool.end(); }
+  });
+
+  it("cancellation releases the database lock before an uncooperative GitHub read returns", async () => {
+    await seedBounty();
+    h.ctx.env.github.prComments = false;
+    await deliver([log(EV.funded, 1)]);
+    h.ctx.env.github.prComments = true;
+    const original = h.gh.listIssueComments.bind(h.gh);
+    let release!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const hold = new Promise<void>((resolve) => { release = resolve; });
+    h.gh.listIssueComments = async () => { entered(); await hold; return []; };
+    const controller = new AbortController();
+    const first = syncPrStatusComment(h.ctx, "7", controller.signal);
+    try {
+      await started;
+      controller.abort(new Error("synthetic timeout"));
+      await expect(first).rejects.toThrow("synthetic timeout");
+      h.gh.listIssueComments = original;
+      expect(await syncPrStatusComment(h.ctx, "7")).toBe("created");
+      release();
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(h.gh.issueCommentWrites).toEqual({ create: 1, update: 0, delete: 0 });
+    } finally { release(); h.gh.listIssueComments = original; }
   });
 
   it("a replayed delivery neither posts nor edits anything", async () => {
@@ -148,6 +197,7 @@ describe("PR status comment from indexed events", () => {
     } } } }) });
     await h.app.ready();
 
+    h.ctx.canonical.observe(logs);
     const start = performance.now();
     try {
       const response = await deliver(logs);

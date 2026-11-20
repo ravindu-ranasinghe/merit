@@ -58,12 +58,12 @@ function check(call: EscrowCall, from: Address): () => { event: Parameters<typeo
     if (amount === ZERO) throw revert("ZeroAmount");
     if (amount > b.amount) throw revert("AmountExceedsBalance", [id, amount, b.amount]);
     if (/^0x0+$/.test(claimId)) throw revert("ZeroClaimId");
-    if (d.usedClaimIds.has(claimId)) throw revert("ClaimIdAlreadyUsed", [claimId]);
+    if (d.usedClaimIds.has(`${b.funder.toLowerCase()}:${claimId}`)) throw revert("ClaimIdAlreadyUsed", [claimId]);
     return () => {
       b.recipient = recipient;
       b.claimId = claimId;
       b.approvedAmount = amount;
-      d.usedClaimIds.add(claimId);
+      d.usedClaimIds.add(`${b.funder.toLowerCase()}:${claimId}`);
       return {
         event: "RewardApproved",
         payload: { bountyId: id.toString(), recipient, amount: amount.toString(), claimId },

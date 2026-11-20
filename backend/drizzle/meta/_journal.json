@@ -8,6 +8,13 @@
       "when": 1794631079008,
       "tag": "0000_dapper_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795157970331,
+      "tag": "0001_bitter_sister_grimm",
+      "breakpoints": true
     }
   ]
 }

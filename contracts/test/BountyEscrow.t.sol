@@ -125,6 +125,27 @@ contract BountyEscrowTest is Test {
         assertEq(usdc.balanceOf(address(escrow)), TEN_USDC); // approval moves no money
     }
 
+    function test_foreignFunderCannotConsumeMaintainersClaimId() public {
+        usdc.mint(stranger, TEN_USDC);
+        vm.startPrank(stranger);
+        usdc.approve(address(escrow), TEN_USDC);
+        uint256 foreign = escrow.createBounty(PR, TEN_USDC, expiry);
+        escrow.approveReward(foreign, reviewer, TEN_USDC, CLAIM);
+        vm.stopPrank();
+        assertTrue(escrow.claimIdUsed(CLAIM));
+        assertTrue(escrow.claimIdUsedBy(stranger, CLAIM));
+        assertFalse(escrow.claimIdUsedBy(maintainer, CLAIM));
+        uint256 own = _fundAndApprove(TEN_USDC, TEN_USDC);
+        assertTrue(escrow.claimIdUsedBy(maintainer, CLAIM));
+        vm.prank(reviewer);
+        escrow.claim(own);
+        assertEq(usdc.balanceOf(reviewer), TEN_USDC);
+        uint256 duplicate = _fund(TEN_USDC);
+        vm.prank(maintainer);
+        vm.expectRevert(abi.encodeWithSelector(BountyEscrow.ClaimIdAlreadyUsed.selector, CLAIM));
+        escrow.approveReward(duplicate, reviewer, TEN_USDC, CLAIM);
+    }
+
     function test_approve_unauthorizedReverts() public {
         uint256 id = _fund(TEN_USDC);
         vm.prank(stranger);

@@ -4,7 +4,7 @@ import type { Address } from "viem";
 export const MOCK = process.env.NEXT_PUBLIC_MOCK === "1";
 
 /**
- * Offer a 5-minute deadline when creating a bounty, so a demo can show expiry and refund on camera.
+ * Offer a 45-minute deadline when creating a bounty, so a demo can show expiry and refund on camera.
  * Always on in mock mode; otherwise only when NEXT_PUBLIC_DEMO_DEADLINES=1. Testnet only, never a default.
  */
 export const DEMO_DEADLINES = MOCK || process.env.NEXT_PUBLIC_DEMO_DEADLINES === "1";

@@ -18,8 +18,8 @@ const pair = [{ type: "uint256" }, { type: "uint256" }] as const;
 export const prHash = (repoId: number | bigint, prNumber: number | bigint): Hex =>
   keccak256(encodeAbiParameters(pair, [BigInt(repoId), BigInt(prNumber)]));
 
-/** keccak256(abi.encode(uint256 githubCommentId)), per docs/escrow-interface.md. The contract makes a claimId
- *  single-use across ALL bounties, so one review comment can be paid at most once ever, enforced on-chain. */
+/** keccak256(abi.encode(uint256 githubCommentId)), per docs/escrow-interface.md. The revised contract guards reuse
+ *  per funder. The active legacy escrow guards it globally; hashing and transaction/event signatures are unchanged. */
 export const claimId = (githubCommentId: number | bigint): Hex =>
   keccak256(encodeAbiParameters([{ type: "uint256" }], [BigInt(githubCommentId)]));
 

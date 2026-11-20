@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright-core");
-const base = process.env.MERIT_QA_URL ?? "http://127.0.0.1:3000";
+const base = process.env.MERIT_QA_URL ?? "http://localhost:3000";
 assert.ok(["localhost", "127.0.0.1"].includes(new URL(base).hostname), "only a local mock server may be mutated");
 const root = process.argv[2] ?? fileURLToPath(new URL("../../output/verification/", import.meta.url));
 await mkdir(root, { recursive: true });
@@ -80,13 +80,17 @@ try {
 
       // Exercise the create form too: the new id must not open partial-payout fixture b-111.
       await page.goto(`${base}/maintainer/new`);
+      await page.getByRole("radio", { name: "7 days", exact: true }).waitFor();
+      assert.equal(await page.getByRole("radio", { name: "7 days", exact: true }).getAttribute("aria-checked"), "true");
+      await page.getByRole("radio", { name: "45 min", exact: true }).click();
+      await page.getByText("open for 45 minutes after you create it (testnet demo).", { exact: false }).waitFor();
       await page.getByRole("button", { name: /Persist scroll position per document/ }).click();
       await page.getByRole("button", { name: "Create bounty and continue to funding", exact: true }).click();
       await page.waitForURL(/\/bounties\/b-\d+$/);
       assert.ok(Number(page.url().match(/b-(\d+)$/)[1]) > 112);
       await page.getByRole("heading", { name: "Fund this bounty", exact: true }).waitFor();
       await shot("new-bounty");
-      record.checks.push("new bounty receives an id above all seeded fixtures");
+      record.checks.push("45-minute demo window is optional; new bounty receives an id above all seeded fixtures");
 
       for (const ordering of ["refund-first", "claim-first"]) {
         await page.goto(`${base}/bounties/b-111`); // new page intentionally restores the sample fixtures
