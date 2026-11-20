@@ -33,16 +33,16 @@ export interface GitHubClient {
   compareFiles(installationId: number, repoFullName: string, base: string, head: string): Promise<ChangedFile[]>;
   getReviewComment(installationId: number, repoFullName: string, commentId: number): Promise<ReviewComment | null>;
   getPullRequest(installationId: number, repoFullName: string, prNumber: number, fresh?: boolean): Promise<PullRequestInfo | null>;
-  getUser(installationId: number, userId: number): Promise<GithubIdentity>;
+  getUser(installationId: number, userId: number, signal?: AbortSignal): Promise<GithubIdentity>;
   getRepository(installationId: number, repoFullName: string): Promise<RepositoryInfo>;
   listReviewComments(installationId: number, repoFullName: string, prNumber: number): Promise<ReviewComment[]>;
   listReviewThreads(installationId: number, repoFullName: string, prNumber: number): Promise<ReviewThread[]>;
   /** The App's own numeric id, used to recognise comments this App posted. */
   readonly appId: number;
-  listIssueComments(installationId: number, repoFullName: string, issueNumber: number): Promise<IssueComment[]>;
-  createIssueComment(installationId: number, repoFullName: string, issueNumber: number, body: string): Promise<IssueComment>;
-  updateIssueComment(installationId: number, repoFullName: string, commentId: number, body: string): Promise<void>;
-  deleteIssueComment(installationId: number, repoFullName: string, commentId: number): Promise<void>;
+  listIssueComments(installationId: number, repoFullName: string, issueNumber: number, signal?: AbortSignal): Promise<IssueComment[]>;
+  createIssueComment(installationId: number, repoFullName: string, issueNumber: number, body: string, signal?: AbortSignal): Promise<IssueComment>;
+  updateIssueComment(installationId: number, repoFullName: string, commentId: number, body: string, signal?: AbortSignal): Promise<void>;
+  deleteIssueComment(installationId: number, repoFullName: string, commentId: number, signal?: AbortSignal): Promise<void>;
 }
 
 export function createOctokitClient(env: Env): GitHubClient {
@@ -85,11 +85,13 @@ export function createOctokitClient(env: Env): GitHubClient {
       const { data } = await o.request("GET /repos/{owner}/{repo}/compare/{basehead}", { owner, repo, basehead: `${base}...${head}` });
       return (data.files ?? []).map((f) => ({ filename: f.filename, patch: f.patch }));
     },
-    async getUser(installationId, userId) {
+    async getUser(installationId, userId, signal) {
+      signal?.throwIfAborted();
       const cached = users.get(userId);
       if (cached && cached.until > Date.now()) return cached.value;
       const o = await inst(installationId);
-      const { data: u } = await o.request("GET /user/{account_id}", { account_id: userId });
+      signal?.throwIfAborted();
+      const { data: u } = await o.request("GET /user/{account_id}", { account_id: userId, request: { signal } });
       const value = { id: Number(u.id), login: u.login, avatar_url: u.avatar_url };
       if (users.size >= 1000) users.delete(users.keys().next().value!);
       users.set(userId, { value, until: Date.now() + 300_000 });
@@ -141,28 +143,32 @@ export function createOctokitClient(env: Env): GitHubClient {
       return threads;
     },
     // PR conversation comments are issue comments. Needs the App permission "Issues: write" or "Pull requests: write".
-    async listIssueComments(installationId, repoFullName, issueNumber) {
+    async listIssueComments(installationId, repoFullName, issueNumber, signal) {
       const o = await inst(installationId);
       const out: IssueComment[] = [];
       for (let page = 1; page <= 20; page++) {
-        const { data } = await o.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, per_page: 100, page });
+        signal?.throwIfAborted();
+        const { data } = await o.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, per_page: 100, page, request: { signal } });
         out.push(...data.map(issueComment));
         if (data.length < 100) break;
       }
       return out;
     },
-    async createIssueComment(installationId, repoFullName, issueNumber, body) {
+    async createIssueComment(installationId, repoFullName, issueNumber, body, signal) {
       const o = await inst(installationId);
-      const { data } = await o.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, body });
+      signal?.throwIfAborted();
+      const { data } = await o.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", { ...split(repoFullName), issue_number: issueNumber, body, request: { signal } });
       return issueComment(data);
     },
-    async updateIssueComment(installationId, repoFullName, commentId, body) {
+    async updateIssueComment(installationId, repoFullName, commentId, body, signal) {
       const o = await inst(installationId);
-      await o.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId, body });
+      signal?.throwIfAborted();
+      await o.request("PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId, body, request: { signal } });
     },
-    async deleteIssueComment(installationId, repoFullName, commentId) {
+    async deleteIssueComment(installationId, repoFullName, commentId, signal) {
       const o = await inst(installationId);
-      await o.request("DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId });
+      signal?.throwIfAborted();
+      await o.request("DELETE /repos/{owner}/{repo}/issues/comments/{comment_id}", { ...split(repoFullName), comment_id: commentId, request: { signal } });
     },
     async getReviewComment(installationId, repoFullName, commentId) {
       const o = await inst(installationId);

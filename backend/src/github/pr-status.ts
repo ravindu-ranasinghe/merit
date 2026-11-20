@@ -114,7 +114,8 @@ const inFlight = new Map<number, Promise<unknown>>();
 
 export type SyncResult = "disabled" | "skipped" | "created" | "updated" | "unchanged";
 
-export async function syncPrStatusComment(ctx: Ctx, onchainBountyId: string): Promise<SyncResult> {
+export async function syncPrStatusComment(ctx: Ctx, onchainBountyId: string, signal?: AbortSignal): Promise<SyncResult> {
+  signal?.throwIfAborted();
   if (!ctx.env.github.prComments) return "disabled";
   const [row] = await ctx.db.select({ b: bounties, pr: pull_requests, repo: repositories }).from(bounties)
     .innerJoin(pull_requests, eq(pull_requests.id, bounties.pr_id))
@@ -123,7 +124,10 @@ export async function syncPrStatusComment(ctx: Ctx, onchainBountyId: string): Pr
   if (!row) return "skipped"; // BountyFunded not linked to a Merit bounty yet
 
   const previous = inFlight.get(row.b.id) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(() => sync(ctx, row, onchainBountyId));
+  const run = previous.catch(() => undefined).then(() => {
+    signal?.throwIfAborted();
+    return sync(ctx, row, onchainBountyId, signal);
+  });
   inFlight.set(row.b.id, run);
   try {
     return await run;
@@ -138,7 +142,7 @@ type Row = {
   repo: typeof repositories.$inferSelect;
 };
 
-async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string): Promise<SyncResult> {
+async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string, signal?: AbortSignal): Promise<SyncResult> {
   const events = await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, onchainBountyId)));
   const stage = stageOf(events.map((e) => e.event_type));
   if (!stage) return "skipped";
@@ -155,8 +159,9 @@ async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string): Pr
       ? await ctx.db.select().from(approvals).where(and(eq(approvals.claim_id, ev.claimId), eq(approvals.bounty_id, b.id)))
       : [];
     if (a && approvalMatches(a, ev)) {
-      try { reviewerLogin = (await ctx.gh.getUser(repo.installation_id, a.reviewer_id)).login; }
-      catch { reviewerLogin = null; }
+      signal?.throwIfAborted();
+      try { reviewerLogin = (await ctx.gh.getUser(repo.installation_id, a.reviewer_id, signal)).login; }
+      catch { signal?.throwIfAborted(); reviewerLogin = null; }
     }
   }
 
@@ -180,21 +185,28 @@ async function sync(ctx: Ctx, { b, pr, repo }: Row, onchainBountyId: string): Pr
   });
 
   const gh = ctx.gh;
-  const ours = async () => (await gh.listIssueComments(repo.installation_id, repo.name, pr.github_pr_number))
-    .filter((c) => c.appId === gh.appId && c.body.includes(marker(b.id)))
-    .sort((x, y) => x.id - y.id);
+  const ours = async () => {
+    signal?.throwIfAborted();
+    const comments = await gh.listIssueComments(repo.installation_id, repo.name, pr.github_pr_number, signal);
+    signal?.throwIfAborted();
+    return comments.filter((c) => c.appId === gh.appId && c.body.includes(marker(b.id))).sort((x, y) => x.id - y.id);
+  };
 
   let mine = await ours();
   let result: SyncResult = "unchanged";
   if (mine.length === 0) {
-    await gh.createIssueComment(repo.installation_id, repo.name, pr.github_pr_number, body);
+    await gh.createIssueComment(repo.installation_id, repo.name, pr.github_pr_number, body, signal);
     result = "created";
     mine = await ours(); // another instance may have created one at the same moment
   }
   const [keep, ...extra] = mine;
-  for (const c of extra) await gh.deleteIssueComment(repo.installation_id, repo.name, c.id);
+  for (const c of extra) {
+    signal?.throwIfAborted();
+    await gh.deleteIssueComment(repo.installation_id, repo.name, c.id, signal);
+  }
   if (keep && norm(keep.body) !== norm(body)) {
-    await gh.updateIssueComment(repo.installation_id, repo.name, keep.id, body);
+    signal?.throwIfAborted();
+    await gh.updateIssueComment(repo.installation_id, repo.name, keep.id, body, signal);
     if (result === "unchanged") result = "updated";
   }
   return result;

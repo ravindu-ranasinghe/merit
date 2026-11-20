@@ -1,0 +1,93 @@
+{
+  "recordedAt": "2026-11-20T05:36:56.762755+00:00",
+  "source": "Observed in the signed-in QuickNode dashboard using native Chrome controls explicitly approved by the user. Sanitized manual record; no credentials exported.",
+  "stream": {
+    "name": "merit-escrow-arc-testnet",
+    "status": "Active",
+    "network": "Arc Testnet",
+    "chainIdExpected": 5042002,
+    "dataset": "Logs",
+    "startBlock": 72366828,
+    "contractDeploymentBlock": 72270484,
+    "end": "continuous",
+    "batchSize": 5,
+    "elasticBatch": true,
+    "destination": "https://merit-backend-seven.vercel.app/webhooks/streams",
+    "compression": "None",
+    "timeoutSeconds": 30,
+    "retryAfterSeconds": 1,
+    "pauseAfterFailures": 3,
+    "filterEnabled": true,
+    "escrowAddress": "0x924525bF3f3A39f9c7f298E71aFf43F4c27a4727",
+    "securityToken": "masked; not read, copied or rotated",
+    "reorgResend": false,
+    "reorgRestream": false,
+    "tipDelayBlocks": 0,
+    "mTLS": false,
+    "filterSource": "function main(stream) { var ESCROW = \"0x924525bf3f3a39f9c7f298e71aff43f4c27a4727\"; var out = []; (function walk(x) { if (Array.isArray(x)) { for (var i = 0; i < x.length; i++) walk(x[i]); } else if (x && typeof x === \"object\") { if (typeof x.address === \"string\" && Array.isArray(x.topics)) { if (x.address.toLowerCase() === ESCROW) out.push(x); } else { for (var k in x) walk(x[k]); } } })(stream.data); return out.length ? out : null; }"
+  },
+  "observations": {
+    "cursorBefore": 73138057,
+    "cursorAfter": 73139163,
+    "creditsUsedApproxMillions": 15.6,
+    "creditsAllocatedMillions": 80,
+    "lastDay": {
+      "processedBlocks": 171811,
+      "webhookRequests": 0,
+      "errors": 0,
+      "retries": 0
+    },
+    "historicalLogs": "21 operation/error records shown, including old 401 failures against a former tunnel destination. No fresh escrow-event delivery record was captured."
+  },
+  "filterPreview": {
+    "kind": "Historical provider filter preview, not live delivery evidence",
+    "requestedStartBlock": 72358114,
+    "displayedEndBlock": 72358118,
+    "matchingLogCount": 1,
+    "log": {
+      "address": "0x924525bf3f3a39f9c7f298e71aff43f4c27a4727",
+      "topics": [
+        "0x9f5b59d2a8ccf2f24c6428440048dc2ab3521768467f1a5030098b8e50c8ae6f",
+        "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "0x00000000000000000000000059e4a5e96d868f0b1be24ca7ba5ccdd61451302e"
+      ],
+      "data": "0x0000000000000000000000000000000000000000000000000000000000989680ce0ab7fca41c7c3c2b3e0592975e93f3be6f3bed7da44213eca18fb8c281a917",
+      "blockHash": "0x6307047aa8f0a8563926a30d47eef02bcc6aab66e0a996f66934cdb39610b877",
+      "blockNumber": "0x45018e2",
+      "blockTimestamp": "0x6af8dd18",
+      "transactionHash": "0x2d8946d1bd886bdb234c1ff8cc64c532ccaadc81d1ba6552772863accfce44ec",
+      "transactionIndex": "0x1c",
+      "logIndex": "0x4a",
+      "removed": false
+    }
+  },
+  "emptyPreviewTest": {
+    "requestedStartBlock": 72366828,
+    "displayedEndBlock": 72366832,
+    "displayedPayload": "\"\"",
+    "displayedSizeBytes": 2,
+    "action": "Send Payload",
+    "dashboardResult": "Stream test successful",
+    "matchingBackendResponseCaptured": false,
+    "countsAsFreshAuthenticatedEscrowDelivery": false
+  },
+  "changes": {
+    "streamSettingsChanged": false,
+    "pausedOrRewoundProduction": false,
+    "tokensReadOrRotated": false,
+    "walletTransactionsSigned": false
+  },
+  "localBackendChecks": {
+    "scope": "Simulated GitHub failure and signed local fixtures, disposable merit_test only",
+    "typecheck": "passed",
+    "focusedTests": "43 tests across 3 files passed",
+    "fullSuite": "144 tests across 12 files passed",
+    "regression": "Four-bounty stalled comment batch returns within one shared budget; all ledger rows persist, late responses cannot create comments, and replay heals exactly one comment per bounty."
+  },
+  "pending": [
+    "Fresh real escrow lifecycle: funding before human review, maintainer approval, recipient claim, matching provider logs and app receipt",
+    "Bounded provider historical replay into isolated staging with the matching offchain intent/approval records",
+    "Controlled staging destination failure, retry/pause and restored catch-up",
+    "Wallet-owner signatures and final same-bounty recording; no useful new review/payout was invented"
+  ]
+}
