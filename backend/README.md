@@ -178,8 +178,11 @@ function main(stream) {
 All indexing finishes before GitHub comment work. The entire comment phase shares an eight-second budget,
 independent of batch size. A timeout aborts its GitHub requests and prevents later sync steps from starting writes;
 it cannot undo a write GitHub already accepted. Failed or deferred comment syncs log the bounty id separately from
-successful indexing. Another delivery/replay heals them; the existing expiry sweep can also repair eligible expired
-bounties when configured. Comments remain best effort; there is no new background queue or scheduler.
+successful indexing. Another delivery/replay heals them; maintainers can also use **Recheck GitHub** on the bounty
+to repair a missing/stale comment from already indexed events, without waiting for a new transaction. Public
+non-maintainers can still refresh review evidence but cannot publish the bot comment. A comment-only failure is
+reported separately in the existing error UI, and `GITHUB_PR_COMMENTS=0` is respected. The existing expiry sweep
+can also repair eligible expired bounties when configured. Comments remain best effort; there is no new queue or scheduler.
 
 All event reads additionally match the configured chain id and lowercased escrow address. Logs retained from another
 context cannot bind an intent, advance an approval, supply displayed amounts or credit a reviewer. One application

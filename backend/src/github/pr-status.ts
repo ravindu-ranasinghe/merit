@@ -114,6 +114,21 @@ const inFlight = new Map<number, Promise<unknown>>();
 
 export type SyncResult = "disabled" | "skipped" | "created" | "updated" | "unchanged";
 
+export const PR_COMMENT_BUDGET_MS = 8000;
+
+export function withCommentTimeout<T>(run: (signal: AbortSignal) => Promise<T>, ms = PR_COMMENT_BUDGET_MS): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`GitHub comment sync timed out after ${ms} ms`);
+      controller.abort(error);
+      reject(error);
+    }, ms);
+  });
+  return Promise.race([run(controller.signal), timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function syncPrStatusComment(ctx: Ctx, onchainBountyId: string, signal?: AbortSignal): Promise<SyncResult> {
   signal?.throwIfAborted();
   if (!ctx.env.github.prComments) return "disabled";
