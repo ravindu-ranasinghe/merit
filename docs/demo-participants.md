@@ -144,5 +144,5 @@ Save sanitized captures under `output/verification/demo-participants-<date>/` (n
 
 The revised new-bounty form offers an optional **45 min** window with `NEXT_PUBLIC_DEMO_DEADLINES=1`;
 mock mode always includes it. The default remains seven days. The short deadline is calculated at creation,
-so time spent choosing the PR does not consume the 45-minute window. Deployment of the new bundle/flag must
-be recorded before treating the option as available on the public site. Existing funded deadlines cannot change.
+so time spent choosing the PR does not consume the 45-minute window. The new bundle/flag was observed on the public form November 20 ([checks](final-hardening-checks.md)).
+Existing funded deadlines cannot change.

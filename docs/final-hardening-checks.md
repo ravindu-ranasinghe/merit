@@ -9,7 +9,7 @@ The active immutable escrow cannot receive a source-code patch; [owner deploymen
 | `forge test --summary` from `contracts/` | 33 passed, including stranger-first claim-ID consumption; three fuzz tests at 1,000 runs each |
 | `make -C contracts abi` plus both packages' `run sync-abi` | Published and consumed ABI includes additive `claimIdUsedBy` getter; transaction/event signatures unchanged |
 | `npm --prefix backend run typecheck` | Passed |
-| `TEST_DATABASE_URL=postgres://merit:merit@127.0.0.1:5433/merit_test npm --prefix backend test` | 163 passed across 13 files after recreating only disposable `merit_test` and applying the consolidated additive migration; one added overlap regression checked separately |
+| `TEST_DATABASE_URL=postgres://merit:merit@127.0.0.1:5433/merit_test npm --prefix backend test` | 163 passed locally after a clean disposable migration; 164 passed in full GitHub CI including the final overlap regression |
 | `npm --prefix web run typecheck` and `npm --prefix web run lint` | Passed |
 | `npm --prefix web run check:deposit` | 16 passed; one broadcast through receipt failure/retry/refresh |
 | `npm --prefix web run check:accounting` | 8 passed; both $10/$4/$6 orderings |
@@ -46,7 +46,16 @@ It preserves all existing records. Legacy block hashes remain unknown until thei
 validation uses the canonical receipt rather than inventing old ownership or rewriting terms. Orphan rows remain
 in the ledger, while product views exclude them. Pending intents with incomplete ownership still cannot auto-bind.
 
-Compatible backend/web deployment, the 45-minute production build flag, and revised Stream filter/restream
-configuration must be observed separately. Preserve the active Stream cursor, security token, destination and
+The compatible release was observed on the public backend and web aliases after PR #33 merged.
+Backend deployment `dpl_GDKmR7YjFHvuvkp3u9eM64bHWKkb` and web deployment
+`dpl_44MuEexoApdfKDEsxnaZBhNMoTur` use code commit `9a8ee25`. Eight public API/proxy checks passed
+(health/config/bounties 200, signed-out me 401); legacy app bounty IDs still map to onchain 3 and 4.
+The public create form shows **45 min**, with **7 days** still selected by default.
+
+QuickNode accepted the tested filter and Restream on reorg, which survived a settings reload. The Stream
+resumed using **CONTINUE WHERE IT LEFT OFF** at block 73151531 and was observed Active at 73151856.
+The configured start remains 72366828; destination and legacy address are unchanged. The historical
+provider filter preview passed without sending that payload to the live destination. See
+[the dated configuration evidence](quicknode-verification.json) and local `release.json` artifact. Preserve the active Stream cursor, security token, destination and
 legacy escrow. Do not replay synthetic fixtures into the live database. A fresh wallet-owned lifecycle, actual
 provider correction/replay evidence, and a signed revised-contract deployment are not established by local tests.

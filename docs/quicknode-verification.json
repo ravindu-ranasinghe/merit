@@ -89,5 +89,39 @@
     "Bounded provider historical replay into isolated staging with the matching offchain intent/approval records",
     "Controlled staging destination failure, retry/pause and restored catch-up",
     "Wallet-owner signatures and final same-bounty recording; no useful new review/payout was invented"
-  ]
+  ],
+  "november20Hardening": {
+    "kind": "Native dashboard configuration and historical filter preview; not a fresh wallet payment or live reorg test",
+    "codePr": "https://github.com/ravindu-ranasinghe/merit/pull/33",
+    "codeCommit": "9a8ee25bbea342a8b33b035e700304142434c81c",
+    "streamId": "2afb9d24-f846-49ee-96b7-e380e5b808ec",
+    "streamName": "merit-escrow-arc-testnet",
+    "network": "Arc Testnet",
+    "dataset": "Logs",
+    "startBlockUnchanged": 72366828,
+    "batchSize": 5,
+    "destinationUnchanged": "https://merit-backend-seven.vercel.app/webhooks/streams",
+    "restreamOnReorg": true,
+    "savedAndReloaded": true,
+    "filterSourceFile": "backend/scripts/streams-filter.js",
+    "filterSourceSha256": "ef877e8d5fe76c0c5c6fb80803971377aab3f79076ee3ba9948f7bf1825e3e27",
+    "filterBehavior": "Address-only escrow logs; signed body metadata retained; empty reorg corrections emitted, ordinary empty batches skipped",
+    "providerPreview": {
+      "block": 72358114,
+      "result": "Success; object containing the known RewardPaid log",
+      "sentToLiveDestination": false
+    },
+    "resumeChoice": "CONTINUE WHERE IT LEFT OFF",
+    "savedCursor": 73151531,
+    "observedActiveCursorAfterResume": 73151856,
+    "noCredentialRotation": true,
+    "noSyntheticLiveReplay": true,
+    "noWalletTransaction": true,
+    "pending": [
+      "Fresh wallet-owned funding, approval, claim and partial-refund lifecycle through this filtered Stream",
+      "Actual provider reorg/correction evidence; controlled signed fixtures passed locally",
+      "Owner-signed revised-contract deployment in a separate data environment"
+    ],
+    "recordedAtUtc": "2026-11-20T07:24:45Z"
+  }
 }
