@@ -36,7 +36,7 @@ export default function OpenSourcePage() {
           </div>
           <div className="sm:text-right">
             {isLoading ? <Skeleton className="h-12 w-40" /> : <Money units={total} className="text-[36px]" />}
-            <p className="mt-1 text-[13px] text-mut">{all.length} open {all.length === 1 ? "bounty" : "bounties"} · Testnet rewards have no monetary value</p>
+            <p className="mt-1 text-[13px] text-mut">{all.length} open {all.length === 1 ? "bounty" : "bounties"}</p>
           </div>
         </div>
       </Tray>

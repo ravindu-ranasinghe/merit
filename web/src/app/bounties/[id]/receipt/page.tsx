@@ -85,7 +85,6 @@ function PayoutReceipt({ b, share }: { b: Bounty; share: React.ReactNode }) {
           <NetworkRows />
         </dl>
         {refunded && <p className="mt-4 text-[13px] text-ink-2">The funder escrowed {formatUsdc(a.funded)}. After the deadline, the {formatUsdc(a.refunded)} that was never approved went back to the funding wallet.</p>}
-        <p className="my-4 text-[12px] text-mut">Testnet USDC has no monetary value. This receipt records a testnet payout; review usefulness was assessed by the maintainer.</p>
         {share}
       </Tray>
       <Tray><PaymentRecord bounty={b} /></Tray>
@@ -139,7 +138,6 @@ function RefundReceipt({ b, share }: { b: Bounty; share: React.ReactNode }) {
           <Row label="Indexed on">{formatDate(refunded.at)}</Row>
           <NetworkRows />
         </dl>
-        <p className="my-4 text-[12px] text-mut">Testnet USDC has no monetary value. This receipt records a testnet refund confirmed by the indexed contract event.</p>
         {share}
       </Tray>
       <Tray><PaymentRecord bounty={b} /></Tray>
