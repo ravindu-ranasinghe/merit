@@ -9,6 +9,7 @@ import { approvals, bounties, chain_events, pull_requests, repositories, review_
 import { MANUAL_LIMITATIONS } from "../github/evidence.js";
 import { syncReviews } from "../github/sync.js";
 import { reconcile } from "../streams/webhook.js";
+import { eventContext } from "../streams/match.js";
 import { repoOfPr, requireMaintainer, requireSession, type Session } from "../session.js";
 import { approvalsOfBounty, bountyViews, candidatesOfPr, canReadRepository, eventView } from "./view.js";
 
@@ -39,7 +40,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     // Each row carries its indexed events (the same shape as GET /bounties/:id), so a list can show confirmed
     // funded, paid and refunded amounts without a request per bounty. One query for the whole list.
     const ids = rows.flatMap((r) => (r.onchain_bounty_id === null ? [] : [r.onchain_bounty_id]));
-    const events = ids.length ? await ctx.db.select().from(chain_events).where(inArray(chain_events.onchain_bounty_id, ids))
+    const events = ids.length ? await ctx.db.select().from(chain_events).where(and(eventContext(ctx), inArray(chain_events.onchain_bounty_id, ids)))
       .orderBy(desc(chain_events.block_number), desc(chain_events.log_index)) : [];
     return { bounties: rows.map((r) => ({ ...r, events: events.filter((e) => e.onchain_bounty_id === r.onchain_bounty_id).map((e) => eventView(ctx, e)) })) };
   });
@@ -82,7 +83,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
     try { session = requireSession(req); } catch { /* public bounties need no session */ }
     if (!(await canReadRepository(ctx, repo, session))) throw new HttpError(404, "bounty not found or repository access unavailable");
     const events = v.onchain_bounty_id === null ? [] :
-      await ctx.db.select().from(chain_events).where(eq(chain_events.onchain_bounty_id, v.onchain_bounty_id)).orderBy(desc(chain_events.block_number), desc(chain_events.log_index));
+      await ctx.db.select().from(chain_events).where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, v.onchain_bounty_id))).orderBy(desc(chain_events.block_number), desc(chain_events.log_index));
     return { ...v, candidates: await candidatesOfPr(ctx, prId), approvals: await approvalsOfBounty(ctx, v.id), events: events.map((e) => eventView(ctx, e)) };
   });
 
@@ -97,7 +98,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.get("/events", async (req) => {
     const q = z.object({ bounty_id: id.optional(), limit: z.coerce.number().int().min(1).max(200).default(50), before: id.optional() }).parse(req.query);
-    const conds = [];
+    const conds = [eventContext(ctx)];
     if (q.before) conds.push(lt(chain_events.id, q.before));
     if (q.bounty_id) {
       const [b] = await ctx.db.select().from(bounties).where(eq(bounties.id, q.bounty_id));
@@ -158,6 +159,7 @@ export function bountyRoutes(app: FastifyInstance, ctx: Ctx) {
 
     // Heal: a matching BountyFunded that was indexed before this intent existed is bound now.
     const early = await ctx.db.select({ onchainId: chain_events.onchain_bounty_id }).from(chain_events).where(and(
+      eventContext(ctx),
       eq(chain_events.event_type, "BountyFunded"), sql`${chain_events.payload}->>'prHash' = ${prRow.pr_hash}`,
       sql`not exists (select 1 from bounties where bounties.onchain_bounty_id = ${chain_events.onchain_bounty_id})`,
     ));

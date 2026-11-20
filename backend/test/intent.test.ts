@@ -3,7 +3,7 @@ import { encodeAbiParameters, encodeEventTopics, keccak256, type Hex } from "vie
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { claimId, escrowAbi, prHash } from "../src/chain/escrow.js";
 import { approvals, bounties, chain_events, pull_requests, review_candidates, wallet_links } from "../src/db/schema.js";
-import { qnSign } from "../src/streams/webhook.js";
+import { qnSign, reconcile } from "../src/streams/webhook.js";
 import { DEMO, ESCROW, QN_TOKEN, setup, type Harness } from "./helpers.js";
 
 /**
@@ -127,6 +127,21 @@ describe("BountyFunded binds only the matching intent", () => {
     expect(await h.db.select().from(chain_events)).toHaveLength(2);
     expect(await bountyRow(id)).toMatchObject({ onchain_bounty_id: "7", status: "funded" });
   });
+
+  it.each(["chain", "contract"])("stored funding from another %s cannot bind or heal an intent", async (context) => {
+    await h.db.insert(chain_events).values({
+      chain_id: context === "chain" ? h.ctx.env.chainId + 1 : h.ctx.env.chainId,
+      contract: context === "contract" ? ATTACKER : ESCROW,
+      tx_hash: `0x${"11".repeat(32)}`, log_index: 0, event_type: "BountyFunded", block_number: 1,
+      onchain_bounty_id: "7", payload: { bountyId: "7", funder: MAINTAINER, prHash: PRH, amount: "10000000", expiry: EXPIRY.toString() },
+    });
+    const id = await intent(); // the creation route also tries to heal early events
+    await reconcile(h.ctx, "7");
+    expect(await bountyRow(id)).toMatchObject({ onchain_bounty_id: null, status: "funding_pending" });
+    await deliver([funded(7n, MAINTAINER)]);
+    expect(await bountyRow(id)).toMatchObject({ onchain_bounty_id: "7", status: "funded" });
+    expect(await h.db.select().from(chain_events)).toHaveLength(2); // preserve the unrelated history
+  });
 });
 
 describe("approvals and payouts advance only this bounty's approval", () => {
@@ -142,6 +157,34 @@ describe("approvals and payouts advance only this bounty's approval", () => {
   }
   const approvalRow = async (id: number) => (await h.db.select().from(approvals).where(eq(approvals.id, id)))[0]!;
   const prComment = () => (h.gh.issueComments.get(`${DEMO.name}#${DEMO.prNumber}`) ?? [])[0]?.body ?? "";
+
+  it.each(["chain", "contract"])("another %s cannot supply approval, payout, receipt or profile facts", async (context) => {
+    const { id, approvalId } = await victim();
+    for (const [i, event_type] of ["RewardApproved", "RewardPaid"].entries()) {
+      await h.db.insert(chain_events).values({
+        chain_id: context === "chain" ? h.ctx.env.chainId + 1 : h.ctx.env.chainId,
+        contract: context === "contract" ? ATTACKER : ESCROW,
+        tx_hash: `0x${(20 + i).toString(16).repeat(32)}`, log_index: 0, event_type, block_number: 10 + i,
+        onchain_bounty_id: "7", payload: { bountyId: "7", recipient: REVIEWER, amount: "10000000", claimId: CLAIM },
+      });
+    }
+    const [funding] = await h.db.select().from(chain_events).where(eq(chain_events.event_type, "BountyFunded"));
+    await deliver([{ ...funded(7n, MAINTAINER), transactionHash: funding!.tx_hash }]); // duplicate delivery cannot import the foreign payout
+    expect(await approvalRow(approvalId)).toMatchObject({ status: "prepared", chain_tx_hash: null });
+    expect(prComment()).not.toContain("jun-park");
+    const detail = (await h.app.inject({ url: `/bounties/${id}` })).json();
+    expect(detail.status).toBe("approved");
+    expect(detail.events.map((e: { event_type: string }) => e.event_type)).toEqual(["BountyFunded"]);
+    const list = (await h.app.inject({ url: "/bounties" })).json();
+    expect(list.bounties[0].events).toHaveLength(1);
+    const feed = (await h.app.inject({ url: `/events?bounty_id=${id}` })).json();
+    expect(feed.events).toHaveLength(1);
+    const profile = (await h.app.inject({ url: `/reviewers/${DEMO.reviewerId}` })).json();
+    expect(profile.bounties[0].approvals).toEqual([]);
+    expect(profile.bounties[0].events).toHaveLength(1);
+    const me = (await h.app.inject({ url: "/me", headers: h.cookie(DEMO.reviewerId) })).json();
+    expect(me.as_reviewer[0].bounty.events).toHaveLength(1);
+  });
 
   it("a foreign bounty reusing the claim id cannot advance the approval or credit the reviewer", async () => {
     const { id, approvalId } = await victim();

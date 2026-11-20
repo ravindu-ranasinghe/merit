@@ -30,6 +30,10 @@ The guide lists Consumer Applications at $2,000, Arc at $1,000 within the chosen
 
 ## A 2–3 minute video
 
+Use [the timed recording script](demo-script.md) and [the acceptance checklist/evidence inventory](demo-checklist.md)
+for the final capture. Neither a fresh filtered-Stream lifecycle nor a final live video is claimed complete. The
+existing local walkthrough is an 87.004-second simulated recording; preserve it as an illustration, not live proof.
+
 - **0:00–0:20 — Problem.** Open the public rewards board: “Maintainers need careful reviews. Reviewers need a credible reward. Merit locks the reward before the work starts.” Show reward amounts and funded status.
 - **0:20–0:45 — Discover.** Search for the demo repository, open a bounty, and copy its PR badge. Show the actual GitHub review text and the specific line awaiting a fix.
 - **0:45–1:15 — Evidence.** Show the inline review, an actual subsequent fixing commit, and the resolved thread on GitHub. Recheck in Merit and point to the timeline. Say: “These are signals for the maintainer; we do not automatically judge review quality.”

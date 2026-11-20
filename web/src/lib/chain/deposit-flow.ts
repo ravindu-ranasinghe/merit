@@ -45,13 +45,26 @@ export interface DepositCheck {
   nonce?: number;
 }
 
+/** A successful receipt can belong to a cancellation; only the intended escrow event proves funding. */
+export function matchesDeposit(record: Pick<DepositRecord, "wallet" | "escrow" | "expect">, event: {
+  address: string; args: { funder: string; prHash: string; amount: bigint; expiry: bigint };
+}): boolean {
+  return event.address.toLowerCase() === record.escrow.toLowerCase()
+    && event.args.funder.toLowerCase() === record.wallet.toLowerCase()
+    && event.args.prHash.toLowerCase() === record.expect.prHash.toLowerCase()
+    && event.args.amount === BigInt(record.expect.amount) && event.args.expiry === BigInt(record.expect.expiry);
+}
+
 export interface DepositStore {
+  assertWritable(): void;
   get(bountyId: string): DepositRecord | null;
-  set(record: DepositRecord): void;
+  /** False when only this page could remember it; keep the tab open until indexing. */
+  set(record: DepositRecord): boolean;
   clear(bountyId: string): void;
 }
 
 export interface FundingChain {
+  assertWallet(owner: Address): void;
   allowance(owner: Address): Promise<bigint>;
   approveUsdc(amount: bigint, onSubmitted: (hash: Hex) => void): Promise<{ hash: Hex }>;
   blockNumber(): Promise<bigint>;
@@ -75,6 +88,7 @@ export type FundEvent =
   | { type: "approve_submitted"; hash: Hex }
   | { type: "deposit_wallet" }
   | { type: "deposit_submitted"; hash: Hex }
+  | { type: "storage_failed" }
   | { type: "checking"; hash: Hex };
 
 export type FundResult =
@@ -132,7 +146,11 @@ export async function fund(chain: FundingChain, store: DepositStore, req: FundRe
       return await resolveDeposit(chain, store, existing, req.owner);
     }
 
+    store.assertWritable(); // no wallet signature until recovery storage is available
+    chain.assertWallet(req.owner);
+
     if ((await chain.allowance(req.owner)) < req.amount) {
+      chain.assertWallet(req.owner);
       on({ type: "approve_wallet" });
       // The allowance hash is never recorded as a deposit. If its receipt fails, the next attempt
       // re-reads the allowance and skips this step when the approval did land.
@@ -140,6 +158,8 @@ export async function fund(chain: FundingChain, store: DepositStore, req: FundRe
     }
 
     const fromBlock = await chain.blockNumber();
+    store.assertWritable(); // allowance confirmation may have taken long enough for storage to change
+    chain.assertWallet(req.owner); // the wallet or network can change while allowance confirms
     on({ type: "deposit_wallet" });
     // Set inside onSubmitted: present if and only if the wallet broadcast the deposit.
     const sent: { record: DepositRecord | null } = { record: null };
@@ -151,8 +171,9 @@ export async function fund(chain: FundingChain, store: DepositStore, req: FundRe
           fromBlock: fromBlock.toString(), nonce: null, submittedAt: Date.now(),
         };
         sent.record = record;
-        store.set(record); // before anything else can fail
+        const saved = store.set(record); // before anything else can fail
         on({ type: "deposit_submitted", hash });
+        if (!saved) on({ type: "storage_failed" });
       });
       return { kind: "confirmed", hash };
     } catch (err) {

@@ -50,8 +50,9 @@ const mockDeposits = new Map<string, DepositRecord>();
 
 /** In mock mode a recorded deposit lives in memory, like the rest of the sample chain. */
 export const mockDepositStore: DepositStore = {
+  assertWritable: () => {},
   get: (bountyId) => mockDeposits.get(bountyId) ?? null,
-  set: (record) => { mockDeposits.set(record.bountyId, record); },
+  set: (record) => { mockDeposits.set(record.bountyId, record); return true; },
   clear: (bountyId) => { mockDeposits.delete(bountyId); },
 };
 

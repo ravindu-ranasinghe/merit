@@ -77,12 +77,25 @@ recorded when the bounty was created; the panel blocks funding from any other wa
 
 Limit: the record lives in this browser's `localStorage`. Another browser or device does not see a deposit
 sent from here and, while it is unindexed, would offer "Fund" again. The backend records no funding hash.
+Funding checks that storage can save recovery data before opening the wallet and again after the allowance step.
+Blocked/full storage prevents a deposit. If storage disappears after broadcast, the hash remains available in this
+tab and the panel warns to keep it open until indexing; a full reload can lose that memory-only record. Do not clear
+browser data while a deposit is unresolved. Account/network changes during allowance stop the deposit, and the real
+driver pins the signing account across simulation and broadcast.
 
 `npm run check:deposit` runs the orchestration under Node with a fake chain: one deposit after a receipt
 failure and retry, resume after refresh, revert and replacement, rejection before broadcast, allowance-only
 failure, double clicks and another wallet. In mock mode, set a one-shot fault in the browser console before
 clicking Fund: `sessionStorage.setItem("merit.mock.fault", "receipt-timeout")` (mined, but the receipt
-lookup throws) or `"revert-after-broadcast"`.
+lookup throws) or `"revert-after-broadcast"`. The executable check also covers unavailable storage and wallet/network
+changes while allowance confirms. See [the acceptance checklist](../docs/demo-checklist.md) for both refund orderings
+and the remaining interactive/live checks.
+
+Receipt recovery checks the actual escrow event and intended terms. A successful cancellation receipt is not funding.
+When viem reports a replacement, its hash is saved through the same submission callback; a funded replacement stays
+waiting for indexing, while a confirmed replacement with no matching deposit permits another attempt. CI runs both
+`check:deposit` and `check:accounting`. The optional `scripts/demo-qa.mjs` runs browser checks with an installed
+Playwright Core module; its two November 19 mock sessions passed with no uncaught page errors.
 
 ## Environment variables
 

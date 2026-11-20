@@ -5,6 +5,15 @@
  * and the receipt view, so all three agree.
  */
 
+import { and, eq } from "drizzle-orm";
+import type { Ctx } from "../ctx.js";
+import { chain_events } from "../db/schema.js";
+
+/** Bounty ids are local to a contract; historical logs from another deployment cannot supply its facts. */
+export const eventContext = (ctx: Ctx) => and(
+  eq(chain_events.chain_id, ctx.env.chainId), eq(chain_events.contract, ctx.env.escrowAddress.toLowerCase()),
+);
+
 const sameAddress = (a: string | null | undefined, b: string | null | undefined) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
 
 /** A BountyFunded event matches a funding intent only on funder, integer amount and expiry (unix seconds). */

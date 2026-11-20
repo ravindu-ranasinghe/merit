@@ -1,10 +1,10 @@
-import { desc, eq, getTableColumns, type SQL } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, type SQL } from "drizzle-orm";
 import type { Ctx } from "../ctx.js";
 import { approvals, bounties, chain_events, pull_requests, repositories, review_candidates, wallet_links } from "../db/schema.js";
 import { refreshBounty } from "../bounty.js";
 import type { Evidence } from "../github/evidence.js";
 import type { Session } from "../session.js";
-import { approvalMatches } from "../streams/match.js";
+import { approvalMatches, eventContext } from "../streams/match.js";
 
 export async function canReadRepository(ctx: Ctx, repo: typeof repositories.$inferSelect, session?: Session) {
   try {
@@ -72,7 +72,7 @@ export async function approvalsOfBounty(ctx: Ctx, bountyId: number) {
     .innerJoin(pull_requests, eq(pull_requests.id, bounties.pr_id))
     .innerJoin(repositories, eq(repositories.id, pull_requests.repo_id)).where(eq(bounties.id, bountyId));
   const payments = r!.onchainId === null ? [] : await ctx.db.select().from(chain_events)
-    .where(eq(chain_events.onchain_bounty_id, r!.onchainId));
+    .where(and(eventContext(ctx), eq(chain_events.onchain_bounty_id, r!.onchainId)));
   const payout = payments.find((e) => e.event_type === "RewardPaid")?.payload as { claimId: string; recipient: string; amount: string } | undefined;
   // Same rule as the Streams receiver: this bounty's approval, matching claim id, recipient and amount.
   const matched = payout ? rows.filter((a) => a.status !== "prepared" && a.claim_id === payout.claimId && approvalMatches(a, payout)) : rows;

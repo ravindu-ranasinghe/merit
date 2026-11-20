@@ -2,7 +2,7 @@
 
 **A little credit for a good catch.** Fund a code-review reward on GitHub, help an author fix a problem, and receive a maintainer-approved USDC payout on Arc.
 
-[Live application](https://merit-theta-beige.vercel.app) · [API](docs/api.md) · [Escrow and contract address](docs/escrow-interface.md) · [Submission and demo guide](docs/hackathon-submission.md)
+[Live application](https://merit-theta-beige.vercel.app) · [API](docs/api.md) · [Escrow and contract address](docs/escrow-interface.md) · [Submission and demo guide](docs/hackathon-submission.md) · [Acceptance checklist](docs/demo-checklist.md) · [Recording script](docs/demo-script.md)
 
 Merit pays for review feedback that a maintainer decides led to an improvement. A maintainer deposits the reward before the review happens. The reviewer works on GitHub and claims the reward after explicit approval. Testnet prototype: the USDC has no monetary value.
 
@@ -72,6 +72,14 @@ npm run build
 ```
 
 Tests exercise signatures, wallet binding, payout approval constraints, event reconciliation, public/private discovery, review recovery, comparison failures, and SVG badge output. Browser checks should cover value sorting, search, recheck, copying, profiles, paid/unpaid receipts, and mobile layouts before a release.
+
+November 18 local verification: the full backend suite passed 129 assertions against disposable `merit_test`, including
+wrong-chain/escrow isolation. Web deposit-recovery and partial-payout checks, both typechecks and web lint passed.
+Anonymous requests reached the public repository, landing page and non-mock backend health endpoint. November 19's
+two fresh-session mock browser rehearsals also passed, including both refund orderings, funding recovery and mobile
+controls; deposit recovery now has 16 passing checks and runs in CI. A fresh filtered Stream lifecycle, two live cold
+rehearsals and the final 2–3 minute live video remain pending; the existing 87-second walkthrough is simulated.
+[Exact checks, evidence inventory and owners](docs/demo-checklist.md).
 
 ## Current limits
 
