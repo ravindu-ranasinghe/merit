@@ -1,0 +1,59 @@
+1
+00:00:00,002 --> 00:00:02,722
+Here's the new Open Source tab in Merit.
+
+2
+00:00:02,722 --> 00:00:04,762
+Every listed reward is already funded.
+
+3
+00:00:04,762 --> 00:00:11,561
+You can see the total available, sort by reward or deadline, filter by language, and search for a pull request.
+
+4
+00:00:17,005 --> 00:00:22,692
+Inside a bounty, the review now shows a GitHub username and the actual feedback.
+
+5
+00:00:22,692 --> 00:00:25,536
+Pending checks explain exactly what is missing.
+
+6
+00:00:25,536 --> 00:00:29,192
+Recheck GitHub refreshes comments, resolved threads, and code changes.
+
+7
+00:00:34,009 --> 00:00:37,500
+Maintainers can copy a reward badge for the pull request description.
+
+8
+00:00:37,500 --> 00:00:41,943
+The badge links back to Merit and shows the current reward and bounty status.
+
+9
+00:00:46,013 --> 00:00:52,917
+Click a reviewer to see their public profile: repositories reviewed, accepted reviews, and rewards actually paid.
+
+10
+00:00:52,917 --> 00:00:55,938
+Unclaimed approvals do not count as earnings.
+
+11
+00:00:58,026 --> 00:01:05,591
+The review to reward timeline connects the original comment, a later code change, the resolved thread, and the payment steps.
+
+12
+00:01:05,591 --> 00:01:07,860
+This example shows a completed reward.
+
+13
+00:01:11,038 --> 00:01:17,055
+A paid bounty has a shareable receipt with the reviewer, actual payout amount, recipient, and transaction.
+
+14
+00:01:17,055 --> 00:01:19,688
+Copy its link to share the result.
+
+15
+00:01:19,688 --> 00:01:24,200
+This walkthrough uses local demo data and simulated GitHub and chain activity.
