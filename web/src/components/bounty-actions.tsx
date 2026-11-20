@@ -6,7 +6,7 @@ import { useReportFundingTx } from "@/lib/api/queries";
 import type { Bounty } from "@/lib/api/types";
 import { useClaim, useFundBounty, useNeedsGas, useRefundExpired, useWallet, type FundPhase } from "@/lib/chain/hooks";
 import { escrowAmounts } from "@/lib/accounting";
-import { formatDate, formatUsdc, relativeTime } from "@/lib/format";
+import { formatDeadline, formatUsdc, relativeTime } from "@/lib/format";
 import { useNow } from "@/lib/now";
 import { useViewer } from "@/lib/viewer";
 import { IconCheck, IconCheckDraw, IconExternal, IconGithub, IconLock } from "./icons";
@@ -69,7 +69,7 @@ function FundPanel({ bounty, onSent }: { bounty: Bounty; onSent: () => void }) {
       <Heading>Fund this bounty</Heading>
       <Lead>
         Nothing is locked yet. Funding takes two confirmations in your wallet, then {formatUsdc(bounty.amountUnits)} sits in
-        escrow until you approve a review or the deadline passes on {formatDate(bounty.deadline)}.
+        escrow until you approve a review or the deadline passes on {formatDeadline(bounty.deadline)}.
       </Lead>
 
       <ol className="mt-4 space-y-2">
@@ -465,7 +465,7 @@ export function BountyActions({ bounty, onSent }: { bounty: Bounty; onSent: () =
         <div>
           <Heading>The maintainer decided this review does not qualify</Heading>
           <Lead>
-            No payout was approved. The reward stays in escrow until the deadline on {formatDate(bounty.deadline)}; after
+            No payout was approved. The reward stays in escrow until the deadline on {formatDeadline(bounty.deadline)}; after
             that it can be refunded to the funder.
           </Lead>
           <p className="mt-3 text-[13px] text-mut">

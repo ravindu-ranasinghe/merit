@@ -8,10 +8,21 @@ const LATENCY_MS = 220;
 /** Hand back copies, like JSON over the wire, so React Query sees changes. */
 const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+/**
+ * The clock overlay the real backend applies at read time (backend/src/streams/project.ts): a bounty the chain
+ * says is funded, with no approval, becomes "expired" once its deadline passes. Chain states (claimable, paid,
+ * refunded) and pending approvals are never overridden. Status only moves forward.
+ */
+const CLOCK_EXPIRES: Bounty["status"][] = ["funded", "review_candidate", "rejected"];
+function applyClock(b: Bounty): Bounty {
+  if (CLOCK_EXPIRES.includes(b.status) && !b.approval && new Date(b.deadline).getTime() <= Date.now()) b.status = "expired";
+  return b;
+}
+
 function find(id: string): Bounty {
   const b = getDb().bounties.find((x) => x.id === id);
   if (!b) throw new ApiError("not_found", "This bounty does not exist.");
-  return b;
+  return applyClock(b);
 }
 
 export const mockApi: Api = {
@@ -29,7 +40,7 @@ export const mockApi: Api = {
   async listBounties(scope) {
     await sleep(LATENCY_MS);
     const me = currentPersona().user.id;
-    const all = getDb().bounties;
+    const all = getDb().bounties.map(applyClock);
     const mine =
       scope === "funded-by-me"
         ? all.filter((b) => b.funder.id === me)
@@ -57,7 +68,7 @@ export const mockApi: Api = {
 
   async getReviewerProfile(id) {
     await sleep(LATENCY_MS);
-    const bounties = getDb().bounties.filter((b) => b.candidates.some((c) => c.reviewer.id === id));
+    const bounties = getDb().bounties.map(applyClock).filter((b) => b.candidates.some((c) => c.reviewer.id === id));
     const user = bounties.flatMap((b) => b.candidates).find((c) => c.reviewer.id === id)?.reviewer;
     if (!user) throw new ApiError("not_found", "This reviewer has no public contributions yet.");
     return copy({ user, bounties });
