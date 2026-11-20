@@ -1,46 +1,46 @@
 @import "tailwindcss";
 
 /*
- * Shared product theme: linen, warm stone, taupe, and charcoal ink.
- * One GPU character field persists behind the landing page and the application.
- * Figures, hashes and amounts are set in mono, like a ledger column. Status colors are
- * reserved for state and always ship with an icon and a label.
+ * Shared product theme: soft dark. A charcoal page, slightly lighter cards, soft white ink and
+ * one periwinkle accent, tuned to be easy on the eyes on screen and in recordings (not pure black,
+ * not pure white). Figures, hashes and amounts are set in mono, like a ledger column. Status colors
+ * are reserved for state and always ship with an icon and a label.
  */
 @theme {
-  --color-bg: #EBE2CC;
-  --color-tray: #DED6C1;
-  --color-tray-2: #CFC6B1;
-  --color-card: #F4EDDD;
-  --color-dark: #3F3B33;
-  --color-ink: #3F3B33;
-  --color-ink-2: #5C564B;
-  --color-mut: #6A6255;
-  --color-mut-2: #6A6255;
-  --color-line: rgb(63 59 51 / 0.16);
-  --color-accent: #49453B;
-  --color-accent-ink: #625B4D;
-  --color-tint: #DED6C1;
-  --color-good: #4E5843;
-  --color-good-bg: #DEDCC7;
-  --color-warn: #77603B;
-  --color-warn-bg: #E6D9BA;
-  --color-crit: #7E4942;
-  --color-crit-bg: #E8D6C9;
-  --color-diff-bg: #E8DFCB;
-  --color-diff-add-bg: #D7D7C1;
-  --color-diff-add-ink: #434C36;
-  --color-diff-remove-bg: #E5D1C2;
-  --color-diff-remove-ink: #793F38;
-  --color-field-ink: #B7B09E;
+  --color-bg: #15171C;
+  --color-tray: #1A1D23;
+  --color-tray-2: #262A33;
+  --color-card: #1F232B;
+  --color-dark: #0D0F13;
+  --color-ink: #E6E8EC;
+  --color-ink-2: #C3C8D1;
+  --color-mut: #A3A9B5;
+  --color-mut-2: #8E95A3;
+  --color-line: rgb(230 232 236 / 0.11);
+  --color-accent: #8B9CFF;
+  --color-accent-ink: #A9B6FF;
+  --color-tint: #232A42;
+  --color-good: #4ADE80;
+  --color-good-bg: #13301F;
+  --color-warn: #FBBF24;
+  --color-warn-bg: #332810;
+  --color-crit: #F87171;
+  --color-crit-bg: #3A1C1E;
+  --color-diff-bg: #191C22;
+  --color-diff-add-bg: #14301F;
+  --color-diff-add-ink: #86EFAC;
+  --color-diff-remove-bg: #3A1C1E;
+  --color-diff-remove-ink: #FCA5A5;
+  --color-field-ink: #3A4050;
 
   --radius-tray: 4px;
   --radius-card: 2px;
   --radius-ctl: 2px;
 
   /* Depth is a hairline, plus a small neutral shadow for things that float. */
-  --shadow-card: 0 0 0 1px rgb(63 59 51 / 0.16);
-  --shadow-inner-card: 0 0 0 1px rgb(63 59 51 / 0.14);
-  --shadow-knob: 0 0 0 1px rgb(63 59 51 / 0.25);
+  --shadow-card: 0 0 0 1px rgb(230 232 236 / 0.10), 0 8px 24px rgb(0 0 0 / 0.25);
+  --shadow-inner-card: 0 0 0 1px rgb(230 232 236 / 0.09);
+  --shadow-knob: 0 0 0 1px rgb(230 232 236 / 0.16);
 
   --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
@@ -72,7 +72,7 @@
 }
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
   background: var(--color-bg);
   color: var(--color-ink);
   font-feature-settings: "tnum";
@@ -102,8 +102,8 @@ body {
 .ambient-background { position: fixed; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; --field-ink: var(--color-field-ink); }
 .ambient-canvas, .ambient-poster { position: absolute; inset: 0; width: 100%; height: 100%; }
 .ambient-canvas { opacity: 0; transition: opacity 600ms var(--ease-soft); }
-.ambient-canvas[data-ready="true"] { opacity: .65; }
-.ambient-poster { background: url('/art/currents.svg') center / cover no-repeat; opacity: .35; }
+.ambient-canvas[data-ready="true"] { opacity: .45; }
+.ambient-poster { background: url('/art/currents.svg') center / cover no-repeat; opacity: .12; }
 .ambient-background:has([data-ready="true"]) .ambient-poster { visibility: hidden; }
 .ambient-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--color-bg) 93%, transparent) 0%, color-mix(in srgb, var(--color-bg) 76%, transparent) 31%, color-mix(in srgb, var(--color-bg) 10%, transparent) 72%, color-mix(in srgb, var(--color-bg) 25%, transparent)); }
 .app-main { position: relative; min-width: 0; overflow-x: clip; padding-top: 40px; }
@@ -116,7 +116,7 @@ body {
 input, select, textarea { accent-color: var(--color-accent); }
 @media (max-width: 760px) {
   .ambient-background::after { background: color-mix(in srgb, var(--color-bg) 56%, transparent); }
-  .ambient-canvas[data-ready="true"] { opacity: .48; }
+  .ambient-canvas[data-ready="true"] { opacity: .32; }
   .motion-toggle { right: 16px; bottom: 16px; }
 }
 

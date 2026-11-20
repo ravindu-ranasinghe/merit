@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { HowItWorks } from "@/components/how-it-works";
-import { IconArrowRight, IconGithub, IconLock, IconPullRequest, IconStream } from "@/components/icons";
+import { IconArrowRight, IconGithub, IconLock, IconStream } from "@/components/icons";
 import styles from "./home.module.css";
 
 const SOURCES = [
-  { icon: IconGithub, name: "GitHub", role: "The review", body: "The comments, commits, resolved threads and maintainer permissions. Your review stays where the code lives." },
-  { icon: IconLock, name: "Arc escrow", role: "The reward", body: "Funds locked before the work starts. The contract enforces one payout and returns expired, unapproved funds to the funder." },
-  { icon: IconStream, name: "QuickNode Streams", role: "The record", body: "The event pipeline indexes contract activity so funding and payout states reflect what happened onchain." },
+  { icon: IconGithub, name: "GitHub", body: "The comments, commits, resolved threads and maintainer permissions. Your review stays where the code lives." },
+  { icon: IconLock, name: "Arc escrow", body: "Funds locked before the work starts. The contract enforces one payout and returns expired, unapproved funds to the funder." },
+  { icon: IconStream, name: "QuickNode Streams", body: "The event pipeline indexes contract activity so funding and payout states reflect what happened onchain." },
 ];
 
 export default function LandingPage() {
@@ -14,7 +14,6 @@ export default function LandingPage() {
     <div className={`landing-page ${styles.home}`}>
       <section className={styles.hero} aria-labelledby="hero-title">
         <div className={styles.heroCopy} data-field-clear="">
-          <p className={styles.eyebrow}><span className={styles.plus}>[ + ]</span> GitHub reviews, given their due</p>
           <h1 id="hero-title">Good reviews.<br />Better code.<br /><span>Real credit.</span></h1>
           <p className={styles.lede}>Fund a code-review reward before the first comment. When feedback leads to a fix, the maintainer approves it. The reviewer claims the reward.</p>
           <div className={styles.actions}>
@@ -22,10 +21,6 @@ export default function LandingPage() {
             <Link href="/reviewer" className={styles.secondary}>I review code <IconArrowRight size={16} /></Link>
           </div>
           <p className={styles.testnet}><span /> Arc testnet · Test USDC, no monetary value</p>
-        </div>
-        <div className={styles.heroFoot}>
-          <p><IconPullRequest size={16} /> Built for the other half of open source</p>
-          <a href="#difference">A better reason to look closer <span aria-hidden>↓</span></a>
         </div>
       </section>
 
@@ -37,18 +32,15 @@ export default function LandingPage() {
         <div className={styles.diff}>
           <div className={styles.diffHeader}><span>contribution.md</span><span>− 3&nbsp;&nbsp; <span className={styles.addedCount}>+ 3</span></span></div>
           <div className={styles.diffGroup}>
-            <p className={styles.diffLabel}>The usual story</p>
             <p><span>−</span> Bounties reward the person writing the code</p>
             <p><span>−</span> The reviewer catches the bug, then moves on</p>
             <p><span>−</span> Payment is a promise for later</p>
           </div>
           <div className={`${styles.diffGroup} ${styles.diffAdded}`}>
-            <p className={styles.diffLabel}>The Merit version</p>
             <p><span>+</span> Feedback leads to an accepted improvement</p>
             <p><span>+</span> A maintainer verifies and rewards that review</p>
             <p><span>+</span> The reward is already locked in escrow</p>
           </div>
-          <div className={styles.diffFooter}><span aria-hidden>↳</span> A small change to how contribution gets valued</div>
         </div>
       </section>
 
@@ -66,24 +58,23 @@ export default function LandingPage() {
           <p>Merit joins three systems. The server holds no key that can move money. The maintainer decides what deserves a reward and signs the approval.</p>
         </div>
         <div className={styles.sources}>
-          {SOURCES.map(({ icon: Icon, name, role, body }) => (
+          {SOURCES.map(({ icon: Icon, name, body }) => (
             <article key={name} className={styles.source}>
               <div className={styles.sourceTop}><Icon size={20} /></div>
-              <p className={styles.sourceRole}>{role}</p>
               <h3>{name}</h3>
               <p>{body}</p>
             </article>
           ))}
         </div>
         <div className={styles.limits}>
-          <div><span className={styles.bracket}>[ ! ]</span><h3>Human judgment stays human.</h3></div>
+          <div><h3>Human judgment stays human.</h3></div>
           <p>A maintainer can approve a weak review, and collusion remains possible. GitHub signals are heuristics that can break when lines move or commits are rebased. Merit coordinates payments; it does not score review quality or replace tax, identity or labor-compliance systems.</p>
         </div>
       </section>
 
       <section className={styles.closing} aria-labelledby="closing-title">
         <div className={styles.closingMark} aria-hidden>+</div>
-        <div><p className={styles.eyebrow}>Better code is a team effort</p><h2 id="closing-title">Give a good review<br />the credit it deserves.</h2><p>Start with a pull request and a $5–$10 testnet reward.</p></div>
+        <div><h2 id="closing-title">Give a good review<br />the credit it deserves.</h2><p>Start with a pull request and a $5–$10 testnet reward.</p></div>
         <Link href="/maintainer" className={styles.primary}>Fund your first review <IconArrowRight size={16} /></Link>
       </section>
     </div>

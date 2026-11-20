@@ -168,11 +168,12 @@ for public repositories.
 
 ## Design notes
 
-The landing page and every app route share linen, warm stone, taupe and charcoal, sharp corners,
-Geist interface text and Geist Mono for code and ledger values. Tokens live in
-`src/app/globals.css`; the homepage uses the same tokens through `home.module.css`.
-The reference palette is `#EBE2CC`, `#DED6C1`, `#CFC6B1`, `#B7B09E`, with darker
-ink for readable text and restrained semantic colors for statuses.
+The landing page and every app route share a soft dark theme, sharp corners, Geist interface
+text and Geist Mono for code and ledger values: a charcoal page (`#15171C`), slightly lighter
+cards (`#1F232B`), soft white ink (`#E6E8EC`) and one periwinkle accent (`#8B9CFF`), tuned to
+be easy on the eyes on screen and in recordings. Tokens live in `src/app/globals.css`; the
+homepage uses the same tokens through `home.module.css`. Status colors are reserved for state.
+Every page, the home page included, uses the same header, so navigating never swaps the navbar.
 
 `AmbientField` mounts one persistent `asciify-engine/field` canvas in the root layout.
 A custom GPU effect draws three moving, branching character streams. It targets 60 fps,
