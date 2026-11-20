@@ -28,8 +28,6 @@
 .primary:hover { background: var(--color-accent-ink); border-color: var(--color-accent-ink); }
 .secondary { color: var(--home-ink); gap: 12px; }
 .secondary:hover { color: var(--home-green); }
-.home .testnet { display: flex; align-items: center; gap: 8px; margin-top: 20px; color: var(--home-muted); font-family: var(--font-mono); font-size: 11px; line-height: 20px; }
-.testnet > span { width: 5px; height: 5px; border: 1px solid var(--home-muted); border-radius: 50%; }
 .heroFoot { position: absolute; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--home-line); padding: 24px 0; color: var(--home-muted); font-size: 12px; }
 .heroFoot > p, .heroFoot > a { display: flex; align-items: center; gap: 12px; }
 .heroFoot > a { padding: 4px 8px; background: var(--home-ground); }
@@ -52,7 +50,6 @@
 .diffFooter { display: flex; gap: 12px; padding: 16px 24px; color: var(--home-muted); font-size: 11px; border-top: 1px solid var(--home-line); }
 .workflow, .trust { padding: 88px 0; border-bottom: 1px solid var(--home-line); scroll-margin-top: 80px; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
-.sectionHeading > p { max-width: 340px; font-size: 14px; line-height: 24px; color: var(--home-secondary); }
 .walkthrough { display: grid; grid-template-columns: .72fr 1.28fr; gap: 40px; margin-top: 48px; align-items: center; }
 .steps { list-style: none; padding: 0; margin: 0; }
 .step { display: flex; align-items: flex-start; gap: 20px; width: 100%; text-align: left; padding: 24px 16px; border-bottom: 1px solid var(--home-line); transition: background 180ms var(--ease-soft); }
@@ -117,11 +114,7 @@
 .source .sourceRole { margin-top: 28px; font-family: var(--font-mono); font-size: 11px; color: var(--home-muted); }
 .source h3 { margin-top: 8px; font-size: 20px; font-weight: 500; letter-spacing: -.02em; }
 .source > p:last-child { margin-top: 12px; max-width: 310px; color: var(--home-secondary); font-size: 13px; line-height: 23px; }
-.limits { display: grid; grid-template-columns: .85fr 1.15fr; gap: 56px; margin-top: 32px; }
-.limits > div { display: flex; gap: 12px; align-items: baseline; }
 .bracket { font-family: var(--font-mono); color: var(--home-muted); font-size: 12px; white-space: nowrap; }
-.limits h3 { font-size: 14px; font-weight: 500; }
-.limits > p { color: var(--home-muted); font-size: 12px; line-height: 22px; }
 .closing { display: flex; justify-content: space-between; align-items: center; gap: 48px; padding: 80px 0 88px; }
 .closing > div:nth-child(2) { flex: 1; }
 .closing h2 { margin-top: 12px; font-size: 36px; }
@@ -137,9 +130,7 @@
 .menuButton, .mobileNav { display: none; }
 .landingFooter { padding: 28px max(32px, calc((100vw - 1200px) / 2)) 80px; border-top: 1px solid var(--home-line); background: color-mix(in srgb, var(--home-ground) 92%, transparent); }
 .footerTop { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.footerTop > p { margin-right: auto; font-size: 12px; color: var(--home-muted); }
 .footerTop nav { display: flex; gap: 24px; font-size: 12px; color: var(--home-secondary); }
-.footerBottom { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 28px; color: var(--home-muted); font-family: var(--font-mono); font-size: 11px; }
 @media (max-width: 1050px) {
   .difference, .walkthrough { gap: 40px; }
   .rewardRow { flex-wrap: wrap; }
@@ -159,7 +150,6 @@
   .eyebrow { gap: 8px; font-size: 11px; }
   .actions { gap: 24px; margin-top: 28px; }
   .primary, .secondary { font-size: 12px; gap: 12px; }
-  .home .testnet { font-size: 10px; }
   .heroFoot { padding: 24px 0 56px; font-size: 11px; }
   .heroFoot > a { display: none; }
   .difference { grid-template-columns: 1fr; gap: 32px; padding: 64px 0; }
@@ -170,7 +160,6 @@
   .diffFooter { padding: 16px 20px; font-size: 11px; }
   .workflow, .trust { padding: 64px 0; }
   .sectionHeading { display: block; }
-  .sectionHeading > p { margin-top: 24px; font-size: 13px; line-height: 23px; }
   .walkthrough { grid-template-columns: 1fr; gap: 32px; margin-top: 32px; }
   .filmViewport, .filmPlaceholder { aspect-ratio: 720 / 900; }
   .filmControls { gap: 8px; padding: 8px; }
@@ -189,17 +178,13 @@
   .source:last-child { border-bottom: 0; }
   .source .sourceRole { margin-top: 16px; }
   .source > p:last-child { max-width: 100%; }
-  .limits { grid-template-columns: 1fr; gap: 16px; }
   .closing { flex-wrap: wrap; gap: 28px; padding: 64px 0; }
   .closingMark { display: none; }
   .closing > div:nth-child(2) { flex-basis: 100%; }
   .closing h2 { font-size: 32px; }
   .landingFooter { padding: 24px 24px 80px; }
   .footerTop { flex-wrap: wrap; gap: 20px; }
-  .footerTop > p { margin-right: 0; margin-left: auto; font-size: 10px; }
   .footerTop nav { width: 100%; gap: 24px; padding-top: 4px; }
-  .footerBottom { display: block; font-size: 10px; line-height: 20px; }
-  .footerBottom > p + p { margin-top: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home a, .home button, .landingHeader a, .landingFooter a { transition: none; }

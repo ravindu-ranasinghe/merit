@@ -25,7 +25,6 @@ export default function ReviewerProfilePage() {
           <div><dt className="text-[13px] text-mut">Accepted reviews</dt><dd className="mt-1 font-mono text-[30px]">{accepted.length}</dd></div>
           <div><dt className="text-[13px] text-mut">Repositories reviewed</dt><dd className="mt-1 font-mono text-[30px]">{repositories}</dd></div>
         </dl>
-        <p className="mt-4 text-[12px] text-mut">Earnings count indexed payouts only. Acceptance counts confirmed payout approvals. Testnet USDC has no monetary value.</p>
       </Tray>
       <Tray><h2 className="mb-3 text-[16px] font-medium">Public contributions</h2>
         {data.bounties.length ? <div className="space-y-2">{data.bounties.map((b) => <BountyRow key={b.id} bounty={b} hint={b.chain.paid && b.approval?.reviewer.id === id ? "Reward received · View payout receipt inside" : undefined} />)}</div>

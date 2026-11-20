@@ -28,7 +28,7 @@ export function BountyShare({ bounty }: { bounty: Bounty }) {
       </div>
       <textarea aria-label="GitHub badge Markdown" readOnly value={markdown} rows={3} className="mb-3 w-full resize-none rounded-ctl border border-line bg-card p-3 font-mono text-[11px] text-ink-2" onFocus={(e) => e.currentTarget.select()} />
       <div className="flex flex-wrap gap-2"><CopyButton value={markdown} label="Copy PR badge" /><CopyButton value={url} /></div>
-      <p className="mt-3 text-[12px] text-mut">Badges are available for public repositories. Rewards use testnet USDC.</p>
+      <p className="mt-3 text-[12px] text-mut">Badges are available for public repositories.</p>
       {bounty.chain.paid ? <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">
         <Pill tone="good">Payout confirmed</Pill><LinkButton href={`/bounties/${bounty.id}/receipt`} variant="secondary">View payout receipt</LinkButton>
       </div> : bounty.chain.refunded && <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-4">

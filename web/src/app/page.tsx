@@ -20,7 +20,6 @@ export default function LandingPage() {
             <Link href="/maintainer" className={styles.primary}>Fund a review <IconArrowRight size={16} /></Link>
             <Link href="/reviewer" className={styles.secondary}>I review code <IconArrowRight size={16} /></Link>
           </div>
-          <p className={styles.testnet}><span /> Arc testnet · Test USDC, no monetary value</p>
         </div>
       </section>
 
@@ -47,7 +46,6 @@ export default function LandingPage() {
       <section id="how-it-works" className={styles.workflow} aria-labelledby="workflow-title">
         <div className={styles.sectionHeading}>
           <div><h2 id="workflow-title">One review.<br /><span>A visible trail.</span></h2></div>
-          <p>Review on GitHub. Verify the improvement.<br />Let the escrow handle the reward.</p>
         </div>
         <HowItWorks />
       </section>
@@ -55,7 +53,6 @@ export default function LandingPage() {
       <section id="trust" className={styles.trust} aria-labelledby="trust-title">
         <div className={styles.sectionHeading}>
           <div><h2 id="trust-title">Three systems.<br /><span>Clear responsibilities.</span></h2></div>
-          <p>Merit joins three systems. The server holds no key that can move money. The maintainer decides what deserves a reward and signs the approval.</p>
         </div>
         <div className={styles.sources}>
           {SOURCES.map(({ icon: Icon, name, body }) => (
@@ -65,10 +62,6 @@ export default function LandingPage() {
               <p>{body}</p>
             </article>
           ))}
-        </div>
-        <div className={styles.limits}>
-          <div><h3>Human judgment stays human.</h3></div>
-          <p>A maintainer can approve a weak review, and collusion remains possible. GitHub signals are heuristics that can break when lines move or commits are rebased. Merit coordinates payments; it does not score review quality or replace tax, identity or labor-compliance systems.</p>
         </div>
       </section>
 

@@ -176,15 +176,11 @@ export function AppFooter() {
   if (pathname === "/") return (
     <footer className={homeStyles.landingFooter}>
       <div className={homeStyles.footerTop}><Logo /><nav aria-label="Footer"><Link href="/#trust">Trust model</Link><Link href="/states">All states</Link><Link href="/events">Event feed</Link></nav></div>
-      <div className={homeStyles.footerBottom}><p>Testnet prototype · Test USDC on Arc has no monetary value</p><p>Made for UBC Hackathon 2026</p></div>
     </footer>
   );
   return (
     <footer className="app-footer border-t border-line">
       <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-5 text-[13px] text-mut sm:px-6">
-        <p>
-          Testnet prototype. Rewards are testnet USDC on Arc and have no monetary value.
-        </p>
         <nav aria-label="Footer" className="flex gap-4">
           <Link href="/#trust" className="hover:text-ink">How trust works</Link>
           <Link href="/states" className="hover:text-ink">All states</Link>
